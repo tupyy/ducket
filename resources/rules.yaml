@@ -1,0 +1,13 @@
+rules:
+  - name: user_cosmin
+    pattern: "X5879"
+    fields:
+      user: cosmin
+  - name: farmacie
+    pattern: "passecroise\\s+montaigu"
+    labels:
+      farmacie: montaigue
+  - name: salariu_cosmin
+    pattern: "red\\s+hat\\s+france"
+    fields:
+      user: cosmin
