@@ -1,9 +1,7 @@
 package entity
 
-import "regexp"
-
 type Rule struct {
-	Pattern regexp.Regexp
-	Labels  []Label
-	Fields  map[string]string
+	Name    string            `yaml:"name"`
+	Pattern string            `yaml:"pattern"`
+	Labels  map[string]string `yaml:"labels"`
 }
