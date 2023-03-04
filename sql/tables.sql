@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS transaction (
     transaction_type TEXT NOT NULL,
     description TEXT NOT NULL,
     recipient TEXT NOT NULL,
-    amount NUMERIC NOT NULL
+    amount NUMERIC(7,2) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS transactions_labels (
