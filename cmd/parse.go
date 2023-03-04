@@ -11,15 +11,14 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/tupyy/finance/internal/entity"
 	"github.com/tupyy/finance/internal/parser"
 	"github.com/tupyy/finance/internal/reader"
-	"github.com/tupyy/finance/internal/writer/json"
+	"go.uber.org/zap"
 )
 
 var (
-	rulesFiles []string
-	file       string
+	rulesFile string
+	file      string
 )
 
 // parseCmd represents the parse command
@@ -27,7 +26,13 @@ var parseCmd = &cobra.Command{
 	Use:   "parse",
 	Short: "parse",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(rulesFiles) == 0 || file == "" {
+		logger := setupLogger()
+		defer logger.Sync()
+
+		undo := zap.ReplaceGlobals(logger)
+		defer undo()
+
+		if rulesFile == "" || file == "" {
 			return errors.New("rules file or/and file to be parse is missing")
 		}
 		// read excel file
@@ -42,24 +47,26 @@ var parseCmd = &cobra.Command{
 			return fmt.Errorf("unable to read records from file %q: %w", file, err)
 		}
 
-		// read rules files
-		rules := []entity.Rule{}
-		for _, f := range rulesFiles {
-			content, err := os.Open(f)
-			if err != nil {
-				return err
-			}
-
-			r, err := reader.ReadRules(content)
-			if err != nil {
-				return err
-			}
-			rules = append(rules, r...)
+		rules, err := reader.ReadRules(rulesFile)
+		if err != nil {
+			return err
 		}
 
-		transactions := parser.Parse(context.Background(), records, rules)
+		zap.S().Info(rules)
+		_ = parser.Parse(context.Background(), records, rules)
 
-		_ = json.Write(transactions)
+		// token := "MPAmH3mZnTnJ1PTBHniof1FQhBzKPnnJ7ngHkyqJZgWU6ct8qHdrjZ6ZBFNSlZW-obSZuk0Mb5mH-UrmxAgZrA=="
+		// bucket := "finance"
+		// org := "home"
+
+		// influxWriter := influxdb.InfluxWriter{
+		// 	Url:    "http://localhost:8086",
+		// 	Token:  token,
+		// 	Org:    org,
+		// 	Bucket: bucket,
+		// }
+
+		// _ = influxWriter.Write(transactions)
 
 		return nil
 	},
@@ -68,6 +75,6 @@ var parseCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(parseCmd)
 
-	parseCmd.Flags().StringSliceVarP(&rulesFiles, "rules", "r", []string{}, "path to rules files")
+	parseCmd.Flags().StringVarP(&rulesFile, "rules", "r", "", "path to rules files")
 	parseCmd.Flags().StringVarP(&file, "file", "f", "", "file to be parsed")
 }

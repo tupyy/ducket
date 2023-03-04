@@ -1,9 +1,32 @@
+# github.com/deepmap/oapi-codegen v1.8.2
+## explicit; go 1.14
+github.com/deepmap/oapi-codegen/pkg/runtime
+github.com/deepmap/oapi-codegen/pkg/types
 # github.com/inconshreveable/mousetrap v1.0.1
 ## explicit; go 1.18
 github.com/inconshreveable/mousetrap
+# github.com/influxdata/influxdb-client-go/v2 v2.12.2
+## explicit; go 1.17
+github.com/influxdata/influxdb-client-go/v2
+github.com/influxdata/influxdb-client-go/v2/api
+github.com/influxdata/influxdb-client-go/v2/api/http
+github.com/influxdata/influxdb-client-go/v2/api/query
+github.com/influxdata/influxdb-client-go/v2/api/write
+github.com/influxdata/influxdb-client-go/v2/domain
+github.com/influxdata/influxdb-client-go/v2/internal/gzip
+github.com/influxdata/influxdb-client-go/v2/internal/http
+github.com/influxdata/influxdb-client-go/v2/internal/log
+github.com/influxdata/influxdb-client-go/v2/internal/write
+github.com/influxdata/influxdb-client-go/v2/log
+# github.com/influxdata/line-protocol v0.0.0-20200327222509-2487e7298839
+## explicit; go 1.13
+github.com/influxdata/line-protocol
 # github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 ## explicit
 github.com/mohae/deepcopy
+# github.com/pkg/errors v0.9.1
+## explicit
+github.com/pkg/errors
 # github.com/richardlehane/mscfb v1.0.4
 ## explicit
 github.com/richardlehane/mscfb
@@ -49,6 +72,7 @@ golang.org/x/crypto/ripemd160
 golang.org/x/net/html
 golang.org/x/net/html/atom
 golang.org/x/net/html/charset
+golang.org/x/net/publicsuffix
 # golang.org/x/text v0.6.0
 ## explicit; go 1.17
 golang.org/x/text/encoding

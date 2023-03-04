@@ -57,6 +57,7 @@ IMAGE_TAG=$(GIT_COMMIT)
 IMAGE_NAME=$(NAME)
 NAME=finante
 BUILD_DIR ?= target
+TOOLS_DIR=$(CURDIR)/tools/bin
 
 GOCACHE?=$(shell go env GOCACHE 2>/dev/null)
 
@@ -83,3 +84,36 @@ build.vendor.full:
 
 build.local:
 	go build -o $(BUILD_DIR)/$(NAME) main.go
+
+DB_HOST=localhost
+DB_PORT=5433
+ROOT_USER=postgres
+ROOT_PWD=postgres
+PGPASSFILE=$(CURDIR)/sql/.pgpass
+PSQL_COMMAND=PGPASSFILE=$(PGPASSFILE) psql --quiet --host=$(DB_HOST) --port=$(DB_PORT) -v ON_ERROR_STOP=on
+
+#help postgres.setup: Setup postgres from scratch
+postgres.setup: postgres.setup.init postgres.setup.tables
+
+#help postgres.setup.clean: cleans postgres from all created resources
+postgres.setup.clean:
+	$(PSQL_COMMAND) --user=$(ROOT_USER) -f sql/clean.sql
+
+#help postgres.setup.init: init the database
+postgres.setup.init:
+	$(PSQL_COMMAND) --dbname=postgres --user=$(ROOT_USER) \
+		-f sql/init.sql
+
+#help postgres.setup.users: init postgres users
+postgres.setup.tables:
+	$(PSQL_COMMAND) --dbname=finance --user=$(ROOT_USER) \
+		-f sql/tables.sql
+
+BASE_CONNSTR="postgresql://$(ROOT_USER):$(ROOT_PWD)@$(DB_HOST):$(DB_PORT)"
+GEN_CMD=$(TOOLS_DIR)/gen --sqltype=postgres \
+	--module=github.com/tupyy/finance/internal/repo/models --exclude=schema_migrations \
+	--gorm --no-json --no-xml --overwrite --out $(CURDIR)/internal/repo/
+
+#help generate.models: generate models for the database
+generate.models:
+	sh -c '$(GEN_CMD) --connstr "$(BASE_CONNSTR)/finance?sslmode=disable"  --model=models --database finance' 						# Generate models for the DB tables
