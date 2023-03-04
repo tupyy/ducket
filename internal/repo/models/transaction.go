@@ -23,15 +23,16 @@ DB Table Details
 Table: transaction
 [ 0] id                                             INT4                 null: false  primary: true   isArray: false  auto: false  col: INT4            len: -1      default: []
 [ 1] created_at                                     TIMESTAMP            null: false  primary: false  isArray: false  auto: false  col: TIMESTAMP       len: -1      default: [now() AT TIME ZONE 'UTC']
-[ 2] transaction_type                               TEXT                 null: false  primary: false  isArray: false  auto: false  col: TEXT            len: -1      default: []
-[ 3] description                                    TEXT                 null: false  primary: false  isArray: false  auto: false  col: TEXT            len: -1      default: []
-[ 4] recipient                                      TEXT                 null: false  primary: false  isArray: false  auto: false  col: TEXT            len: -1      default: []
-[ 5] amount                                         NUMERIC              null: false  primary: false  isArray: false  auto: false  col: NUMERIC         len: -1      default: []
+[ 2] date                                           TIMESTAMP            null: false  primary: false  isArray: false  auto: false  col: TIMESTAMP       len: -1      default: []
+[ 3] transaction_type                               TEXT                 null: false  primary: false  isArray: false  auto: false  col: TEXT            len: -1      default: []
+[ 4] description                                    TEXT                 null: false  primary: false  isArray: false  auto: false  col: TEXT            len: -1      default: []
+[ 5] recipient                                      TEXT                 null: false  primary: false  isArray: false  auto: false  col: TEXT            len: -1      default: []
+[ 6] amount                                         NUMERIC              null: false  primary: false  isArray: false  auto: false  col: NUMERIC         len: -1      default: []
 
 
 JSON Sample
 -------------------------------------
-{    "id": 58,    "created_at": "2039-02-14T20:27:32.116165001+01:00",    "transaction_type": "UIBcduCIcCZWLHHVatbLDjAsg",    "description": "vgLPCUTOvQLwsvWOtAYHQUNbj",    "recipient": "CsvxcoUwmOAEdikPPbxXHDenI",    "amount": 0.04287104174038961}
+{    "id": 37,    "created_at": "2094-10-09T08:56:50.415676689+02:00",    "date": "2075-12-07T09:48:10.029999623+01:00",    "transaction_type": "yasZXsNiQpSJuHwWZxIVfGNpW",    "description": "EsmRFCWSNXJmKQhOckqyrrWMc",    "recipient": "WTXaTtqYNiKOopTITZfUhXkLw",    "amount": 0.7233102408856489}
 
 
 
@@ -43,13 +44,15 @@ type Transaction struct {
 	ID int32 `gorm:"primary_key;column:id;type:INT4;"`
 	//[ 1] created_at                                     TIMESTAMP            null: false  primary: false  isArray: false  auto: false  col: TIMESTAMP       len: -1      default: [now() AT TIME ZONE 'UTC']
 	CreatedAt time.Time `gorm:"column:created_at;type:TIMESTAMP;"`
-	//[ 2] transaction_type                               TEXT                 null: false  primary: false  isArray: false  auto: false  col: TEXT            len: -1      default: []
+	//[ 2] date                                           TIMESTAMP            null: false  primary: false  isArray: false  auto: false  col: TIMESTAMP       len: -1      default: []
+	Date time.Time `gorm:"column:date;type:TIMESTAMP;"`
+	//[ 3] transaction_type                               TEXT                 null: false  primary: false  isArray: false  auto: false  col: TEXT            len: -1      default: []
 	TransactionType string `gorm:"column:transaction_type;type:TEXT;"`
-	//[ 3] description                                    TEXT                 null: false  primary: false  isArray: false  auto: false  col: TEXT            len: -1      default: []
+	//[ 4] description                                    TEXT                 null: false  primary: false  isArray: false  auto: false  col: TEXT            len: -1      default: []
 	Description string `gorm:"column:description;type:TEXT;"`
-	//[ 4] recipient                                      TEXT                 null: false  primary: false  isArray: false  auto: false  col: TEXT            len: -1      default: []
+	//[ 5] recipient                                      TEXT                 null: false  primary: false  isArray: false  auto: false  col: TEXT            len: -1      default: []
 	Recipient string `gorm:"column:recipient;type:TEXT;"`
-	//[ 5] amount                                         NUMERIC              null: false  primary: false  isArray: false  auto: false  col: NUMERIC         len: -1      default: []
+	//[ 6] amount                                         NUMERIC              null: false  primary: false  isArray: false  auto: false  col: NUMERIC         len: -1      default: []
 	Amount float64 `gorm:"column:amount;type:NUMERIC;"`
 }
 
@@ -101,6 +104,27 @@ var transactionTableInfo = &TableInfo{
 
 		&ColumnInfo{
 			Index:              2,
+			Name:               "date",
+			Comment:            ``,
+			Notes:              ``,
+			Nullable:           false,
+			DatabaseTypeName:   "TIMESTAMP",
+			DatabaseTypePretty: "TIMESTAMP",
+			IsPrimaryKey:       false,
+			IsAutoIncrement:    false,
+			IsArray:            false,
+			ColumnType:         "TIMESTAMP",
+			ColumnLength:       -1,
+			GoFieldName:        "Date",
+			GoFieldType:        "time.Time",
+			JSONFieldName:      "date",
+			ProtobufFieldName:  "date",
+			ProtobufType:       "uint64",
+			ProtobufPos:        3,
+		},
+
+		&ColumnInfo{
+			Index:              3,
 			Name:               "transaction_type",
 			Comment:            ``,
 			Notes:              ``,
@@ -117,11 +141,11 @@ var transactionTableInfo = &TableInfo{
 			JSONFieldName:      "transaction_type",
 			ProtobufFieldName:  "transaction_type",
 			ProtobufType:       "string",
-			ProtobufPos:        3,
+			ProtobufPos:        4,
 		},
 
 		&ColumnInfo{
-			Index:              3,
+			Index:              4,
 			Name:               "description",
 			Comment:            ``,
 			Notes:              ``,
@@ -138,11 +162,11 @@ var transactionTableInfo = &TableInfo{
 			JSONFieldName:      "description",
 			ProtobufFieldName:  "description",
 			ProtobufType:       "string",
-			ProtobufPos:        4,
+			ProtobufPos:        5,
 		},
 
 		&ColumnInfo{
-			Index:              4,
+			Index:              5,
 			Name:               "recipient",
 			Comment:            ``,
 			Notes:              ``,
@@ -159,11 +183,11 @@ var transactionTableInfo = &TableInfo{
 			JSONFieldName:      "recipient",
 			ProtobufFieldName:  "recipient",
 			ProtobufType:       "string",
-			ProtobufPos:        5,
+			ProtobufPos:        6,
 		},
 
 		&ColumnInfo{
-			Index:              5,
+			Index:              6,
 			Name:               "amount",
 			Comment:            ``,
 			Notes:              ``,
@@ -180,7 +204,7 @@ var transactionTableInfo = &TableInfo{
 			JSONFieldName:      "amount",
 			ProtobufFieldName:  "amount",
 			ProtobufType:       "float",
-			ProtobufPos:        6,
+			ProtobufPos:        7,
 		},
 	},
 }

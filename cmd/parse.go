@@ -13,6 +13,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/tupyy/finance/internal/parser"
 	"github.com/tupyy/finance/internal/reader"
+	"github.com/tupyy/finance/internal/repo"
+	"github.com/tupyy/finance/internal/writer/postgres"
 	"go.uber.org/zap"
 )
 
@@ -53,20 +55,26 @@ var parseCmd = &cobra.Command{
 		}
 
 		zap.S().Info(rules)
-		_ = parser.Parse(context.Background(), records, rules)
+		transactions := parser.Parse(context.Background(), records, rules)
 
-		// token := "MPAmH3mZnTnJ1PTBHniof1FQhBzKPnnJ7ngHkyqJZgWU6ct8qHdrjZ6ZBFNSlZW-obSZuk0Mb5mH-UrmxAgZrA=="
-		// bucket := "finance"
-		// org := "home"
+		pgClient, err := repo.New(repo.ClientParams{
+			Host:     "localhost",
+			Port:     5433,
+			DBName:   "finance",
+			User:     "postgres",
+			Password: "postgres",
+		})
+		if err != nil {
+			zap.S().Fatal(err)
+		}
 
-		// influxWriter := influxdb.InfluxWriter{
-		// 	Url:    "http://localhost:8086",
-		// 	Token:  token,
-		// 	Org:    org,
-		// 	Bucket: bucket,
-		// }
+		pgRepo, err := repo.NewRepo(pgClient)
+		if err != nil {
+			zap.S().Fatal(err)
+		}
 
-		// _ = influxWriter.Write(transactions)
+		pgWriter := postgres.NewPgWriter(pgRepo)
+		err = pgWriter.Write(context.Background(), transactions)
 
 		return nil
 	},

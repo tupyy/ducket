@@ -21,13 +21,14 @@ DB Table Details
 
 
 Table: label
-[ 0] key                                            VARCHAR(30)          null: false  primary: true   isArray: false  auto: false  col: VARCHAR         len: 30      default: []
-[ 1] value                                          VARCHAR(50)          null: false  primary: false  isArray: false  auto: false  col: VARCHAR         len: 50      default: []
+[ 0] id                                             INT4                 null: false  primary: true   isArray: false  auto: false  col: INT4            len: -1      default: []
+[ 1] key                                            VARCHAR(30)          null: false  primary: false  isArray: false  auto: false  col: VARCHAR         len: 30      default: []
+[ 2] value                                          VARCHAR(50)          null: false  primary: false  isArray: false  auto: false  col: VARCHAR         len: 50      default: []
 
 
 JSON Sample
 -------------------------------------
-{    "key": "FDUJBHRtFpCwInIOvKHFporHy",    "value": "EBXaSKHTFnOxKMFoHPFnYwnPZ"}
+{    "id": 91,    "key": "YPsTEjsDBLDEOWdyScmZfhePh",    "value": "vVgwsHHfnvvhvZlvXBDyhTXxC"}
 
 
 
@@ -35,9 +36,11 @@ JSON Sample
 
 // Label struct is a row record of the label table in the finance database
 type Label struct {
-	//[ 0] key                                            VARCHAR(30)          null: false  primary: true   isArray: false  auto: false  col: VARCHAR         len: 30      default: []
-	Key string `gorm:"primary_key;column:key;type:VARCHAR;size:30;"`
-	//[ 1] value                                          VARCHAR(50)          null: false  primary: false  isArray: false  auto: false  col: VARCHAR         len: 50      default: []
+	//[ 0] id                                             INT4                 null: false  primary: true   isArray: false  auto: false  col: INT4            len: -1      default: []
+	ID int32 `gorm:"primary_key;column:id;type:INT4;"`
+	//[ 1] key                                            VARCHAR(30)          null: false  primary: false  isArray: false  auto: false  col: VARCHAR         len: 30      default: []
+	Key string `gorm:"column:key;type:VARCHAR;size:30;"`
+	//[ 2] value                                          VARCHAR(50)          null: false  primary: false  isArray: false  auto: false  col: VARCHAR         len: 50      default: []
 	Value string `gorm:"column:value;type:VARCHAR;size:50;"`
 }
 
@@ -47,13 +50,34 @@ var labelTableInfo = &TableInfo{
 
 		&ColumnInfo{
 			Index:              0,
+			Name:               "id",
+			Comment:            ``,
+			Notes:              ``,
+			Nullable:           false,
+			DatabaseTypeName:   "INT4",
+			DatabaseTypePretty: "INT4",
+			IsPrimaryKey:       true,
+			IsAutoIncrement:    false,
+			IsArray:            false,
+			ColumnType:         "INT4",
+			ColumnLength:       -1,
+			GoFieldName:        "ID",
+			GoFieldType:        "int32",
+			JSONFieldName:      "id",
+			ProtobufFieldName:  "id",
+			ProtobufType:       "int32",
+			ProtobufPos:        1,
+		},
+
+		&ColumnInfo{
+			Index:              1,
 			Name:               "key",
 			Comment:            ``,
 			Notes:              ``,
 			Nullable:           false,
 			DatabaseTypeName:   "VARCHAR",
 			DatabaseTypePretty: "VARCHAR(30)",
-			IsPrimaryKey:       true,
+			IsPrimaryKey:       false,
 			IsAutoIncrement:    false,
 			IsArray:            false,
 			ColumnType:         "VARCHAR",
@@ -63,11 +87,11 @@ var labelTableInfo = &TableInfo{
 			JSONFieldName:      "key",
 			ProtobufFieldName:  "key",
 			ProtobufType:       "string",
-			ProtobufPos:        1,
+			ProtobufPos:        2,
 		},
 
 		&ColumnInfo{
-			Index:              1,
+			Index:              2,
 			Name:               "value",
 			Comment:            ``,
 			Notes:              ``,
@@ -84,7 +108,7 @@ var labelTableInfo = &TableInfo{
 			JSONFieldName:      "value",
 			ProtobufFieldName:  "value",
 			ProtobufType:       "string",
-			ProtobufPos:        2,
+			ProtobufPos:        3,
 		},
 	},
 }

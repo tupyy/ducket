@@ -22,12 +22,12 @@ DB Table Details
 
 Table: transactions_labels
 [ 0] transaction_id                                 INT4                 null: false  primary: true   isArray: false  auto: false  col: INT4            len: -1      default: []
-[ 1] label_key                                      VARCHAR(30)          null: false  primary: true   isArray: false  auto: false  col: VARCHAR         len: 30      default: []
+[ 1] label_id                                       INT4                 null: false  primary: true   isArray: false  auto: false  col: INT4            len: -1      default: []
 
 
 JSON Sample
 -------------------------------------
-{    "transaction_id": 31,    "label_key": "vEuwUCbdAkxobDDaggVCJvFpr"}
+{    "transaction_id": 19,    "label_id": 3}
 
 
 
@@ -37,8 +37,8 @@ JSON Sample
 type TransactionsLabels struct {
 	//[ 0] transaction_id                                 INT4                 null: false  primary: true   isArray: false  auto: false  col: INT4            len: -1      default: []
 	TransactionID int32 `gorm:"primary_key;column:transaction_id;type:INT4;"`
-	//[ 1] label_key                                      VARCHAR(30)          null: false  primary: true   isArray: false  auto: false  col: VARCHAR         len: 30      default: []
-	LabelKey string `gorm:"primary_key;column:label_key;type:VARCHAR;size:30;"`
+	//[ 1] label_id                                       INT4                 null: false  primary: true   isArray: false  auto: false  col: INT4            len: -1      default: []
+	LabelID int32 `gorm:"primary_key;column:label_id;type:INT4;"`
 }
 
 var transactions_labelsTableInfo = &TableInfo{
@@ -68,22 +68,22 @@ var transactions_labelsTableInfo = &TableInfo{
 
 		&ColumnInfo{
 			Index:              1,
-			Name:               "label_key",
+			Name:               "label_id",
 			Comment:            ``,
 			Notes:              ``,
 			Nullable:           false,
-			DatabaseTypeName:   "VARCHAR",
-			DatabaseTypePretty: "VARCHAR(30)",
+			DatabaseTypeName:   "INT4",
+			DatabaseTypePretty: "INT4",
 			IsPrimaryKey:       true,
 			IsAutoIncrement:    false,
 			IsArray:            false,
-			ColumnType:         "VARCHAR",
-			ColumnLength:       30,
-			GoFieldName:        "LabelKey",
-			GoFieldType:        "string",
-			JSONFieldName:      "label_key",
-			ProtobufFieldName:  "label_key",
-			ProtobufType:       "string",
+			ColumnType:         "INT4",
+			ColumnLength:       -1,
+			GoFieldName:        "LabelID",
+			GoFieldType:        "int32",
+			JSONFieldName:      "label_id",
+			ProtobufFieldName:  "label_id",
+			ProtobufType:       "int32",
 			ProtobufPos:        2,
 		},
 	},

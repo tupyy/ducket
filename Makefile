@@ -74,6 +74,7 @@ build.prepare:
 
 #help build.vendor: retrieve all the dependencies used for the project
 build.vendor:
+	go mod tidy
 	go mod vendor
 
 #help build.vendor.full: retrieve all the dependencies after cleaning the go.sum
