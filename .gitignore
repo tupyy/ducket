@@ -1,4 +1,4 @@
 target/
 tools/
 sql/.pgpass
-/vendor
+vendor/
