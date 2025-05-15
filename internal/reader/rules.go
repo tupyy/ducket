@@ -6,7 +6,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/tupyy/finance/internal/entity"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
 	"go.uber.org/zap"
 	"sigs.k8s.io/yaml"
 )

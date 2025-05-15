@@ -1,6 +1,6 @@
-module github.com/tupyy/finance
+module git.tls.tupangiu.ro/cosmin/finante
 
-go 1.18
+go 1.22.10
 
 require (
 	github.com/guregu/null v4.0.0+incompatible

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/tupyy/finance/internal/entity"
-	"github.com/tupyy/finance/internal/repo/models"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/repo/models"
 	"gorm.io/gorm"
 )
 

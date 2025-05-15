@@ -86,8 +86,8 @@ build.vendor.full:
 build.local:
 	go build -o $(BUILD_DIR)/$(NAME) main.go
 
-DB_HOST=localhost
-DB_PORT=5433
+DB_HOST=fedorasrv
+DB_PORT=5432
 ROOT_USER=postgres
 ROOT_PWD=postgres
 PGPASSFILE=$(CURDIR)/sql/.pgpass

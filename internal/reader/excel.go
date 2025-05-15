@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tupyy/finance/internal/entity"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
 	excel "github.com/xuri/excelize/v2"
 	"go.uber.org/zap"
 )

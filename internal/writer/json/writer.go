@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/tupyy/finance/internal/entity"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
 )
 
 func Write(transactions []*entity.Transaction) error {

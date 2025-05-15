@@ -1,6 +1,5 @@
 /*
 Copyright © 2023 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
@@ -10,11 +9,11 @@ import (
 	"fmt"
 	"os"
 
+	"git.tls.tupangiu.ro/cosmin/finante/internal/parser"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/reader"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/repo"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/writer/postgres"
 	"github.com/spf13/cobra"
-	"github.com/tupyy/finance/internal/parser"
-	"github.com/tupyy/finance/internal/reader"
-	"github.com/tupyy/finance/internal/repo"
-	"github.com/tupyy/finance/internal/writer/postgres"
 	"go.uber.org/zap"
 )
 
@@ -58,8 +57,8 @@ var parseCmd = &cobra.Command{
 		transactions := parser.Parse(context.Background(), records, rules)
 
 		pgClient, err := repo.New(repo.ClientParams{
-			Host:     "localhost",
-			Port:     5433,
+			Host:     "fedorasrv",
+			Port:     5432,
 			DBName:   "finance",
 			User:     "postgres",
 			Password: "postgres",

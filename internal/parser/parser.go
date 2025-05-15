@@ -3,7 +3,7 @@ package parser
 import (
 	"context"
 
-	"github.com/tupyy/finance/internal/entity"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
 )
 
 func Parse(ctx context.Context, transactions []*entity.Transaction, rules []entity.Rule) []*entity.Transaction {

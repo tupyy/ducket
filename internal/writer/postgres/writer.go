@@ -3,8 +3,8 @@ package postgres
 import (
 	"context"
 
-	"github.com/tupyy/finance/internal/entity"
-	"github.com/tupyy/finance/internal/repo"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/repo"
 	"go.uber.org/zap"
 )
 
