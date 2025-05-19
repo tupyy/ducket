@@ -7,17 +7,15 @@ CREATE TABLE labels (
 );
 
 CREATE TABLE IF NOT EXISTS transactions (
-    id SERIAL PRIMARY KEY,
-    created_at TIMESTAMP NOT NULL DEFAULT(now() AT TIME ZONE 'UTC'),
+    id VARCHAR(100) PRIMARY KEY,
     date TIMESTAMP NOT NULL,
     transaction_type TEXT NOT NULL,
     description TEXT NOT NULL,
-    recipient TEXT NOT NULL,
     amount NUMERIC(7,2) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS transactions_labels (
-    transaction_id SERIAL REFERENCES transactions(id) ON DELETE CASCADE,
+    transaction_id VARCHAR(100) REFERENCES transactions(id) ON DELETE CASCADE,
     label_id SERIAL REFERENCES labels(id) ON DELETE CASCADE,
     CONSTRAINT transaction_label_pkey PRIMARY KEY (transaction_id, label_id)
 );
