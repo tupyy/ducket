@@ -17,6 +17,9 @@ COLOR_LEVEL_WARN=$(escape)[38;5;208m
 COLOR_LEVEL_ERROR=$(escape)[91m
 COLOR_LEVEL_FATAL=$(escape)[91m
 
+PODMAN ?= podman
+POSTGRES_IMAGE ?= docker.io/library/postgres:17
+
 define COLORIZE
 sed -u -e "s/\\\\\"/'/g; \
 s/method=\([^ ]*\)/method=$(COLOR_BLUE)\1$(RESET_COLOR)/g;        \
@@ -86,35 +89,18 @@ build.vendor.full:
 build.local:
 	go build -o $(BUILD_DIR)/$(NAME) main.go
 
-DB_HOST=fedorasrv
+DB_HOST=localhost
 DB_PORT=5432
 ROOT_USER=postgres
 ROOT_PWD=postgres
-PGPASSFILE=$(CURDIR)/sql/.pgpass
-PSQL_COMMAND=PGPASSFILE=$(PGPASSFILE) psql --quiet --host=$(DB_HOST) --port=$(DB_PORT) -v ON_ERROR_STOP=on
+CONNSTR="postgresql://$(ROOT_USER):$(ROOT_PWD)@$(DB_HOST):$(DB_PORT)"
 
-#help postgres.setup: Setup postgres from scratch
-postgres.setup: postgres.setup.init postgres.setup.tables
+postgres.start:
+	$(PODMAN) run --rm -p $(DB_PORT):5432 --name pg-finante -e POSTGRES_PASSWORD=$(ROOT_PWD) -d $(POSTGRES_IMAGE)
 
-#help postgres.setup.clean: cleans postgres from all created resources
-postgres.setup.clean:
-	$(PSQL_COMMAND) --user=$(ROOT_USER) -f sql/clean.sql
+postgres.stop:
+	$(PODMAN) stop pg-finante
 
-#help postgres.setup.init: init the database
-postgres.setup.init:
-	$(PSQL_COMMAND) --dbname=postgres --user=$(ROOT_USER) \
-		-f sql/init.sql
+postgres.migrate:
+	GOOSE_DRIVER=postgres GOOSE_DBSTRING=$(CONNSTR) GOOSE_MIGRATION_DIR=$(CURDIR)/pkg/migrations/sql goose up
 
-#help postgres.setup.users: init postgres users
-postgres.setup.tables:
-	$(PSQL_COMMAND) --dbname=finance --user=$(ROOT_USER) \
-		-f sql/tables.sql
-
-BASE_CONNSTR="postgresql://$(ROOT_USER):$(ROOT_PWD)@$(DB_HOST):$(DB_PORT)"
-GEN_CMD=$(TOOLS_DIR)/gen --sqltype=postgres \
-	--module=github.com/tupyy/finance/internal/repo/models --exclude=schema_migrations \
-	--gorm --no-json --no-xml --overwrite --out $(CURDIR)/internal/repo/
-
-#help generate.models: generate models for the database
-generate.models:
-	sh -c '$(GEN_CMD) --connstr "$(BASE_CONNSTR)/finance?sslmode=disable"  --model=models --database finance' 						# Generate models for the DB tables

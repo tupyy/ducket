@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"regexp"
 	"strings"
@@ -17,25 +18,27 @@ const (
 )
 
 type Transaction struct {
-	// kind of transaction
-	Kind TransactionKind `json:"kind"`
-	// date of transaction
-	Date time.Time `json:"date"`
-	// RawContent holds the raw content of the record
-	RawContent string `json:"content"`
-	// sum of the transaction
-	Sum float32 `json:"sum"`
-	// Labels holds the labels to be applied.
-	Labels map[string]string `json:"labels,omitempty"`
+	ID         string
+	Kind       TransactionKind
+	Date       time.Time
+	RawContent string
+	Amount     float32
+	Tags       Tags
 }
 
 func NewTransaction(kind TransactionKind, date time.Time, sum float32, rawContent string) *Transaction {
+	idString := fmt.Sprintf("%s%s%f%s", kind, date, sum, rawContent)
+	h := sha256.New()
+	h.Write([]byte(idString))
+	id := fmt.Sprintf("%x", h.Sum(nil))
+
 	return &Transaction{
+		ID:         string(id[:100]),
 		RawContent: rawContent,
 		Date:       date,
 		Kind:       kind,
-		Sum:        sum,
-		Labels:     make(map[string]string),
+		Amount:     sum,
+		Tags:       make(Tags),
 	}
 }
 
@@ -48,21 +51,11 @@ func (t *Transaction) Match(rule Rule) bool {
 	return pattern.MatchString(t.RawContent)
 }
 
-func (t *Transaction) AddLabels(labels map[string]string) {
-	for k, v := range labels {
-		t.Labels[k] = v
-	}
-}
-
-func (t *Transaction) Matched() bool {
-	return len(t.Labels) != 0
-}
-
 func (t *Transaction) String() string {
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "%s | %s | %.2f€ | ", t.Date, t.RawContent, t.Sum)
-	for k, v := range t.Labels {
-		fmt.Fprintf(&sb, "%s:%s ", k, v)
+	fmt.Fprintf(&sb, "%s | %s | %.2f€ | ", t.Date, t.RawContent, t.Amount)
+	for k := range t.Tags {
+		fmt.Fprintf(&sb, "%s ", k)
 	}
 	return sb.String()
 }
