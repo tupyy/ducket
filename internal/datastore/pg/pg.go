@@ -32,6 +32,7 @@ const (
 	colAmount             = "amount"
 
 	errUnableToReadRule = "unable to read rule: %w"
+	errUnableToReadTag  = "unable to read tag: %w"
 )
 
 var (
@@ -42,7 +43,7 @@ var (
 			LeftJoin("(SELECT * FROM tags JOIN rules_tags as a on a.tag = tags.value) as b ON b.rule_id = rules.id")
 
 	selectTagsStmt = psql.Select(colValue, colRuleID).From(tagsTable).
-			InnerJoin("rules on rules.id = tags.rule_id")
+			InnerJoin("rules_tags on rules_tags.tag = tags.value")
 
 	selectTransactionTagsStmt = psql.Select("*").From(transactionsTagsTable)
 
@@ -66,6 +67,10 @@ type TransactionFilter struct {
 
 //xgo:generate go run github.com/ecordell/optgen -output zz_generated.rule_filter.go . RuleFilter
 type RuleFilter struct {
+}
+
+type TagFilter struct {
+	RuleID *string
 }
 
 //go:generate go run github.com/ecordell/optgen -output zz_generated.query_transaction_opts.go . QueryTransactionOptions
@@ -142,7 +147,6 @@ func (d *Datastore) QueryTransactions(ctx context.Context, filter TransactionFil
 	}
 
 	sql, args, err := query.ToSql()
-	fmt.Println(sql)
 	if err != nil {
 		return []entity.Transaction{}, fmt.Errorf(errUnableToReadRule, err)
 	}
@@ -194,6 +198,39 @@ func (d *Datastore) QueryRules(ctx context.Context, filter RuleFilter, opts *Que
 	}
 
 	return ruleRows.ToEntity(), nil
+}
+
+func (d *Datastore) QueryTags(ctx context.Context, filter TagFilter) ([]entity.Tag, error) {
+	query := selectTagsStmt
+
+	if filter.RuleID != nil {
+		query = query.Where(sq.Eq{colRuleID: filter.RuleID})
+	}
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return []entity.Tag{}, fmt.Errorf(errUnableToReadTag, err)
+	}
+
+	rows, err := d.pool.Query(ctx, sql, args...)
+	if err != nil {
+		return []entity.Tag{}, fmt.Errorf(errUnableToReadTag, err)
+	}
+
+	tags := make(models.Tags)
+	rs := pgxscan.NewRowScanner(rows)
+
+	for rows.Next() {
+		tagRow := models.Tag{}
+		err := rs.Scan(&tagRow)
+		if err != nil {
+			return []entity.Tag{}, fmt.Errorf(errUnableToReadTag, err)
+		}
+		tags.Add(tagRow)
+	}
+
+	return tags.ToEntity(), nil
+
 }
 
 func (d *Datastore) WriteTx(ctx context.Context, txFn TxUserFunc) error {

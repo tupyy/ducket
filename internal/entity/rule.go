@@ -5,8 +5,8 @@ const (
 )
 
 type Tag struct {
-	Value  string
-	RuleID string
+	Value   string
+	RuleIDs []string
 }
 
 type Tags map[string]Tag

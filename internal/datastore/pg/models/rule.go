@@ -13,7 +13,7 @@ func (r RuleRows) ToEntity() []entity.Rule {
 			rule.Name = vv.Name
 			rule.Pattern = vv.Pattern
 			if vv.TagValue != nil {
-				rule.Tags.Add(entity.Tag{Value: *vv.TagValue, RuleID: vv.ID})
+				rule.Tags.Add(entity.Tag{Value: *vv.TagValue, RuleIDs: []string{vv.ID}})
 			}
 		}
 		rules = append(rules, rule)

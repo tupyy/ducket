@@ -28,7 +28,7 @@ func (tt Transactions) ToEntity() []entity.Transaction {
 			transaction.Amount = vv.Amount
 			transaction.Kind = entity.TransactionKind(vv.Kind)
 			if vv.Tag != nil {
-				transaction.Tags.Add(entity.Tag{Value: *vv.Tag, RuleID: *vv.RuleID})
+				transaction.Tags.Add(entity.Tag{Value: *vv.Tag, RuleIDs: []string{*vv.RuleID}})
 			}
 		}
 		transactions = append(transactions, transaction)
