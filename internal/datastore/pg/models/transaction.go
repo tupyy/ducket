@@ -24,11 +24,11 @@ func (tt Transactions) ToEntity() []entity.Transaction {
 		for _, vv := range v {
 			transaction.ID = vv.ID
 			transaction.Date = vv.Date
-			transaction.RawContent = vv.Description
+			transaction.RawContent = vv.Content
 			transaction.Amount = vv.Amount
 			transaction.Kind = entity.TransactionKind(vv.Kind)
 			if vv.Tag != nil {
-				transaction.Tags.Add(entity.Tag{Value: *vv.Tag})
+				transaction.Tags.Add(entity.Tag{Value: *vv.Tag, RuleID: *vv.RuleID})
 			}
 		}
 		transactions = append(transactions, transaction)
@@ -38,10 +38,11 @@ func (tt Transactions) ToEntity() []entity.Transaction {
 }
 
 type Transaction struct {
-	ID          string
-	Kind        string `db:"transaction_type"`
-	Date        time.Time
-	Description string
-	Amount      float32
-	Tag         *string
+	ID      string
+	Kind    string
+	Date    time.Time
+	Content string
+	Amount  float32
+	Tag     *string `db:"tag_id"`
+	RuleID  *string `db:"rule_id"`
 }

@@ -33,7 +33,7 @@ func NewTransaction(kind TransactionKind, date time.Time, sum float32, rawConten
 	id := fmt.Sprintf("%x", h.Sum(nil))
 
 	return &Transaction{
-		ID:         string(id[:100]),
+		ID:         string(id[:idLength]),
 		RawContent: rawContent,
 		Date:       date,
 		Kind:       kind,

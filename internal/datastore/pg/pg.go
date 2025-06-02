@@ -12,28 +12,24 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type SortBy int8
-
 const (
-	CAPTURED_AT SortBy = iota
-)
-
-const (
-	rulesTable                = "rules"
-	tagsTable                 = "tags"
-	transactionTable          = "transactions"
-	transactionsTagsTable     = "transactions_tags"
-	colID                     = "id"
-	colDate                   = "date"
-	colTransactionType        = "transaction_type"
-	colTransactionDescription = "description"
-	colTransactionAmount      = "amount"
-	colTransactionID          = "transaction_id"
-	colTagID                  = "tag_id"
-	colRuleName               = "name"
-	colRulPattern             = "pattern"
-	colTagValue               = "value"
-	colTagRuleID              = "rule_id"
+	rulesTable            = "rules"
+	tagsTable             = "tags"
+	transactionTable      = "transactions"
+	transactionsTagsTable = "transactions_tags"
+	colID                 = "id"
+	colDate               = "date"
+	colTransactionType    = "kind"
+	colTransactionContent = "content"
+	colTransactionAmount  = "amount"
+	colTransactionID      = "transaction_id"
+	colTagID              = "tag_id"
+	colRuleName           = "name"
+	colRulPattern         = "pattern"
+	colValue              = "value"
+	colTag                = "tag"
+	colRuleID             = "rule_id"
+	colAmount             = "amount"
 
 	errUnableToReadRule = "unable to read rule: %w"
 )
@@ -41,31 +37,12 @@ const (
 var (
 	psql = sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
-	selectTransactionsStmt = psql.Select(
-		"id",
-		"date",
-		"transaction_type",
-		"description",
-		"amount",
-		"tag",
-	).
-		From(transactionTable).
-		LeftJoin("transactions_tags ON transactions_tags.transaction_id = transactions.id")
+	selectRulesStmt = psql.Select("rules.*", "b.value").
+			From(rulesTable).
+			LeftJoin("(SELECT * FROM tags JOIN rules_tags as a on a.tag = tags.value) as b ON b.rule_id = rules.id")
 
-	selectRulesStmt = psql.Select(
-		"id",
-		"name",
-		"pattern",
-		"value",
-	).
-		From(rulesTable).
-		LeftJoin("tags ON tags.rule_id = rules.id")
-
-	selectTagsStmt = psql.Select(
-		"value",
-		"rule_id",
-	).From(tagsTable).
-		InnerJoin("rules on rules.id = tags.rule_id")
+	selectTagsStmt = psql.Select(colValue, colRuleID).From(tagsTable).
+			InnerJoin("rules on rules.id = tags.rule_id")
 
 	selectTransactionTagsStmt = psql.Select("*").From(transactionsTagsTable)
 
@@ -74,13 +51,11 @@ var (
 			colID,
 			colDate,
 			colTransactionType,
-			colTransactionDescription,
+			colTransactionContent,
 			colTransactionAmount,
 		)
 
 	insertTransactionTag = psql.Insert(transactionsTagsTable).Columns(colTransactionID, colTagID)
-	insertRule           = psql.Insert(rulesTable).Columns(colRuleName, colRulPattern)
-	insertTag            = psql.Insert(tagsTable).Columns(colTagValue, colTagRuleID)
 )
 
 //go:generate go run github.com/ecordell/optgen -output zz_generated.transaction_filter.go . TransactionFilter
@@ -103,19 +78,16 @@ type QueryTransactionOptions struct {
 type QueryRuleOptions struct {
 }
 
-type TxUserFunc func(context.Context, TransactionWriter, RuleWriter) error
-
-type TransactionWriter interface {
-	Write(ctx context.Context, transaction entity.Transaction) error
-	Delete(ctx context.Context, id string) error
-}
-
-type RuleWriter interface {
-	WriteRule(ctx context.Context, rule entity.Rule) error
-	WriteTag(ctx context.Context, value string, ruleID int) error
-	DeleteRule(ctx context.Context, id string) error
+type Writer interface {
+	WriteTransaction(ctx context.Context, transaction entity.Transaction) error
+	DeleteTransaction(ctx context.Context, id string) error
+	WriteTag(ctx context.Context, value string) error
 	DeleteTag(ctx context.Context, value string) error
+	WriteRule(ctx context.Context, rule entity.Rule, update bool) error
+	DeleteRule(ctx context.Context, id string) error
 }
+
+type TxUserFunc func(context.Context, Writer) error
 
 type Datastore struct {
 	pool *pgxpool.Pool
@@ -141,7 +113,10 @@ func NewPostgresDatastore(ctx context.Context, url string, options ...Option) (*
 }
 
 func (d *Datastore) QueryTransactions(ctx context.Context, filter TransactionFilter, opts *QueryTransactionOptions) ([]entity.Transaction, error) {
-	query := selectTransactionsStmt
+	query := psql.Select(colID, colDate, colTransactionType, colTransactionContent, colAmount, colTagID, colRuleID).
+		From(transactionTable).
+		LeftJoin("transactions_tags ON transactions_tags.transaction_id = transactions.id")
+
 	if filter.Before != nil && filter.After != nil {
 		query = query.Where(
 			sq.And{
@@ -167,6 +142,7 @@ func (d *Datastore) QueryTransactions(ctx context.Context, filter TransactionFil
 	}
 
 	sql, args, err := query.ToSql()
+	fmt.Println(sql)
 	if err != nil {
 		return []entity.Transaction{}, fmt.Errorf(errUnableToReadRule, err)
 	}
@@ -221,6 +197,22 @@ func (d *Datastore) QueryRules(ctx context.Context, filter RuleFilter, opts *Que
 }
 
 func (d *Datastore) WriteTx(ctx context.Context, txFn TxUserFunc) error {
+	tx, err := d.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+
+	writer := &writerTx{tx: tx}
+
+	if err := txFn(ctx, writer); err != nil {
+		tx.Rollback(ctx)
+		return err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+
 	return nil
 }
 

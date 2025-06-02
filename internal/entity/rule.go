@@ -1,8 +1,7 @@
 package entity
 
-import (
-	"crypto/sha256"
-	"fmt"
+const (
+	idLength = 12
 )
 
 type Tag struct {
@@ -32,19 +31,14 @@ type Rule struct {
 	Tags    Tags
 }
 
-func NewRule(name, pattern string, tags ...Tag) Rule {
-	idString := fmt.Sprintf("%s%s", name, pattern)
-	h := sha256.New()
-	h.Write([]byte(idString))
-	id := fmt.Sprintf("%x", h.Sum(nil))
-
+func NewRule(id, name, pattern string, tags ...Tag) Rule {
 	_tags := make(Tags)
 	for _, tag := range tags {
 		_tags.Add(tag)
 	}
 
 	return Rule{
-		ID:      id[:100],
+		ID:      id,
 		Name:    name,
 		Pattern: pattern,
 		Tags:    _tags,
