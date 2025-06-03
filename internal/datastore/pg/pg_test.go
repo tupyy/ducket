@@ -45,6 +45,13 @@ var _ = Describe("query", Ordered, func() {
 
 		dt = pgDt
 		pgPool = pool
+
+		_, err = pgPool.Exec(context.TODO(), "DELETE FROM transactions;")
+		Expect(err).To(BeNil())
+		_, err = pgPool.Exec(context.TODO(), "DELETE FROM tags;")
+		Expect(err).To(BeNil())
+		_, err = pgPool.Exec(context.TODO(), "DELETE FROM rules;")
+		Expect(err).To(BeNil())
 	})
 
 	AfterAll(func() {
@@ -338,6 +345,7 @@ var _ = Describe("query", Ordered, func() {
 				Expect(count).To(Equal(0))
 			}
 		})
+
 		It("write rule successfully -- with tags", func() {
 			sql, args, err := insertTagStmt.
 				Values("tag1").
