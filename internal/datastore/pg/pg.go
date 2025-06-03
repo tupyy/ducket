@@ -30,6 +30,7 @@ const (
 	colTag                = "tag"
 	colRuleID             = "rule_id"
 	colAmount             = "amount"
+	colHash               = "hash"
 
 	errUnableToReadRule = "unable to read rule: %w"
 	errUnableToReadTag  = "unable to read tag: %w"
@@ -118,7 +119,7 @@ func NewPostgresDatastore(ctx context.Context, url string, options ...Option) (*
 }
 
 func (d *Datastore) QueryTransactions(ctx context.Context, filter TransactionFilter, opts *QueryTransactionOptions) ([]entity.Transaction, error) {
-	query := psql.Select(colID, colDate, colTransactionType, colTransactionContent, colAmount, colTagID, colRuleID).
+	query := psql.Select(colID, colDate, colTransactionType, colTransactionContent, colAmount, colTagID, colRuleID, colHash).
 		From(transactionTable).
 		LeftJoin("transactions_tags ON transactions_tags.transaction_id = transactions.id")
 

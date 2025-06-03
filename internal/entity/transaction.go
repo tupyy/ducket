@@ -18,10 +18,11 @@ const (
 )
 
 type Transaction struct {
-	ID         string
+	ID         int
 	Kind       TransactionKind
 	Date       time.Time
 	RawContent string
+	Hash       string
 	Amount     float32
 	Tags       Tags
 }
@@ -30,12 +31,11 @@ func NewTransaction(kind TransactionKind, date time.Time, sum float32, rawConten
 	idString := fmt.Sprintf("%s%s%f%s", kind, date, sum, rawContent)
 	h := sha256.New()
 	h.Write([]byte(idString))
-	id := fmt.Sprintf("%x", h.Sum(nil))
 
 	return &Transaction{
-		ID:         string(id[:idLength]),
 		RawContent: rawContent,
 		Date:       date,
+		Hash:       fmt.Sprintf("%x", h.Sum(nil)),
 		Kind:       kind,
 		Amount:     sum,
 		Tags:       make(Tags),
