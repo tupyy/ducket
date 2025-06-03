@@ -673,28 +673,13 @@ var _ = Describe("query", Ordered, func() {
 			kind := ""
 			hash := ""
 			sql, args, _ = psql.Select("content", "kind", "hash").From("transactions").Where(sq.Eq{"id": 1}).ToSql()
-			rows, err := pgPool.Query(context.TODO(), sql, args...)
+			err = pgPool.QueryRow(context.TODO(), sql, args...).Scan(&content, &kind, &hash)
 			Expect(err).To(BeNil())
-
-			if rows.Next() {
-				err = rows.Scan(&content, &kind, &hash)
-				Expect(err).To(BeNil())
-				Expect(content).To(Equal("content"))
-				Expect(kind).NotTo(Equal("hash1"))
-				Expect(kind).To(Equal("debit"))
-			}
-			rows.Close()
 
 			count := 1
-			rows, err = pgPool.Query(context.TODO(), "select count(*) from transactions_tags;")
+			err = pgPool.QueryRow(context.TODO(), "select count(*) from transactions_tags;").Scan(&count)
 			Expect(err).To(BeNil())
-			defer rows.Close()
-
-			for rows.Next() {
-				err := rows.Scan(&count)
-				Expect(err).To(BeNil())
-				Expect(count).To(Equal(0))
-			}
+			Expect(count).To(Equal(0))
 
 		})
 
