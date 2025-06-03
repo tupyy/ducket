@@ -28,9 +28,9 @@ type Transaction struct {
 }
 
 func NewTransaction(kind TransactionKind, date time.Time, sum float32, rawContent string) *Transaction {
-	idString := fmt.Sprintf("%s%s%f%s", kind, date, sum, rawContent)
+	hash := fmt.Sprintf("%s%s%f%s", kind, date, sum, rawContent)
 	h := sha256.New()
-	h.Write([]byte(idString))
+	h.Write([]byte(hash))
 
 	return &Transaction{
 		RawContent: rawContent,
