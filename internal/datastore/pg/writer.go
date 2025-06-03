@@ -5,22 +5,25 @@ import (
 	"errors"
 	"fmt"
 
+	"git.tls.tupangiu.ro/cosmin/finante/internal/datastore/pg/models"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
 	sq "github.com/Masterminds/squirrel"
+	"github.com/georgysavva/scany/v2/pgxscan"
 	"github.com/jackc/pgx/v5"
 )
 
 const (
 	errUnableToWriteTag          = "unable to write tag: %w"
 	errUnableToDeleteTag         = "unable to delete tag: %w"
+	errUnableToDeleteRule        = "unable to delete rule: %w"
 	errUnableToWriteRule         = "unable to write rule: %w"
 	errUnableToDeleteTransaction = "unable to delete transaction: %w"
 	rulesTagsTable               = "rules_tags"
 )
 
 var (
-	insertRule = psql.Insert("rules").Columns("id", "name", "pattern")
-	updateRule = psql.Update("rules")
+	insertRule = psql.Insert(rulesTable).Columns("id", "name", "pattern")
+	updateRule = psql.Update(rulesTable)
 	insertTag  = psql.Insert("tags").Columns("value")
 )
 
@@ -29,20 +32,49 @@ type writerTx struct {
 }
 
 func (w *writerTx) WriteRule(ctx context.Context, rule entity.Rule, update bool) error {
-	var (
-		sql  string
-		args []any
-		err  error
-	)
+	tagsToDissociate := []string{}
+	tagsToAssociate := []string{}
+	for _, tag := range rule.Tags {
+		tagsToAssociate = append(tagsToAssociate, tag.Value)
+	}
 
 	switch update {
 	case false:
 		query := insertRule
-		sql, args, err = query.Values(rule.ID, rule.Name, rule.Pattern).ToSql()
+		sql, args, err := query.Values(rule.ID, rule.Name, rule.Pattern).ToSql()
 		if err != nil {
 			return fmt.Errorf(errUnableToWriteRule, err)
 		}
+
+		if _, err := w.tx.Exec(ctx, sql, args...); err != nil {
+			return fmt.Errorf(errUnableToWriteRule, err)
+		}
 	case true:
+		// get the old one
+		sql, args, err := selectRulesStmt.Where(sq.Eq{"id": rule.ID}).ToSql()
+		if err != nil {
+			return fmt.Errorf(errUnableToWriteRule, err)
+		}
+
+		rows, err := w.tx.Query(ctx, sql, args...)
+		if err != nil {
+			return fmt.Errorf(errUnableToWriteRule, err)
+		}
+
+		rs := pgxscan.NewRowScanner(rows)
+		for rows.Next() {
+			oldRule := models.RuleRow{}
+			err := rs.Scan(&oldRule)
+			if err != nil {
+				return fmt.Errorf(errUnableToWriteRule, err)
+			}
+			if oldRule.TagValue == nil {
+				continue
+			}
+			tagsToDissociate = append(tagsToDissociate, *oldRule.TagValue)
+		}
+		rows.Close()
+
 		query := updateRule
 		sql, args, err = query.
 			Set("id", rule.ID).
@@ -53,23 +85,40 @@ func (w *writerTx) WriteRule(ctx context.Context, rule entity.Rule, update bool)
 		if err != nil {
 			return fmt.Errorf(errUnableToWriteRule, err)
 		}
+
+		if _, err := w.tx.Exec(ctx, sql, args...); err != nil {
+			return fmt.Errorf(errUnableToWriteRule, err)
+		}
 	}
 
-	if _, err := w.tx.Exec(ctx, sql, args...); err != nil {
-		return fmt.Errorf(errUnableToWriteRule, err)
+	if len(tagsToDissociate) > 0 {
+		deleteTagAssociationStmt := psql.Delete(rulesTagsTable)
+
+		or := sq.Or{}
+		for _, tag := range tagsToDissociate {
+			or = append(or, sq.Eq{colTag: tag})
+		}
+		deleteTagAssociationStmt.Where(or)
+
+		sql, arg, err := deleteTagAssociationStmt.ToSql()
+		if err != nil {
+			return fmt.Errorf(errUnableToWriteTag, err)
+		}
+		if _, err := w.tx.Exec(ctx, sql, arg...); err != nil {
+			return fmt.Errorf(errUnableToWriteTag, err)
+		}
 	}
 
-	// associate rules and tags if any
-	if len(rule.Tags) > 0 {
-		queryTag := psql.Insert(rulesTagsTable).Columns(colRuleID, colTag)
-		for _, tag := range rule.Tags {
-			queryTag = queryTag.Values(rule.ID, tag.Value)
+	if len(tagsToAssociate) > 0 {
+		addTagAssociationStmt := psql.Insert(rulesTagsTable).Columns(colRuleID, colTag)
+		for _, tag := range tagsToAssociate {
+			addTagAssociationStmt = addTagAssociationStmt.Values(rule.ID, tag)
 		}
 
 		// add on conflict statement
-		queryTag = queryTag.Suffix("ON CONFLICT DO NOTHING")
+		addTagAssociationStmt = addTagAssociationStmt.Suffix("ON CONFLICT DO NOTHING")
 
-		sql, arg, err := queryTag.ToSql()
+		sql, arg, err := addTagAssociationStmt.ToSql()
 		if err != nil {
 			return fmt.Errorf(errUnableToWriteTag, err)
 		}
@@ -82,6 +131,15 @@ func (w *writerTx) WriteRule(ctx context.Context, rule entity.Rule, update bool)
 }
 
 func (w *writerTx) DeleteRule(ctx context.Context, id string) error {
+	sql, args, err := psql.Delete(rulesTable).Where(sq.Eq{colID: id}).ToSql()
+	if err != nil {
+		return fmt.Errorf(errUnableToDeleteRule, err)
+	}
+
+	if _, err := w.tx.Exec(ctx, sql, args...); err != nil {
+		return fmt.Errorf(errUnableToDeleteRule, err)
+	}
+
 	return nil
 }
 

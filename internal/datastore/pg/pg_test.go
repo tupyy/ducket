@@ -127,7 +127,50 @@ var _ = Describe("query", Ordered, func() {
 			for tag := range rules[1].Tags {
 				Expect([]string{"tag1", "tag2", "tag3", "tag4"}).To(ContainElement(tag))
 			}
+		})
 
+		It("delete successfully rule", func() {
+			sql, args, err := insertRule.
+				Values("rule1", "rule1", "pattern").
+				ToSql()
+			Expect(err).To(BeNil())
+
+			_, err = pgPool.Exec(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w pg.Writer) error {
+				return w.DeleteRule(ctx, "rule1")
+			})
+			Expect(err).To(BeNil())
+
+			var count int
+			rows, err := pgPool.Query(context.TODO(), "select count(*) from rules;")
+			Expect(err).To(BeNil())
+			defer rows.Close()
+
+			for rows.Next() {
+				err := rows.Scan(&count)
+				Expect(err).To(BeNil())
+				Expect(count).To(Equal(0))
+			}
+		})
+
+		It("delete successfully rule -- rule not found", func() {
+			err := dt.WriteTx(context.TODO(), func(ctx context.Context, w pg.Writer) error {
+				return w.DeleteRule(ctx, "rule1")
+			})
+			Expect(err).To(BeNil())
+
+			var count int
+			rows, err := pgPool.Query(context.TODO(), "select count(*) from rules;")
+			Expect(err).To(BeNil())
+			defer rows.Close()
+
+			for rows.Next() {
+				err := rows.Scan(&count)
+				Expect(err).To(BeNil())
+				Expect(count).To(Equal(0))
+			}
 		})
 
 		AfterEach(func() {
@@ -190,6 +233,111 @@ var _ = Describe("query", Ordered, func() {
 			}
 		})
 
+		It("update rule successfully -- with additional tags", func() {
+			sql, args, err := insertTagStmt.
+				Values("tag1").
+				Values("tag2").
+				Values("tag3").
+				Values("tag4").
+				ToSql()
+			Expect(err).To(BeNil())
+			_, err = pgPool.Exec(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			sql, args, err = insertRule.
+				Values("rule1", "rule1", "pattern").
+				ToSql()
+			Expect(err).To(BeNil())
+
+			_, err = pgPool.Exec(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			rule := entity.NewRule("rule1", "updated_name", "updated_pattern", entity.Tag{Value: "tag1"})
+			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w pg.Writer) error {
+				return w.WriteRule(context.TODO(), rule, true)
+			})
+
+			rows, err := pgPool.Query(context.TODO(), "select name,pattern from rules limit 1;")
+			Expect(err).To(BeNil())
+			defer rows.Close()
+
+			for rows.Next() {
+				var (
+					pattern string
+					name    string
+				)
+				err := rows.Scan(&name, &pattern)
+				Expect(err).To(BeNil())
+				Expect(pattern).To(Equal("updated_pattern"))
+				Expect(name).To(Equal("updated_name"))
+			}
+
+			count := 0
+			rows, err = pgPool.Query(context.TODO(), "select count(*) from rules_tags;")
+			Expect(err).To(BeNil())
+			defer rows.Close()
+
+			for rows.Next() {
+				err := rows.Scan(&count)
+				Expect(err).To(BeNil())
+				Expect(count).To(Equal(1))
+			}
+		})
+
+		It("update rule successfully -- remove tags", func() {
+			sql, args, err := insertTagStmt.
+				Values("tag1").
+				Values("tag2").
+				ToSql()
+			Expect(err).To(BeNil())
+			_, err = pgPool.Exec(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			sql, args, err = insertRule.
+				Values("rule1", "rule1", "pattern").
+				ToSql()
+			Expect(err).To(BeNil())
+
+			_, err = pgPool.Exec(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			sql, args, err = psql.Insert("rules_tags").Columns("rule_id", "tag").Values("rule1", "tag1").ToSql()
+			Expect(err).To(BeNil())
+
+			_, err = pgPool.Exec(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			rule := entity.NewRule("rule1", "updated_name", "updated_pattern")
+			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w pg.Writer) error {
+				return w.WriteRule(context.TODO(), rule, true)
+			})
+
+			rows, err := pgPool.Query(context.TODO(), "select name,pattern from rules limit 1;")
+			Expect(err).To(BeNil())
+			defer rows.Close()
+
+			for rows.Next() {
+				var (
+					pattern string
+					name    string
+				)
+				err := rows.Scan(&name, &pattern)
+				Expect(err).To(BeNil())
+				Expect(pattern).To(Equal("updated_pattern"))
+				Expect(name).To(Equal("updated_name"))
+			}
+
+			count := 1
+			rows, err = pgPool.Query(context.TODO(), "select count(*) from rules_tags;")
+			Expect(err).To(BeNil())
+			defer rows.Close()
+
+			for rows.Next() {
+				err := rows.Scan(&count)
+				Expect(err).To(BeNil())
+				Expect(count).To(Equal(0))
+			}
+		})
 		It("write rule successfully -- with tags", func() {
 			sql, args, err := insertTagStmt.
 				Values("tag1").
