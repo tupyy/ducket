@@ -570,6 +570,168 @@ var _ = Describe("query", Ordered, func() {
 			Expect(transactions).To(HaveLen(1))
 		})
 
+		It("write transaction successfully -- without tags", func() {
+			t := entity.NewTransaction(entity.CreditTransaction, time.Now(), 1.1, "content")
+
+			err := dt.WriteTx(context.TODO(), func(ctx context.Context, w pg.Writer) error {
+				return w.WriteTransaction(ctx, *t)
+			})
+			Expect(err).To(BeNil())
+
+			var count int
+			rows, err := pgPool.Query(context.TODO(), "select count(*) from transactions;")
+			Expect(err).To(BeNil())
+			defer rows.Close()
+
+			for rows.Next() {
+				err := rows.Scan(&count)
+				Expect(err).To(BeNil())
+				Expect(count).To(Equal(1))
+			}
+		})
+
+		It("write transaction successfully -- with tags", func() {
+			sql, args, err := insertRule.
+				Values("rule1", "rule1", "pattern").
+				ToSql()
+			Expect(err).To(BeNil())
+
+			_, err = pgPool.Exec(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			sql, args, err = insertTagStmt.
+				Values("tag1").
+				ToSql()
+			Expect(err).To(BeNil())
+
+			_, err = pgPool.Exec(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			t := entity.NewTransaction(entity.CreditTransaction, time.Now(), 1.1, "content")
+			t.Tags.Add(entity.Tag{Value: "tag1", RuleIDs: []string{"rule1"}})
+
+			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w pg.Writer) error {
+				return w.WriteTransaction(ctx, *t)
+			})
+			Expect(err).To(BeNil())
+
+			var count int
+			rows, err := pgPool.Query(context.TODO(), "select count(*) from transactions;")
+			Expect(err).To(BeNil())
+			defer rows.Close()
+
+			for rows.Next() {
+				err := rows.Scan(&count)
+				Expect(err).To(BeNil())
+				Expect(count).To(Equal(1))
+			}
+		})
+
+		It("update successfully transactions -- no tags", func() {
+			sql, args, err := insertRule.
+				Values("rule1", "rule1", "pattern").
+				ToSql()
+			Expect(err).To(BeNil())
+
+			_, err = pgPool.Exec(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			sql, args, err = insertTagStmt.
+				Values("tag1").
+				ToSql()
+			Expect(err).To(BeNil())
+
+			_, err = pgPool.Exec(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			sql, args, err = insertTransaction.
+				Values(1, time.Now(), "credit", "transaction", "1.1", "hash1").
+				ToSql()
+			Expect(err).To(BeNil())
+
+			_, err = pgPool.Exec(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			sql, args, err = psql.Insert("transactions_tags").
+				Columns("transaction_id", "tag_id", "rule_id").
+				Values(1, "tag1", "rule1").
+				ToSql()
+			Expect(err).To(BeNil())
+
+			_, err = pgPool.Exec(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			t := entity.NewTransaction(entity.DebitTransaction, time.Now(), 2, "content")
+			t.ID = 1 // fix ID
+
+			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w pg.Writer) error {
+				return w.WriteTransaction(ctx, *t)
+			})
+			Expect(err).To(BeNil())
+
+			content := ""
+			kind := ""
+			hash := ""
+			sql, args, _ = psql.Select("content", "kind", "hash").From("transactions").Where(sq.Eq{"id": 1}).ToSql()
+			rows, err := pgPool.Query(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			if rows.Next() {
+				err = rows.Scan(&content, &kind, &hash)
+				Expect(err).To(BeNil())
+				Expect(content).To(Equal("content"))
+				Expect(kind).NotTo(Equal("hash1"))
+				Expect(kind).To(Equal("debit"))
+			}
+			rows.Close()
+
+			count := 1
+			rows, err = pgPool.Query(context.TODO(), "select count(*) from transactions_tags;")
+			Expect(err).To(BeNil())
+			defer rows.Close()
+
+			for rows.Next() {
+				err := rows.Scan(&count)
+				Expect(err).To(BeNil())
+				Expect(count).To(Equal(0))
+			}
+
+		})
+
+		It("update successfully transactions -- remove tags", func() {
+			sql, args, err := insertTransaction.
+				Values(1, time.Now(), "credit", "transaction", "1.1", "hash1").
+				ToSql()
+
+			_, err = pgPool.Exec(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			t := entity.NewTransaction(entity.DebitTransaction, time.Now(), 2, "content")
+			t.ID = 1 // fix ID
+
+			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w pg.Writer) error {
+				return w.WriteTransaction(ctx, *t)
+			})
+			Expect(err).To(BeNil())
+
+			content := ""
+			kind := ""
+			hash := ""
+			sql, args, _ = psql.Select("content", "kind", "hash").From("transactions").Where(sq.Eq{"id": 1}).ToSql()
+			rows, err := pgPool.Query(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+			defer rows.Close()
+
+			if rows.Next() {
+				err = rows.Scan(&content, &kind, &hash)
+				Expect(err).To(BeNil())
+				Expect(content).To(Equal("content"))
+				Expect(kind).NotTo(Equal("hash1"))
+				Expect(kind).To(Equal("debit"))
+			}
+
+		})
+
 		AfterEach(func() {
 			_, err := pgPool.Exec(context.TODO(), "DELETE FROM transactions;")
 			Expect(err).To(BeNil())

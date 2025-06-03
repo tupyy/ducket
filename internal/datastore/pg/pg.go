@@ -50,14 +50,17 @@ var (
 
 	insertTransaction = psql.Insert(transactionTable).
 				Columns(
-			colID,
 			colDate,
+			colHash,
 			colTransactionType,
 			colTransactionContent,
 			colTransactionAmount,
 		)
 
-	insertTransactionTag = psql.Insert(transactionsTagsTable).Columns(colTransactionID, colTagID)
+	insertTransactionTag  = psql.Insert(transactionsTagsTable).Columns(colTransactionID, colTagID)
+	selectTransactionStmp = psql.Select(colID, colDate, colTransactionType, colTransactionContent, colAmount, colTagID, colRuleID, colHash).
+				From(transactionTable).
+				LeftJoin("transactions_tags ON transactions_tags.transaction_id = transactions.id")
 )
 
 //go:generate go run github.com/ecordell/optgen -output zz_generated.transaction_filter.go . TransactionFilter

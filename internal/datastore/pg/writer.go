@@ -2,7 +2,6 @@ package pg
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"git.tls.tupangiu.ro/cosmin/finante/internal/datastore/pg/models"
@@ -18,6 +17,7 @@ const (
 	errUnableToDeleteRule        = "unable to delete rule: %w"
 	errUnableToWriteRule         = "unable to write rule: %w"
 	errUnableToDeleteTransaction = "unable to delete transaction: %w"
+	errUnableToWriteTransaction  = "unable to write transaction: %w"
 	rulesTagsTable               = "rules_tags"
 )
 
@@ -170,7 +170,107 @@ func (w *writerTx) DeleteTag(ctx context.Context, value string) error {
 }
 
 func (w *writerTx) WriteTransaction(ctx context.Context, transaction entity.Transaction) error {
-	return errors.New("not implementated")
+	transactionID := transaction.ID
+	stmt := selectTransactionStmp.Where(sq.Eq{colID: transactionID})
+
+	sql, args, err := stmt.ToSql()
+	if err != nil {
+		return fmt.Errorf(errUnableToWriteTransaction, err)
+	}
+
+	rows, err := w.tx.Query(ctx, sql, args...)
+	if err != nil {
+		return fmt.Errorf(errUnableToWriteTransaction, err)
+	}
+
+	tagsToDissociate := []string{}
+	update := false
+	rs := pgxscan.NewRowScanner(rows)
+	for rows.Next() {
+		t := models.Transaction{}
+		err := rs.Scan(&t)
+		if err != nil {
+			return fmt.Errorf(errUnableToWriteTransaction, err)
+		}
+		if t.Tag != nil && t.RuleID != nil {
+			tagsToDissociate = append(tagsToDissociate, *t.Tag, *t.RuleID)
+		}
+		update = true
+	}
+	rows.Close()
+
+	switch update {
+	case false:
+		// insert transaction
+		sql, args, err = insertTransaction.Values(
+			transaction.Date,
+			transaction.Hash,
+			transaction.Kind,
+			transaction.RawContent,
+			transaction.Amount,
+		).Suffix("RETURNING id").ToSql()
+		if err != nil {
+			return fmt.Errorf(errUnableToWriteTransaction, err)
+		}
+
+		rows, err := w.tx.Query(ctx, sql, args...)
+		if err != nil {
+			return fmt.Errorf(errUnableToWriteTransaction, err)
+		}
+
+		if rows.Next() {
+			if err := rows.Scan(&transactionID); err != nil {
+				return fmt.Errorf(errUnableToWriteTransaction, err)
+			}
+		}
+		rows.Close()
+	case true:
+		sql, args, err = psql.Update(transactionTable).
+			Set(colDate, transaction.Date).
+			Set(colHash, transaction.Hash).
+			Set(colTransactionContent, transaction.RawContent).
+			Set(colAmount, transaction.Amount).
+			Set(colTransactionType, transaction.Kind).
+			Where(sq.Eq{colID: transactionID}).
+			ToSql()
+		if err != nil {
+			return fmt.Errorf(errUnableToWriteTransaction, err)
+		}
+
+		_, err := w.tx.Exec(ctx, sql, args...)
+		if err != nil {
+			return fmt.Errorf(errUnableToWriteTransaction, err)
+		}
+	}
+
+	// remove old tags associations
+	if len(tagsToDissociate) > 0 {
+		sql, arg, err := psql.Delete(transactionsTagsTable).Where(sq.Eq{colTransactionID: transactionID}).ToSql()
+		if err != nil {
+			return fmt.Errorf(errUnableToWriteTag, err)
+		}
+		if _, err := w.tx.Exec(ctx, sql, arg...); err != nil {
+			return fmt.Errorf(errUnableToWriteTag, err)
+		}
+	}
+
+	if len(transaction.Tags) > 0 {
+		addTagStmt := psql.Insert(transactionsTagsTable).Columns(colTransactionID, colTagID, colRuleID)
+		for _, t := range transaction.Tags {
+			addTagStmt = addTagStmt.Values(transactionID, t.Value, t.RuleIDs[0])
+		}
+
+		sql, arg, err := addTagStmt.ToSql()
+		if err != nil {
+			return fmt.Errorf(errUnableToWriteTag, err)
+		}
+		if _, err := w.tx.Exec(ctx, sql, arg...); err != nil {
+			return fmt.Errorf(errUnableToWriteTag, err)
+		}
+	}
+
+	return nil
+
 }
 
 func (w *writerTx) DeleteTransaction(ctx context.Context, id string) error {
