@@ -11,22 +11,6 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-const (
-	errUnableToWriteTag          = "unable to write tag: %w"
-	errUnableToDeleteTag         = "unable to delete tag: %w"
-	errUnableToDeleteRule        = "unable to delete rule: %w"
-	errUnableToWriteRule         = "unable to write rule: %w"
-	errUnableToDeleteTransaction = "unable to delete transaction: %w"
-	errUnableToWriteTransaction  = "unable to write transaction: %w"
-	rulesTagsTable               = "rules_tags"
-)
-
-var (
-	insertRule = psql.Insert(rulesTable).Columns("id", "name", "pattern")
-	updateRule = psql.Update(rulesTable)
-	insertTag  = psql.Insert("tags").Columns("value")
-)
-
 type writerTx struct {
 	tx pgx.Tx
 }
