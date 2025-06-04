@@ -6,21 +6,31 @@ import (
 
 	"git.tls.tupangiu.ro/cosmin/finante/internal/config"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/server"
+	"git.tls.tupangiu.ro/cosmin/finante/pkg/logger"
+	"github.com/ecordell/optgen/helpers"
 	"github.com/fatih/color"
 	"github.com/jzelinskie/cobrautil/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"go.uber.org/zap"
 )
 
 func NewServeCommand(config *config.Config) *cobra.Command {
 	return &cobra.Command{
 		Use:          "serve",
-		Short:        "Serve the server either web or admin",
+		Short:        "Serve the server",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			logger := logger.SetupLogger(config)
+			defer logger.Sync()
+
+			undo := zap.ReplaceGlobals(logger)
+			defer undo()
+
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
+			zap.S().Info("using configuration", "config", helpers.Flatten(config.DebugMap()))
 			server := server.CreateRunnableServer(ctx, config)
 
 			// run server
@@ -40,9 +50,6 @@ func RegisterFlags(cmd *cobra.Command, config *config.Config) {
 	serverFlagSet := nfs.FlagSet(color.New(color.FgCyan, color.Bold).Sprint("server"))
 	registerServerFlags(serverFlagSet, config)
 
-	logFlagSet := nfs.FlagSet(color.New(color.FgCyan, color.Bold).Sprint("log"))
-	registerLoggingFlags(logFlagSet, config)
-
 	nfs.AddFlagSets(cmd)
 }
 
@@ -54,9 +61,4 @@ func registerDatabaseFlags(flagSet *pflag.FlagSet, config *config.Database) {
 func registerServerFlags(flagSet *pflag.FlagSet, config *config.Config) {
 	flagSet.IntVar(&config.ServerPort, "server-port", config.ServerPort, "port on which the server is listening")
 	flagSet.StringVar(&config.GinMode, "server-gin-mode", config.GinMode, "gin mode: either release or debug. It applies only on server-type web")
-}
-
-func registerLoggingFlags(flagSet *pflag.FlagSet, config *config.Config) {
-	flagSet.StringVar(&config.LogFormat, "log-format", config.LogFormat, "format of the logs: console or json")
-	flagSet.StringVar(&config.LogLevel, "log-level", config.LogLevel, "log level")
 }

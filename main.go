@@ -5,17 +5,10 @@ import (
 
 	"git.tls.tupangiu.ro/cosmin/finante/cmd"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/config"
-	"git.tls.tupangiu.ro/cosmin/finante/pkg/logger"
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 )
 
 func main() {
-	var rootCmd = &cobra.Command{
-		Use:   "finance",
-		Short: "Manage my finances",
-	}
-
 	cfg := config.NewConfigWithOptionsAndDefaults(
 		config.WithDatabase(config.NewDatabaseWithOptions(
 			config.WithURI("postgres://postgres:postgres@localhost:5432/photos?sslmode=disable"),
@@ -26,11 +19,13 @@ func main() {
 		config.WithGinMode("debug"),
 	)
 
-	logger := logger.SetupLogger(cfg)
-	defer logger.Sync()
-
-	undo := zap.ReplaceGlobals(logger)
-	defer undo()
+	var rootCmd = &cobra.Command{
+		Use:   "finance",
+		Short: "Manage my finances",
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		},
+	}
+	registerLoggingFlags(rootCmd, cfg)
 
 	serveCmd := cmd.NewServeCommand(cfg)
 	cmd.RegisterFlags(serveCmd, cfg)
@@ -40,4 +35,9 @@ func main() {
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
+}
+
+func registerLoggingFlags(cmd *cobra.Command, config *config.Config) {
+	cmd.PersistentFlags().StringVar(&config.LogFormat, "log-format", config.LogFormat, "format of the logs: console or json")
+	cmd.PersistentFlags().StringVar(&config.LogLevel, "log-level", config.LogLevel, "log level")
 }
