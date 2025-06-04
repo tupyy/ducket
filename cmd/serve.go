@@ -5,10 +5,13 @@ import (
 	"time"
 
 	"git.tls.tupangiu.ro/cosmin/finante/internal/config"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/datastore/pg"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/server"
 	"git.tls.tupangiu.ro/cosmin/finante/pkg/logger"
 	"github.com/ecordell/optgen/helpers"
 	"github.com/fatih/color"
+	"github.com/gin-gonic/gin"
 	"github.com/jzelinskie/cobrautil/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -29,10 +32,25 @@ func NewServeCommand(config *config.Config) *cobra.Command {
 
 			zap.S().Info("using configuration", "config", helpers.Flatten(config.DebugMap()))
 
+			// init datastore
+			dt, err := pg.NewPostgresDatastore(context.Background(), config.Database.URI)
+			if err != nil {
+				return err
+			}
+
 			server := server.NewRunnableServer(
 				server.NewRunnableServerConfigWithOptionsAndDefaults(
+					server.WithDatastore(dt),
 					server.WithGraceTimeout(1*time.Second),
 					server.WithPort(config.ServerPort),
+					server.WithRegisterHandlersFn(func(r *gin.RouterGroup) {
+						handlers.RegisterHandlers(r)
+					}),
+					server.WithCloseCallback(func() error {
+						zap.S().Info("close datastore")
+						dt.Close()
+						return nil
+					}),
 				),
 			)
 

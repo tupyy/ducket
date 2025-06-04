@@ -10,35 +10,46 @@ import (
 	"time"
 
 	"git.tls.tupangiu.ro/cosmin/finante/internal/datastore/pg"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/server/middlewares"
+	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
 type RunnableServerConfig struct {
+	Datastore          *pg.Datastore
 	GraceTimeout       time.Duration
 	Port               int
-	RegisterHandlersFn func(engine *gin.Engine)
+	RegisterHandlersFn func(router *gin.RouterGroup)
+	CloseCb            func() error
 }
 
 type runnableServer struct {
-	dt     *pg.Datastore
-	srv    *http.Server
-	cfg    *RunnableServerConfig
-	router *gin.Engine
+	srv         *http.Server
+	cfg         *RunnableServerConfig
+	engine      *gin.Engine
+	closePostCb func() error
 }
 
 func NewRunnableServer(cfg *RunnableServerConfig) *runnableServer {
-	router := gin.Default()
+	engine := gin.New()
+
+	router := engine.Group("/api/v1/")
+	router.Use(
+		middlewares.Logger(),
+		middlewares.DatastoreMiddleware(cfg.Datastore),
+		ginzap.RecoveryWithZap(zap.S().Desugar(), true),
+	)
 
 	// register handlers
 	cfg.RegisterHandlersFn(router)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf("0.0.0.0:%d", cfg.Port),
-		Handler: router,
+		Handler: engine,
 	}
 
-	return &runnableServer{srv: srv, cfg: cfg}
+	return &runnableServer{srv: srv, cfg: cfg, closePostCb: cfg.CloseCb}
 }
 
 func (r *runnableServer) Run(ctx context.Context) {
@@ -63,4 +74,6 @@ func (r *runnableServer) Run(ctx context.Context) {
 
 	<-newCtx.Done()
 	zap.S().Info("server exiting")
+
+	_ = r.closePostCb()
 }

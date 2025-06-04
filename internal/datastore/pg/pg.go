@@ -54,16 +54,17 @@ type Datastore struct {
 func NewPostgresDatastore(ctx context.Context, url string, options ...Option) (*Datastore, error) {
 	pgOptions := newPostgresConfig(options)
 
-	initializationContext, cancelInit := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancelInit()
-
 	pgxConfig, err := pgOptions.PgxConfig(url)
 	if err != nil {
 		return nil, err
 	}
 
-	pgPool, err := pgxpool.NewWithConfig(initializationContext, pgxConfig)
+	pgPool, err := pgxpool.NewWithConfig(ctx, pgxConfig)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := pgPool.Ping(ctx); err != nil {
 		return nil, err
 	}
 

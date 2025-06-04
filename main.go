@@ -11,7 +11,7 @@ import (
 func main() {
 	cfg := config.NewConfigWithOptionsAndDefaults(
 		config.WithDatabase(config.NewDatabaseWithOptions(
-			config.WithURI("postgres://postgres:postgres@localhost:5432/photos?sslmode=disable"),
+			config.WithURI("postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"),
 		)),
 		config.WithServerPort(8080),
 		config.WithLogFormat("console"),

@@ -3,6 +3,7 @@ package server
 import (
 	"time"
 
+	"git.tls.tupangiu.ro/cosmin/finante/internal/datastore/pg"
 	defaults "github.com/creasty/defaults"
 	"github.com/gin-gonic/gin"
 )
@@ -22,7 +23,7 @@ func NewRunnableServerConfigWithOptions(opts ...RunnableServerConfigOption) *Run
 func NewRunnableServerConfigWithOptionsAndDefaults(opts ...RunnableServerConfigOption) *RunnableServerConfig {
 	r := &RunnableServerConfig{
 		Port:               8080,
-		RegisterHandlersFn: func(engine *gin.Engine) {},
+		RegisterHandlersFn: func(engine *gin.RouterGroup) {},
 	}
 	defaults.MustSet(r)
 	for _, o := range opts {
@@ -63,9 +64,21 @@ func WithGraceTimeout(graceTimeout time.Duration) RunnableServerConfigOption {
 	}
 }
 
-func WithRegisterHandlersFn(fn func(engine *gin.Engine)) RunnableServerConfigOption {
+func WithRegisterHandlersFn(fn func(engine *gin.RouterGroup)) RunnableServerConfigOption {
 	return func(r *RunnableServerConfig) {
 		r.RegisterHandlersFn = fn
+	}
+}
+
+func WithDatastore(dt *pg.Datastore) RunnableServerConfigOption {
+	return func(r *RunnableServerConfig) {
+		r.Datastore = dt
+	}
+}
+
+func WithCloseCallback(cb func() error) RunnableServerConfigOption {
+	return func(r *RunnableServerConfig) {
+		r.CloseCb = cb
 	}
 }
 
