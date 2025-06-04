@@ -38,6 +38,20 @@ type Tag struct {
 	Rules []RuleRef `json:"rules,omitempty"`
 }
 
+func NewTag(value string, rules ...entity.Rule) Tag {
+	tag := Tag{
+		HRef:  fmt.Sprintf("/api/v1/tags/%s", value),
+		Value: value,
+		Rules: make([]RuleRef, 0),
+	}
+
+	for _, rule := range rules {
+		tag.Rules = append(tag.Rules, newRuleRef(rule))
+	}
+
+	return tag
+}
+
 func NewTags(tags []string, rules []entity.Rule) Tags {
 	mtags := Tags{
 		Tags: make([]Tag, 0),
