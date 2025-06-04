@@ -28,11 +28,13 @@ func NewServeCommand(config *config.Config) *cobra.Command {
 			defer undo()
 
 			zap.S().Info("using configuration", "config", helpers.Flatten(config.DebugMap()))
-			server := server.NewRunnableServer(server.NewRunnableServerConfigWithOptions(
-				server.WithPostgresURI(config.Database.URI),
-				server.WithGraceTimeout(1*time.Second),
-				server.WithPort(config.ServerPort),
-			))
+
+			server := server.NewRunnableServer(
+				server.NewRunnableServerConfigWithOptionsAndDefaults(
+					server.WithGraceTimeout(1*time.Second),
+					server.WithPort(config.ServerPort),
+				),
+			)
 
 			// run server
 			server.Run(context.Background())

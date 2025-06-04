@@ -10,25 +10,32 @@ import (
 	"time"
 
 	"git.tls.tupangiu.ro/cosmin/finante/internal/datastore/pg"
+	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
-//go:generate go run github.com/ecordell/optgen -output zz_configuration.go . RunnableServerConfig
 type RunnableServerConfig struct {
-	PostgresURI  string        `debugmap:"visible"`
-	GraceTimeout time.Duration `debugmap:"visible"`
-	Port         int           `debugmap:"visible"`
+	GraceTimeout       time.Duration
+	Port               int
+	RegisterHandlersFn func(engine *gin.Engine)
 }
 
 type runnableServer struct {
-	dt  *pg.Datastore
-	srv *http.Server
-	cfg *RunnableServerConfig
+	dt     *pg.Datastore
+	srv    *http.Server
+	cfg    *RunnableServerConfig
+	router *gin.Engine
 }
 
 func NewRunnableServer(cfg *RunnableServerConfig) *runnableServer {
+	router := gin.Default()
+
+	// register handlers
+	cfg.RegisterHandlersFn(router)
+
 	srv := &http.Server{
-		Addr: fmt.Sprintf("0.0.0.0:%d", cfg.Port),
+		Addr:    fmt.Sprintf("0.0.0.0:%d", cfg.Port),
+		Handler: router,
 	}
 
 	return &runnableServer{srv: srv, cfg: cfg}
