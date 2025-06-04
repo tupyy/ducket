@@ -154,7 +154,7 @@ func (d *Datastore) QueryRules(ctx context.Context, filter RuleFilter, opts *Que
 	return ruleRows.ToEntity(), nil
 }
 
-func (d *Datastore) QueryTags(ctx context.Context, filter TagFilter) ([]entity.Tag, error) {
+func (d *Datastore) QueryTags(ctx context.Context, filter TagFilter) ([]string, error) {
 	query := selectTagsStmt
 
 	if filter.RuleID != nil {
@@ -163,12 +163,12 @@ func (d *Datastore) QueryTags(ctx context.Context, filter TagFilter) ([]entity.T
 
 	sql, args, err := query.ToSql()
 	if err != nil {
-		return []entity.Tag{}, fmt.Errorf(errUnableToReadTag, err)
+		return []string{}, fmt.Errorf(errUnableToReadTag, err)
 	}
 
 	rows, err := d.pool.Query(ctx, sql, args...)
 	if err != nil {
-		return []entity.Tag{}, fmt.Errorf(errUnableToReadTag, err)
+		return []string{}, fmt.Errorf(errUnableToReadTag, err)
 	}
 
 	tags := make(models.Tags)
@@ -178,7 +178,7 @@ func (d *Datastore) QueryTags(ctx context.Context, filter TagFilter) ([]entity.T
 		tagRow := models.Tag{}
 		err := rs.Scan(&tagRow)
 		if err != nil {
-			return []entity.Tag{}, fmt.Errorf(errUnableToReadTag, err)
+			return []string{}, fmt.Errorf(errUnableToReadTag, err)
 		}
 		tags.Add(tagRow)
 	}

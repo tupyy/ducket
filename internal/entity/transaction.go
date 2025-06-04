@@ -3,11 +3,8 @@ package entity
 import (
 	"crypto/sha256"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
-
-	"go.uber.org/zap"
 )
 
 type TransactionKind string
@@ -24,7 +21,9 @@ type Transaction struct {
 	RawContent string
 	Hash       string
 	Amount     float32
-	Tags       Tags
+	// Tags holds the tags applied on this transaction
+	// the key is the tag and the value the rule_id which applied the tag
+	Tags map[string]string
 }
 
 func NewTransaction(kind TransactionKind, date time.Time, sum float32, rawContent string) *Transaction {
@@ -38,17 +37,8 @@ func NewTransaction(kind TransactionKind, date time.Time, sum float32, rawConten
 		Hash:       fmt.Sprintf("%x", h.Sum(nil)),
 		Kind:       kind,
 		Amount:     sum,
-		Tags:       make(Tags),
+		Tags:       make(map[string]string),
 	}
-}
-
-func (t *Transaction) Match(rule Rule) bool {
-	pattern, err := regexp.Compile(rule.Pattern)
-	if err != nil {
-		zap.S().Errorf("rule pattern %q does not compile", rule.Pattern)
-		return false
-	}
-	return pattern.MatchString(t.RawContent)
 }
 
 func (t *Transaction) String() string {

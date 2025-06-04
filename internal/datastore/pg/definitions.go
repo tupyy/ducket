@@ -42,7 +42,7 @@ var (
 			LeftJoin("(SELECT * FROM tags JOIN rules_tags as a on a.tag = tags.value) as b ON b.rule_id = rules.id")
 
 	selectTagsStmt = psql.Select(colValue, colRuleID).From(tagsTable).
-			InnerJoin("rules_tags on rules_tags.tag = tags.value")
+			LeftJoin("rules_tags on rules_tags.tag = tags.value")
 
 	selectTransactionTagsStmt = psql.Select("*").From(transactionsTagsTable)
 

@@ -128,10 +128,10 @@ var _ = Describe("query", Ordered, func() {
 
 			Expect(rules[0].Tags).To(HaveLen(2))
 			Expect(rules[1].Tags).To(HaveLen(2))
-			for tag := range rules[0].Tags {
+			for _, tag := range rules[0].Tags {
 				Expect([]string{"tag1", "tag2", "tag3", "tag4"}).To(ContainElement(tag))
 			}
-			for tag := range rules[1].Tags {
+			for _, tag := range rules[1].Tags {
 				Expect([]string{"tag1", "tag2", "tag3", "tag4"}).To(ContainElement(tag))
 			}
 		})
@@ -259,7 +259,7 @@ var _ = Describe("query", Ordered, func() {
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
 			Expect(err).To(BeNil())
 
-			rule := entity.NewRule("rule1", "updated_name", "updated_pattern", entity.Tag{Value: "tag1"})
+			rule := entity.NewRule("rule1", "updated_name", "updated_pattern", "tag1")
 			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w pg.Writer) error {
 				return w.WriteRule(context.TODO(), rule, true)
 			})
@@ -357,7 +357,7 @@ var _ = Describe("query", Ordered, func() {
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
 			Expect(err).To(BeNil())
 
-			rule := entity.NewRule("rule1", "rule1", "pattern1", entity.Tag{Value: "tag1"}, entity.Tag{Value: "tag2"})
+			rule := entity.NewRule("rule1", "rule1", "pattern1", "tag1", "tag2")
 			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w pg.Writer) error {
 				return w.WriteRule(context.TODO(), rule, false)
 			})
@@ -470,8 +470,8 @@ var _ = Describe("query", Ordered, func() {
 			for _, t := range transactions {
 				if t.ID == 1 {
 					Expect(t.Tags).To(HaveLen(2))
-					Expect(t.Tags["tag1"]).To(Equal(entity.Tag{Value: "tag1", RuleIDs: []string{"rule1"}}))
-					Expect(t.Tags["tag2"]).To(Equal(entity.Tag{Value: "tag2", RuleIDs: []string{"rule2"}}))
+					Expect(t.Tags["tag1"]).To(Equal("rule1"))
+					Expect(t.Tags["tag2"]).To(Equal("rule2"))
 				}
 
 				if t.ID == 2 {
@@ -608,7 +608,7 @@ var _ = Describe("query", Ordered, func() {
 			Expect(err).To(BeNil())
 
 			t := entity.NewTransaction(entity.CreditTransaction, time.Now(), 1.1, "content")
-			t.Tags.Add(entity.Tag{Value: "tag1", RuleIDs: []string{"rule1"}})
+			t.Tags["tag1"] = "rule1"
 
 			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w pg.Writer) error {
 				return w.WriteTransaction(ctx, *t)
@@ -729,6 +729,21 @@ var _ = Describe("query", Ordered, func() {
 	})
 
 	Context("tags", func() {
+		It("successfully query tags -- no rule association", func() {
+			sql, args, err := insertTagStmt.
+				Values("tag1").
+				Values("tag2").
+				ToSql()
+			Expect(err).To(BeNil())
+
+			_, err = pgPool.Exec(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			tags, err := dt.QueryTags(context.TODO(), pg.TagFilter{})
+			Expect(err).To(BeNil())
+
+			Expect(tags).To(HaveLen(2))
+		})
 		It("successfully query tags", func() {
 			sql, args, err := insertRule.
 				Values("rule1", "rule1", "pattern").
@@ -769,18 +784,6 @@ var _ = Describe("query", Ordered, func() {
 			Expect(err).To(BeNil())
 
 			Expect(tags).To(HaveLen(2))
-			for _, tag := range tags {
-				if tag.Value == "tag1" {
-					Expect(tag.RuleIDs).To(HaveLen(2))
-					Expect([]string{"rule1", "rule2"}).To(ContainElement(tag.RuleIDs[0]))
-					Expect([]string{"rule1", "rule2"}).To(ContainElement(tag.RuleIDs[1]))
-				}
-
-				if tag.Value == "tag2" {
-					Expect(tag.RuleIDs).To(HaveLen(1))
-					Expect(tag.RuleIDs[0]).To(Equal("rule1"))
-				}
-			}
 		})
 
 		It("write tags successfully", func() {

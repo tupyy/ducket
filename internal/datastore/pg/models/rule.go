@@ -7,13 +7,13 @@ type RuleRows map[string][]RuleRow
 func (r RuleRows) ToEntity() []entity.Rule {
 	rules := []entity.Rule{}
 	for _, v := range r {
-		rule := entity.Rule{Tags: make(entity.Tags)}
+		rule := entity.Rule{Tags: []string{}}
 		for _, vv := range v {
 			rule.ID = vv.ID
 			rule.Name = vv.Name
 			rule.Pattern = vv.Pattern
-			if vv.TagValue != nil {
-				rule.Tags.Add(entity.Tag{Value: *vv.TagValue, RuleIDs: []string{vv.ID}})
+			if vv.Tag != nil {
+				rule.Tags = append(rule.Tags, *vv.Tag)
 			}
 		}
 		rules = append(rules, rule)
@@ -32,8 +32,8 @@ func (r RuleRows) Add(ruleRow RuleRow) {
 }
 
 type RuleRow struct {
-	ID       string
-	Name     string
-	Pattern  string
-	TagValue *string `db:"value"`
+	ID      string
+	Name    string
+	Pattern string
+	Tag     *string `db:"value"`
 }

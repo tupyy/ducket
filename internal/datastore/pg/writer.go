@@ -19,7 +19,7 @@ func (w *writerTx) WriteRule(ctx context.Context, rule entity.Rule, update bool)
 	tagsToDissociate := []string{}
 	tagsToAssociate := []string{}
 	for _, tag := range rule.Tags {
-		tagsToAssociate = append(tagsToAssociate, tag.Value)
+		tagsToAssociate = append(tagsToAssociate, tag)
 	}
 
 	switch update {
@@ -52,10 +52,10 @@ func (w *writerTx) WriteRule(ctx context.Context, rule entity.Rule, update bool)
 			if err != nil {
 				return fmt.Errorf(errUnableToWriteRule, err)
 			}
-			if oldRule.TagValue == nil {
+			if oldRule.Tag == nil {
 				continue
 			}
-			tagsToDissociate = append(tagsToDissociate, *oldRule.TagValue)
+			tagsToDissociate = append(tagsToDissociate, *oldRule.Tag)
 		}
 		rows.Close()
 
@@ -240,8 +240,8 @@ func (w *writerTx) WriteTransaction(ctx context.Context, transaction entity.Tran
 
 	if len(transaction.Tags) > 0 {
 		addTagStmt := psql.Insert(transactionsTagsTable).Columns(colTransactionID, colTagID, colRuleID)
-		for _, t := range transaction.Tags {
-			addTagStmt = addTagStmt.Values(transactionID, t.Value, t.RuleIDs[0])
+		for tag, ruleID := range transaction.Tags {
+			addTagStmt = addTagStmt.Values(transactionID, tag, ruleID)
 		}
 
 		sql, arg, err := addTagStmt.ToSql()

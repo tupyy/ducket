@@ -1,19 +1,10 @@
 package models
 
-import (
-	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
-)
-
 type Tags map[string][]Tag
 
-func (tags Tags) ToEntity() []entity.Tag {
-	tt := []entity.Tag{}
-	for _, v := range tags {
-		tag := entity.Tag{RuleIDs: []string{}}
-		for _, vv := range v {
-			tag.Value = vv.Value
-			tag.RuleIDs = append(tag.RuleIDs, vv.RuleID)
-		}
+func (tags Tags) ToEntity() []string {
+	tt := []string{}
+	for tag := range tags {
 		tt = append(tt, tag)
 	}
 
@@ -31,5 +22,5 @@ func (tags Tags) Add(t Tag) {
 
 type Tag struct {
 	Value  string
-	RuleID string
+	RuleID *string
 }
