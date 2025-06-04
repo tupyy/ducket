@@ -89,6 +89,9 @@ build.vendor.full:
 build.local:
 	go build -o $(BUILD_DIR)/$(NAME) main.go
 
+run:
+	$(BUILD_DIR)/$(NAME) serve
+
 DB_HOST=localhost
 DB_PORT=5432
 ROOT_USER=postgres

@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"context"
-	"fmt"
+	"time"
 
 	"git.tls.tupangiu.ro/cosmin/finante/internal/config"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/server"
@@ -27,14 +27,15 @@ func NewServeCommand(config *config.Config) *cobra.Command {
 			undo := zap.ReplaceGlobals(logger)
 			defer undo()
 
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
 			zap.S().Info("using configuration", "config", helpers.Flatten(config.DebugMap()))
-			server := server.CreateRunnableServer(ctx, config)
+			server := server.NewRunnableServer(server.NewRunnableServerConfigWithOptions(
+				server.WithPostgresURI(config.Database.URI),
+				server.WithGraceTimeout(1*time.Second),
+				server.WithPort(config.ServerPort),
+			))
 
 			// run server
-			server.Run(fmt.Sprintf("0.0.0.0:%d", config.ServerPort))
+			server.Run(context.Background())
 
 			return nil
 		},
