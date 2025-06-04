@@ -16,7 +16,7 @@ import (
 )
 
 func NewServeCommand(config *config.Config) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:          "serve",
 		Short:        "Serve the server",
 		SilenceUsage: true,
@@ -36,15 +36,18 @@ func NewServeCommand(config *config.Config) *cobra.Command {
 				),
 			)
 
-			// run server
 			server.Run(context.Background())
 
 			return nil
 		},
 	}
+
+	registerFlags(cmd, config)
+
+	return cmd
 }
 
-func RegisterFlags(cmd *cobra.Command, config *config.Config) {
+func registerFlags(cmd *cobra.Command, config *config.Config) {
 	nfs := cobrautil.NewNamedFlagSets(cmd)
 
 	dbFlagSet := nfs.FlagSet(color.New(color.FgCyan, color.Bold).Sprint("database"))

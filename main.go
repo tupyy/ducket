@@ -27,10 +27,7 @@ func main() {
 	}
 	registerLoggingFlags(rootCmd, cfg)
 
-	serveCmd := cmd.NewServeCommand(cfg)
-	cmd.RegisterFlags(serveCmd, cfg)
-
-	rootCmd.AddCommand(serveCmd)
+	rootCmd.AddCommand(cmd.NewServeCommand(cfg))
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
