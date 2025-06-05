@@ -21,18 +21,16 @@ func (r *RuleService) GetRules(ctx context.Context) ([]entity.Rule, error) {
 }
 
 func (r *RuleService) GetRule(ctx context.Context, name string) (*entity.Rule, error) {
-	rules, err := r.dt.QueryRules(ctx, pg.RuleFilter{}, &pg.QueryRuleOptions{})
+	rules, err := r.dt.QueryRules(ctx, pg.RuleFilter{Name: &name}, &pg.QueryRuleOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	for _, r := range rules {
-		if r.Name == name {
-			return &r, nil
-		}
+	if len(rules) == 0 {
+		return nil, nil
 	}
 
-	return nil, nil
+	return &rules[0], nil
 }
 
 func (r *RuleService) Create(ctx context.Context, rule entity.Rule) error {

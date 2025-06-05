@@ -18,8 +18,9 @@ type TransactionFilter struct {
 	Before *time.Time `debugmap:"visible"`
 }
 
-//xgo:generate go run github.com/ecordell/optgen -output zz_generated.rule_filter.go . RuleFilter
+//go:generate go run github.com/ecordell/optgen -output zz_generated.rule_filter.go . RuleFilter
 type RuleFilter struct {
+	Name *string `debugmap:"visible"`
 }
 
 type TagFilter struct {
@@ -128,6 +129,11 @@ func (d *Datastore) QueryTransactions(ctx context.Context, filter TransactionFil
 
 func (d *Datastore) QueryRules(ctx context.Context, filter RuleFilter, opts *QueryRuleOptions) ([]entity.Rule, error) {
 	query := selectRulesStmt
+
+	if filter.Name != nil {
+		query = query.Where(sq.Eq{colID: filter.Name})
+	}
+
 	sql, args, err := query.ToSql()
 	if err != nil {
 		return []entity.Rule{}, fmt.Errorf(errUnableToReadRule, err)
