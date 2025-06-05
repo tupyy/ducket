@@ -32,7 +32,7 @@ type Rule struct {
 
 func NewRule(rule entity.Rule) Rule {
 	r := Rule{
-		HRef:    fmt.Sprintf("/api/v1/rules/%s", rule.ID),
+		HRef:    fmt.Sprintf("/api/v1/rules/%s", rule.Name),
 		Name:    rule.Name,
 		Pattern: rule.Pattern,
 	}

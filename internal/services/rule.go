@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 
 	"git.tls.tupangiu.ro/cosmin/finante/internal/datastore/pg"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
@@ -19,37 +20,54 @@ func (r *RuleService) GetRules(ctx context.Context) ([]entity.Rule, error) {
 	return r.dt.QueryRules(ctx, pg.RuleFilter{}, &pg.QueryRuleOptions{})
 }
 
-func (r *RuleService) Create(ctx context.Context, rule entity.Rule) error {
-	tagSrv := NewTagService(r.dt)
+func (r *RuleService) GetRule(ctx context.Context, name string) (*entity.Rule, error) {
+	rules, err := r.dt.QueryRules(ctx, pg.RuleFilter{}, &pg.QueryRuleOptions{})
+	if err != nil {
+		return nil, err
+	}
 
-	existingTags, err := tagSrv.GetTags(ctx)
+	for _, r := range rules {
+		if r.Name == name {
+			return &r, nil
+		}
+	}
+
+	return nil, nil
+}
+
+func (r *RuleService) Create(ctx context.Context, rule entity.Rule) error {
+	existingRule, err := r.GetRule(ctx, rule.Name)
 	if err != nil {
 		return err
 	}
 
-	return r.dt.WriteTx(ctx, func(ctx context.Context, w pg.Writer) error {
-		for _, tag := range rule.Tags {
-			found := false
-			for _, t := range existingTags {
-				if t == tag {
-					found = true
-					break
-				}
-			}
-			if !found {
-				if err := w.WriteTag(ctx, tag); err != nil {
-					return err
-				}
-			}
-		}
+	if existingRule != nil {
+		return fmt.Errorf("rule %s already exists", rule.Name)
+	}
 
+	return r.dt.WriteTx(ctx, func(ctx context.Context, w pg.Writer) error {
 		// write rule
 		return w.WriteRule(ctx, rule, false)
 	})
 }
 
+func (r *RuleService) UpdateOrCreate(ctx context.Context, rule entity.Rule) (bool, error) {
+	existingRule, err := r.GetRule(ctx, rule.Name)
+	if err != nil {
+		return false, err
+	}
+
+	update := existingRule != nil
+	err = r.dt.WriteTx(ctx, func(ctx context.Context, w pg.Writer) error {
+		// write rule
+		return w.WriteRule(ctx, rule, update)
+	})
+
+	return update, err
+}
+
 func (r *RuleService) DeleteRule(ctx context.Context, rule entity.Rule) error {
 	return r.dt.WriteTx(ctx, func(ctx context.Context, w pg.Writer) error {
-		return w.DeleteRule(ctx, rule.ID)
+		return w.DeleteRule(ctx, rule.Name)
 	})
 }

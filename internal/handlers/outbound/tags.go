@@ -48,7 +48,7 @@ func NewTags(tags []string, rules []entity.Rule) Tags {
 				HRef:  fmt.Sprintf("/api/v1/tags/%s", t),
 				Value: t,
 				Rules: []Rule{
-					NewRule(rule),
+					{Name: rule.Name, HRef: fmt.Sprintf("/api/v1/rules/%s", rule.Name)},
 				},
 			}
 		}

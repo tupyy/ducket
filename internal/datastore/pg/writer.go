@@ -74,13 +74,7 @@ func (w *writerTx) WriteRule(ctx context.Context, rule entity.Rule, update bool)
 	}
 
 	if len(tagsToDissociate) > 0 {
-		deleteTagAssociationStmt := psql.Delete(rulesTagsTable)
-
-		or := sq.Or{}
-		for _, tag := range tagsToDissociate {
-			or = append(or, sq.Eq{colTag: tag})
-		}
-		deleteTagAssociationStmt.Where(or)
+		deleteTagAssociationStmt := psql.Delete(rulesTagsTable).Where(sq.Eq{colRuleID: rule.Name})
 
 		sql, arg, err := deleteTagAssociationStmt.ToSql()
 		if err != nil {
