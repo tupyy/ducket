@@ -90,4 +90,22 @@ func rulesHandlers(r *gin.RouterGroup) {
 		c.JSON(status, ruleToCreate)
 	})
 
+	r.DELETE("/rules/:id", func(c *gin.Context) {
+		name := c.Param("id")
+
+		if len(name) > 20 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "name must be have less than 20 chars"})
+			return
+		}
+
+		dt := MustFromContext(c)
+		ruleSrv := services.NewRuleService(dt)
+		if err := ruleSrv.DeleteRule(c.Request.Context(), name); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusNoContent, gin.H{})
+	})
+
 }

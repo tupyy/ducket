@@ -45,7 +45,27 @@ func (r *RuleService) Create(ctx context.Context, rule entity.Rule) error {
 		return fmt.Errorf("rule %s already exists", rule.Name)
 	}
 
+	tagSrv := NewTagService(r.dt)
+	existingTags, err := tagSrv.GetTags(ctx)
+	if err != nil {
+		return err
+	}
+
 	return r.dt.WriteTx(ctx, func(ctx context.Context, w pg.Writer) error {
+		for _, tag := range rule.Tags {
+			found := false
+			for _, t := range existingTags {
+				if t == tag {
+					found = true
+					break
+				}
+			}
+			if !found {
+				if err := w.WriteTag(ctx, tag); err != nil {
+					return err
+				}
+			}
+		}
 		// write rule
 		return w.WriteRule(ctx, rule, false)
 	})
@@ -57,17 +77,36 @@ func (r *RuleService) UpdateOrCreate(ctx context.Context, rule entity.Rule) (boo
 		return false, err
 	}
 
+	tagSrv := NewTagService(r.dt)
+	existingTags, err := tagSrv.GetTags(ctx)
+	if err != nil {
+		return false, err
+	}
+
 	update := existingRule != nil
 	err = r.dt.WriteTx(ctx, func(ctx context.Context, w pg.Writer) error {
-		// write rule
+		for _, tag := range rule.Tags {
+			found := false
+			for _, t := range existingTags {
+				if t == tag {
+					found = true
+					break
+				}
+			}
+			if !found {
+				if err := w.WriteTag(ctx, tag); err != nil {
+					return err
+				}
+			}
+		}
 		return w.WriteRule(ctx, rule, update)
 	})
 
 	return update, err
 }
 
-func (r *RuleService) DeleteRule(ctx context.Context, rule entity.Rule) error {
+func (r *RuleService) DeleteRule(ctx context.Context, name string) error {
 	return r.dt.WriteTx(ctx, func(ctx context.Context, w pg.Writer) error {
-		return w.DeleteRule(ctx, rule.Name)
+		return w.DeleteRule(ctx, name)
 	})
 }
