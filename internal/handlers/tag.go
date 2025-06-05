@@ -3,16 +3,15 @@ package handlers
 import (
 	"net/http"
 
-	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/models"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/inbound"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/outbound"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/services"
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
 	"go.uber.org/zap"
 )
 
 func tagHandlers(r *gin.RouterGroup) {
-	validate := validator.New()
-	validate.RegisterStructValidation(models.TagFormValidation, models.TagForm{})
+	validate.RegisterStructValidation(inbound.TagFormValidation, inbound.TagForm{})
 
 	r.GET("/tags", func(c *gin.Context) {
 		dt := MustFromContext(c)
@@ -34,11 +33,11 @@ func tagHandlers(r *gin.RouterGroup) {
 			return
 		}
 
-		c.JSON(http.StatusOK, models.NewTags(tags, rules))
+		c.JSON(http.StatusOK, outbound.NewTags(tags, rules))
 	})
 
 	r.POST("/tags", func(c *gin.Context) {
-		var form models.TagForm
+		var form inbound.TagForm
 		if err := c.ShouldBindJSON(&form); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -56,7 +55,7 @@ func tagHandlers(r *gin.RouterGroup) {
 			return
 		}
 
-		c.JSON(http.StatusCreated, models.NewTag(form.Value))
+		c.JSON(http.StatusCreated, outbound.NewTag(form.Value))
 	})
 
 	r.DELETE("/tags/:id", func(c *gin.Context) {

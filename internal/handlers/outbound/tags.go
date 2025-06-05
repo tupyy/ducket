@@ -1,4 +1,4 @@
-package models
+package outbound
 
 import (
 	"fmt"
@@ -6,47 +6,26 @@ import (
 	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
 )
 
-type List struct {
-	Total int `json:"total"`
-}
-
-type TagRef struct {
-	HRef  string `json:"href"`
-	Value string `json:"value"`
-}
-
-type RuleRef struct {
-	HRef string `json:"href"`
-	Name string `json:"name"`
-}
-
-func newRuleRef(rule entity.Rule) RuleRef {
-	return RuleRef{
-		HRef: fmt.Sprintf("/api/v1/rules/%s", rule.ID),
-		Name: rule.Name,
-	}
-}
-
 type Tags struct {
-	List
-	Tags []Tag `json:"tags"`
+	Total int   `json:"total"`
+	Tags  []Tag `json:"tags"`
 }
 
 type Tag struct {
-	HRef  string    `json:"href"`
-	Value string    `json:"value"`
-	Rules []RuleRef `json:"rules,omitempty"`
+	HRef  string `json:"href"`
+	Value string `json:"value"`
+	Rules []Rule `json:"rules,omitempty"`
 }
 
 func NewTag(value string, rules ...entity.Rule) Tag {
 	tag := Tag{
 		HRef:  fmt.Sprintf("/api/v1/tags/%s", value),
 		Value: value,
-		Rules: make([]RuleRef, 0),
+		Rules: make([]Rule, 0),
 	}
 
 	for _, rule := range rules {
-		tag.Rules = append(tag.Rules, newRuleRef(rule))
+		tag.Rules = append(tag.Rules, NewRule(rule))
 	}
 
 	return tag
@@ -61,15 +40,15 @@ func NewTags(tags []string, rules []entity.Rule) Tags {
 	for _, rule := range rules {
 		for _, t := range rule.Tags {
 			if tag, ok := r[t]; ok {
-				tag.Rules = append(tag.Rules, newRuleRef(rule))
+				tag.Rules = append(tag.Rules, NewRule(rule))
 				r[t] = tag
 				continue
 			}
 			r[t] = Tag{
 				HRef:  fmt.Sprintf("/api/v1/tags/%s", t),
 				Value: t,
-				Rules: []RuleRef{
-					newRuleRef(rule),
+				Rules: []Rule{
+					NewRule(rule),
 				},
 			}
 		}
@@ -87,7 +66,7 @@ func NewTags(tags []string, rules []entity.Rule) Tags {
 	for _, v := range r {
 		mtags.Tags = append(mtags.Tags, v)
 	}
-	mtags.List.Total = len(r)
+	mtags.Total = len(r)
 
 	return mtags
 }
