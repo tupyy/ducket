@@ -1,8 +1,7 @@
 -- +goose Up
 -- +goose StatementBegin
 CREATE TABLE rules (
-    id VARCHAR(12) PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
+    id VARCHAR(100) PRIMARY KEY,
     pattern TEXT NOT NULL
 );
 

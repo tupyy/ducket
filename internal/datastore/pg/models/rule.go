@@ -9,8 +9,7 @@ func (r RuleRows) ToEntity() []entity.Rule {
 	for _, v := range r {
 		rule := entity.Rule{Tags: []string{}}
 		for _, vv := range v {
-			rule.ID = vv.ID
-			rule.Name = vv.Name
+			rule.Name = vv.ID
 			rule.Pattern = vv.Pattern
 			if vv.Tag != nil {
 				rule.Tags = append(rule.Tags, *vv.Tag)
@@ -33,7 +32,6 @@ func (r RuleRows) Add(ruleRow RuleRow) {
 
 type RuleRow struct {
 	ID      string
-	Name    string
 	Pattern string
 	Tag     *string `db:"value"`
 }

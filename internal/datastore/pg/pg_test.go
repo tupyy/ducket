@@ -19,7 +19,7 @@ const (
 
 var (
 	psql                 = sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
-	insertRule           = psql.Insert("rules").Columns("id", "name", "pattern")
+	insertRule           = psql.Insert("rules").Columns("id", "pattern")
 	insertTagStmt        = psql.Insert("tags").Columns("value")
 	insertTransaction    = psql.Insert("transactions").Columns("id", "date", "kind", "content", "amount", "hash")
 	insertTransactionTag = psql.Insert("transactions_tags").Columns("transaction_id", "tag_id", "rule_id")
@@ -67,8 +67,8 @@ var _ = Describe("query", Ordered, func() {
 
 		It("reads successfully rules -- without tags", func() {
 			sql, args, err := insertRule.
-				Values("rule1", "rule1", "pattern").
-				Values("rule2", "rule2", "pattern2").
+				Values("rule1", "pattern").
+				Values("rule2", "pattern2").
 				ToSql()
 			Expect(err).To(BeNil())
 
@@ -78,8 +78,6 @@ var _ = Describe("query", Ordered, func() {
 			rules, err := dt.QueryRules(context.TODO(), pg.RuleFilter{}, &pg.QueryRuleOptions{})
 			Expect(err).To(BeNil())
 			Expect(rules).To(HaveLen(2))
-			Expect([]string{"rule1", "rule2"}).To(ContainElement(rules[0].ID))
-			Expect([]string{"rule1", "rule2"}).To(ContainElement(rules[1].ID))
 			Expect([]string{"rule1", "rule2"}).To(ContainElement(rules[0].Name))
 			Expect([]string{"rule1", "rule2"}).To(ContainElement(rules[1].Name))
 			Expect([]string{"pattern", "pattern2"}).To(ContainElement(rules[0].Pattern))
@@ -88,8 +86,8 @@ var _ = Describe("query", Ordered, func() {
 
 		It("reads successfully rules -- with tags", func() {
 			sql, args, err := insertRule.
-				Values("rule1", "rule1", "pattern").
-				Values("rule2", "rule2", "pattern2").
+				Values("rule1", "pattern").
+				Values("rule2", "pattern2").
 				ToSql()
 			Expect(err).To(BeNil())
 
@@ -119,8 +117,6 @@ var _ = Describe("query", Ordered, func() {
 			rules, err := dt.QueryRules(context.TODO(), pg.RuleFilter{}, &pg.QueryRuleOptions{})
 			Expect(err).To(BeNil())
 			Expect(rules).To(HaveLen(2))
-			Expect([]string{"rule1", "rule2"}).To(ContainElement(rules[0].ID))
-			Expect([]string{"rule1", "rule2"}).To(ContainElement(rules[1].ID))
 			Expect([]string{"rule1", "rule2"}).To(ContainElement(rules[0].Name))
 			Expect([]string{"rule1", "rule2"}).To(ContainElement(rules[1].Name))
 			Expect([]string{"pattern", "pattern2"}).To(ContainElement(rules[0].Pattern))
@@ -138,7 +134,7 @@ var _ = Describe("query", Ordered, func() {
 
 		It("delete successfully rule", func() {
 			sql, args, err := insertRule.
-				Values("rule1", "rule1", "pattern").
+				Values("rule1", "pattern").
 				ToSql()
 			Expect(err).To(BeNil())
 
@@ -192,52 +188,36 @@ var _ = Describe("query", Ordered, func() {
 
 	Context("write rule", func() {
 		It("write rule successfully -- no tags", func() {
-			rule := entity.NewRule("rule1", "rule1", "pattern1")
+			rule := entity.NewRule("rule1", "pattern1")
 			err := dt.WriteTx(context.TODO(), func(ctx context.Context, w pg.Writer) error {
 				return w.WriteRule(context.TODO(), rule, false)
 			})
 
 			var count int
 
-			rows, err := pgPool.Query(context.TODO(), "select count(*) from rules;")
+			err = pgPool.QueryRow(context.TODO(), "select count(*) from rules;").Scan(&count)
 			Expect(err).To(BeNil())
-			defer rows.Close()
-
-			for rows.Next() {
-				err := rows.Scan(&count)
-				Expect(err).To(BeNil())
-				Expect(count).To(Equal(1))
-			}
+			Expect(count).To(Equal(1))
 		})
 
 		It("update rule successfully -- no tags", func() {
 			sql, args, err := insertRule.
-				Values("rule1", "rule1", "pattern").
+				Values("rule1", "pattern").
 				ToSql()
 			Expect(err).To(BeNil())
 
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
 			Expect(err).To(BeNil())
 
-			rule := entity.NewRule("rule1", "updated_name", "updated_pattern")
+			rule := entity.NewRule("rule1", "updated_pattern")
 			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w pg.Writer) error {
 				return w.WriteRule(context.TODO(), rule, true)
 			})
 
-			rows, err := pgPool.Query(context.TODO(), "select name,pattern from rules limit 1;")
+			var pattern string
+			err = pgPool.QueryRow(context.TODO(), "select pattern from rules limit 1;").Scan(&pattern)
 			Expect(err).To(BeNil())
-			defer rows.Close()
-
-			for rows.Next() {
-				var (
-					pattern string
-					name    string
-				)
-				err := rows.Scan(&name, &pattern)
-				Expect(err).To(BeNil())
-				Expect(pattern).To(Equal("updated_pattern"))
-				Expect(name).To(Equal("updated_name"))
-			}
+			Expect(pattern).To(Equal("updated_pattern"))
 		})
 
 		It("update rule successfully -- with additional tags", func() {
@@ -252,43 +232,27 @@ var _ = Describe("query", Ordered, func() {
 			Expect(err).To(BeNil())
 
 			sql, args, err = insertRule.
-				Values("rule1", "rule1", "pattern").
+				Values("rule1", "pattern").
 				ToSql()
 			Expect(err).To(BeNil())
 
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
 			Expect(err).To(BeNil())
 
-			rule := entity.NewRule("rule1", "updated_name", "updated_pattern", "tag1")
+			rule := entity.NewRule("rule1", "updated_pattern", "tag1")
 			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w pg.Writer) error {
 				return w.WriteRule(context.TODO(), rule, true)
 			})
 
-			rows, err := pgPool.Query(context.TODO(), "select name,pattern from rules limit 1;")
+			var pattern string
+			err = pgPool.QueryRow(context.TODO(), "select pattern from rules limit 1;").Scan(&pattern)
 			Expect(err).To(BeNil())
-			defer rows.Close()
-
-			for rows.Next() {
-				var (
-					pattern string
-					name    string
-				)
-				err := rows.Scan(&name, &pattern)
-				Expect(err).To(BeNil())
-				Expect(pattern).To(Equal("updated_pattern"))
-				Expect(name).To(Equal("updated_name"))
-			}
+			Expect(pattern).To(Equal("updated_pattern"))
 
 			count := 0
-			rows, err = pgPool.Query(context.TODO(), "select count(*) from rules_tags;")
+			err = pgPool.QueryRow(context.TODO(), "select count(*) from rules_tags;").Scan(&count)
 			Expect(err).To(BeNil())
-			defer rows.Close()
-
-			for rows.Next() {
-				err := rows.Scan(&count)
-				Expect(err).To(BeNil())
-				Expect(count).To(Equal(1))
-			}
+			Expect(count).To(Equal(1))
 		})
 
 		It("update rule successfully -- remove tags", func() {
@@ -301,7 +265,7 @@ var _ = Describe("query", Ordered, func() {
 			Expect(err).To(BeNil())
 
 			sql, args, err = insertRule.
-				Values("rule1", "rule1", "pattern").
+				Values("rule1", "pattern").
 				ToSql()
 			Expect(err).To(BeNil())
 
@@ -314,36 +278,20 @@ var _ = Describe("query", Ordered, func() {
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
 			Expect(err).To(BeNil())
 
-			rule := entity.NewRule("rule1", "updated_name", "updated_pattern")
+			rule := entity.NewRule("rule1", "updated_pattern")
 			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w pg.Writer) error {
 				return w.WriteRule(context.TODO(), rule, true)
 			})
 
-			rows, err := pgPool.Query(context.TODO(), "select name,pattern from rules limit 1;")
+			var pattern string
+			err = pgPool.QueryRow(context.TODO(), "select pattern from rules limit 1;").Scan(&pattern)
 			Expect(err).To(BeNil())
-			defer rows.Close()
-
-			for rows.Next() {
-				var (
-					pattern string
-					name    string
-				)
-				err := rows.Scan(&name, &pattern)
-				Expect(err).To(BeNil())
-				Expect(pattern).To(Equal("updated_pattern"))
-				Expect(name).To(Equal("updated_name"))
-			}
+			Expect(pattern).To(Equal("updated_pattern"))
 
 			count := 1
-			rows, err = pgPool.Query(context.TODO(), "select count(*) from rules_tags;")
+			err = pgPool.QueryRow(context.TODO(), "select count(*) from rules_tags;").Scan(&count)
 			Expect(err).To(BeNil())
-			defer rows.Close()
-
-			for rows.Next() {
-				err := rows.Scan(&count)
-				Expect(err).To(BeNil())
-				Expect(count).To(Equal(0))
-			}
+			Expect(count).To(Equal(0))
 		})
 
 		It("write rule successfully -- with tags", func() {
@@ -357,34 +305,21 @@ var _ = Describe("query", Ordered, func() {
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
 			Expect(err).To(BeNil())
 
-			rule := entity.NewRule("rule1", "rule1", "pattern1", "tag1", "tag2")
+			rule := entity.NewRule("rule1", "pattern1", "tag1", "tag2")
 			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w pg.Writer) error {
 				return w.WriteRule(context.TODO(), rule, false)
 			})
 			Expect(err).To(BeNil())
 
-			var count int
-
-			rows, err := pgPool.Query(context.TODO(), "select count(*) from rules;")
+			count := 0
+			err = pgPool.QueryRow(context.TODO(), "select count(*) from rules;").Scan(&count)
 			Expect(err).To(BeNil())
-			defer rows.Close()
-
-			for rows.Next() {
-				err := rows.Scan(&count)
-				Expect(err).To(BeNil())
-				Expect(count).To(Equal(1))
-			}
+			Expect(count).To(Equal(1))
 
 			count = 0
-			rows, err = pgPool.Query(context.TODO(), "select count(*) from rules_tags;")
+			err = pgPool.QueryRow(context.TODO(), "select count(*) from rules_tags;").Scan(&count)
 			Expect(err).To(BeNil())
-			defer rows.Close()
-
-			for rows.Next() {
-				err := rows.Scan(&count)
-				Expect(err).To(BeNil())
-				Expect(count).To(Equal(2))
-			}
+			Expect(count).To(Equal(2))
 		})
 
 		AfterEach(func() {
@@ -423,8 +358,8 @@ var _ = Describe("query", Ordered, func() {
 
 		It("query successfully transactions -- with tags", func() {
 			sql, args, err := insertRule.
-				Values("rule1", "rule1", "pattern").
-				Values("rule2", "rule2", "pattern2").
+				Values("rule1", "pattern").
+				Values("rule2", "pattern2").
 				ToSql()
 			Expect(err).To(BeNil())
 
@@ -592,7 +527,7 @@ var _ = Describe("query", Ordered, func() {
 
 		It("write transaction successfully -- with tags", func() {
 			sql, args, err := insertRule.
-				Values("rule1", "rule1", "pattern").
+				Values("rule1", "pattern").
 				ToSql()
 			Expect(err).To(BeNil())
 
@@ -629,7 +564,7 @@ var _ = Describe("query", Ordered, func() {
 
 		It("update successfully transactions -- no tags", func() {
 			sql, args, err := insertRule.
-				Values("rule1", "rule1", "pattern").
+				Values("rule1", "pattern").
 				ToSql()
 			Expect(err).To(BeNil())
 
@@ -746,8 +681,8 @@ var _ = Describe("query", Ordered, func() {
 		})
 		It("successfully query tags", func() {
 			sql, args, err := insertRule.
-				Values("rule1", "rule1", "pattern").
-				Values("rule2", "rule2", "pattern2").
+				Values("rule1", "pattern").
+				Values("rule2", "pattern2").
 				ToSql()
 			Expect(err).To(BeNil())
 

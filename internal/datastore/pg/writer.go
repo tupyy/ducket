@@ -25,7 +25,7 @@ func (w *writerTx) WriteRule(ctx context.Context, rule entity.Rule, update bool)
 	switch update {
 	case false:
 		query := insertRule
-		sql, args, err := query.Values(rule.ID, rule.Name, rule.Pattern).ToSql()
+		sql, args, err := query.Values(rule.Name, rule.Pattern).ToSql()
 		if err != nil {
 			return fmt.Errorf(errUnableToWriteRule, err)
 		}
@@ -35,7 +35,7 @@ func (w *writerTx) WriteRule(ctx context.Context, rule entity.Rule, update bool)
 		}
 	case true:
 		// get the old one
-		sql, args, err := selectRulesStmt.Where(sq.Eq{"id": rule.ID}).ToSql()
+		sql, args, err := selectRulesStmt.Where(sq.Eq{"id": rule.Name}).ToSql()
 		if err != nil {
 			return fmt.Errorf(errUnableToWriteRule, err)
 		}
@@ -61,10 +61,8 @@ func (w *writerTx) WriteRule(ctx context.Context, rule entity.Rule, update bool)
 
 		query := updateRule
 		sql, args, err = query.
-			Set("id", rule.ID).
-			Set("name", rule.Name).
 			Set("pattern", rule.Pattern).
-			Where(sq.Eq{"id": rule.ID}).
+			Where(sq.Eq{"id": rule.Name}).
 			ToSql()
 		if err != nil {
 			return fmt.Errorf(errUnableToWriteRule, err)
@@ -96,7 +94,7 @@ func (w *writerTx) WriteRule(ctx context.Context, rule entity.Rule, update bool)
 	if len(tagsToAssociate) > 0 {
 		addTagAssociationStmt := psql.Insert(rulesTagsTable).Columns(colRuleID, colTag)
 		for _, tag := range tagsToAssociate {
-			addTagAssociationStmt = addTagAssociationStmt.Values(rule.ID, tag)
+			addTagAssociationStmt = addTagAssociationStmt.Values(rule.Name, tag)
 		}
 
 		// add on conflict statement

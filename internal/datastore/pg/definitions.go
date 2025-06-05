@@ -60,7 +60,7 @@ var (
 				From(transactionTable).
 				LeftJoin("transactions_tags ON transactions_tags.transaction_id = transactions.id")
 
-	insertRule = psql.Insert(rulesTable).Columns("id", "name", "pattern")
+	insertRule = psql.Insert(rulesTable).Columns("id", "pattern")
 	updateRule = psql.Update(rulesTable)
 	insertTag  = psql.Insert("tags").Columns("value")
 )
