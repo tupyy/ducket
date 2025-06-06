@@ -16,12 +16,13 @@ const (
 
 func transactionHandlers(r *gin.RouterGroup) {
 	r.GET("/transactions", func(c *gin.Context) {
-		start, err := parseTime(c.Query("start"), time.Date(time.Now().Year(), time.Now().Month(), 1, 0, 0, 0, 0, time.UTC))
+		now := time.Now()
+		start, err := parseTime(c.Query("start"), time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC))
 		if err != nil {
 			zap.S().Warnw("failed to parse starting date. defaults to first day of the current month", "error", err, "url", c.Request.URL)
 		}
 
-		end, err := parseTime(c.Query("end"), time.Now())
+		end, err := parseTime(c.Query("end"), now)
 		if err != nil {
 			zap.S().Warnw("failed to parse ending date. defaults to now", "error", err, "url", c.Request.URL)
 		}

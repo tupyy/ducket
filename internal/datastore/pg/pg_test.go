@@ -60,7 +60,7 @@ var _ = Describe("query", Ordered, func() {
 
 	Context("rule", func() {
 		It("reads successfully rules -- empty response", func() {
-			rules, err := dt.QueryRules(context.TODO(), pg.RuleFilter{}, &pg.QueryRuleOptions{})
+			rules, err := dt.QueryRules(context.TODO())
 			Expect(err).To(BeNil())
 			Expect(rules).To(HaveLen(0))
 		})
@@ -75,7 +75,7 @@ var _ = Describe("query", Ordered, func() {
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
 			Expect(err).To(BeNil())
 
-			rules, err := dt.QueryRules(context.TODO(), pg.RuleFilter{}, &pg.QueryRuleOptions{})
+			rules, err := dt.QueryRules(context.TODO())
 			Expect(err).To(BeNil())
 			Expect(rules).To(HaveLen(2))
 			Expect([]string{"rule1", "rule2"}).To(ContainElement(rules[0].Name))
@@ -114,7 +114,7 @@ var _ = Describe("query", Ordered, func() {
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
 			Expect(err).To(BeNil())
 
-			rules, err := dt.QueryRules(context.TODO(), pg.RuleFilter{}, &pg.QueryRuleOptions{})
+			rules, err := dt.QueryRules(context.TODO())
 			Expect(err).To(BeNil())
 			Expect(rules).To(HaveLen(2))
 			Expect([]string{"rule1", "rule2"}).To(ContainElement(rules[0].Name))
@@ -667,7 +667,7 @@ var _ = Describe("query", Ordered, func() {
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
 			Expect(err).To(BeNil())
 
-			tags, err := dt.QueryTags(context.TODO(), pg.TagFilter{})
+			tags, err := dt.QueryTags(context.TODO())
 			Expect(err).To(BeNil())
 
 			Expect(tags).To(HaveLen(2))
@@ -708,7 +708,7 @@ var _ = Describe("query", Ordered, func() {
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
 			Expect(err).To(BeNil())
 
-			tags, err := dt.QueryTags(context.TODO(), pg.TagFilter{})
+			tags, err := dt.QueryTags(context.TODO())
 			Expect(err).To(BeNil())
 
 			Expect(tags).To(HaveLen(2))

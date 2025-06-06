@@ -13,25 +13,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-//go:generate go run github.com/ecordell/optgen -output zz_generated.rule_filter.go . RuleFilter
-type RuleFilter struct {
-	Name *string `debugmap:"visible"`
-}
-
-type TagFilter struct {
-	RuleID *string
-}
-
-//go:generate go run github.com/ecordell/optgen -output zz_generated.query_transaction_opts.go . QueryTransactionOptions
-type QueryTransactionOptions struct {
-	Limit  int `debugmap:"visible"`
-	Offset int `debugmap:"visible"`
-}
-
-//xgo:generate go run github.com/ecordell/optgen -output zz_generated.query_rule_opts.go . QueryRuleOptions
-type QueryRuleOptions struct {
-}
-
 type QueryFilter func(original sq.SelectBuilder) sq.SelectBuilder
 
 type Writer interface {
@@ -104,11 +85,11 @@ func (d *Datastore) QueryTransactions(ctx context.Context, filterFn ...QueryFilt
 	return tRows.ToEntity(), nil
 }
 
-func (d *Datastore) QueryRules(ctx context.Context, filter RuleFilter, opts *QueryRuleOptions) ([]entity.Rule, error) {
+func (d *Datastore) QueryRules(ctx context.Context, filter ...QueryFilter) ([]entity.Rule, error) {
 	query := selectRulesStmt
 
-	if filter.Name != nil {
-		query = query.Where(sq.Eq{colID: filter.Name})
+	for _, f := range filter {
+		query = f(query)
 	}
 
 	sql, args, err := query.ToSql()
@@ -137,11 +118,11 @@ func (d *Datastore) QueryRules(ctx context.Context, filter RuleFilter, opts *Que
 	return ruleRows.ToEntity(), nil
 }
 
-func (d *Datastore) QueryTags(ctx context.Context, filter TagFilter) ([]string, error) {
+func (d *Datastore) QueryTags(ctx context.Context, filter ...QueryFilter) ([]string, error) {
 	query := selectTagsStmt
 
-	if filter.RuleID != nil {
-		query = query.Where(sq.Eq{colRuleID: filter.RuleID})
+	for _, f := range filter {
+		query = f(query)
 	}
 
 	sql, args, err := query.ToSql()

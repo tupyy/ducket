@@ -43,3 +43,21 @@ func OffsetQueryFilter(offset int) func(orig sq.SelectBuilder) sq.SelectBuilder 
 		return orig.Offset(uint64(offset))
 	}
 }
+
+func RuleNameQueryFilter(name string) func(orig sq.SelectBuilder) sq.SelectBuilder {
+	return func(orig sq.SelectBuilder) sq.SelectBuilder {
+		if name == "" {
+			return orig
+		}
+		return orig.Where(sq.Eq{colID: name})
+	}
+}
+
+func TagNameQueryFilter(ruleName string) func(orig sq.SelectBuilder) sq.SelectBuilder {
+	return func(orig sq.SelectBuilder) sq.SelectBuilder {
+		if ruleName == "" {
+			return orig
+		}
+		return orig.Where(sq.Eq{colRuleID: ruleName})
+	}
+}
