@@ -334,7 +334,7 @@ var _ = Describe("query", Ordered, func() {
 
 	Context("transaction", func() {
 		It("query successfully transactions -- empty response", func() {
-			transactions, err := dt.QueryTransactions(context.TODO(), pg.TransactionFilter{}, &pg.QueryTransactionOptions{})
+			transactions, err := dt.QueryTransactions(context.TODO())
 			Expect(err).To(BeNil())
 			Expect(transactions).To(HaveLen(0))
 		})
@@ -348,7 +348,7 @@ var _ = Describe("query", Ordered, func() {
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
 			Expect(err).To(BeNil())
 
-			transactions, err := dt.QueryTransactions(context.TODO(), pg.TransactionFilter{}, &pg.QueryTransactionOptions{})
+			transactions, err := dt.QueryTransactions(context.TODO())
 			Expect(err).To(BeNil())
 			Expect(transactions).To(HaveLen(2))
 
@@ -393,7 +393,7 @@ var _ = Describe("query", Ordered, func() {
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
 			Expect(err).To(BeNil())
 
-			transactions, err := dt.QueryTransactions(context.TODO(), pg.TransactionFilter{}, &pg.QueryTransactionOptions{})
+			transactions, err := dt.QueryTransactions(context.TODO())
 			Expect(err).To(BeNil())
 			Expect(transactions).To(HaveLen(2))
 
@@ -415,7 +415,7 @@ var _ = Describe("query", Ordered, func() {
 			}
 		})
 
-		It("query successfully transactions -- with before filter", func() {
+		It("query successfully transactions -- with start filter", func() {
 			now := time.Now()
 			sql, args, err := insertTransaction.
 				Values(1, time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC), "credit", "transaction", "1.1", "hash1").
@@ -425,34 +425,30 @@ var _ = Describe("query", Ordered, func() {
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
 			Expect(err).To(BeNil())
 
-			beforeTime := time.Date(now.Year(), 1, 3, 0, 0, 0, 0, time.UTC)
-			transactions, err := dt.QueryTransactions(context.TODO(), pg.TransactionFilter{
-				Before: &beforeTime,
-			}, &pg.QueryTransactionOptions{})
-			Expect(err).To(BeNil())
-			Expect(transactions).To(HaveLen(1))
-
-			Expect(transactions[0].ID).To(Equal(1))
-		})
-
-		It("query successfully transactions -- with after filter", func() {
-			now := time.Now()
-			sql, args, err := insertTransaction.
-				Values(1, time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC), "credit", "transaction", "1.1", "hash1").
-				Values(2, time.Date(now.Year(), 2, 1, 0, 0, 0, 0, time.UTC), "debit", "transaction", "2.1", "hash2").
-				ToSql()
-
-			_, err = pgPool.Exec(context.TODO(), sql, args...)
-			Expect(err).To(BeNil())
-
-			afterTime := time.Date(now.Year(), 1, 3, 0, 0, 0, 0, time.UTC)
-			transactions, err := dt.QueryTransactions(context.TODO(), pg.TransactionFilter{
-				After: &afterTime,
-			}, &pg.QueryTransactionOptions{})
+			start := time.Date(now.Year(), 1, 3, 0, 0, 0, 0, time.UTC)
+			transactions, err := dt.QueryTransactions(context.TODO(), pg.IntervalDateQueryFilter(&start, nil))
 			Expect(err).To(BeNil())
 			Expect(transactions).To(HaveLen(1))
 
 			Expect(transactions[0].ID).To(Equal(2))
+		})
+
+		It("query successfully transactions -- with end filter", func() {
+			now := time.Now()
+			sql, args, err := insertTransaction.
+				Values(1, time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC), "credit", "transaction", "1.1", "hash1").
+				Values(2, time.Date(now.Year(), 2, 1, 0, 0, 0, 0, time.UTC), "debit", "transaction", "2.1", "hash2").
+				ToSql()
+
+			_, err = pgPool.Exec(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			end := time.Date(now.Year(), 1, 3, 0, 0, 0, 0, time.UTC)
+			transactions, err := dt.QueryTransactions(context.TODO(), pg.IntervalDateQueryFilter(nil, &end))
+			Expect(err).To(BeNil())
+			Expect(transactions).To(HaveLen(1))
+
+			Expect(transactions[0].ID).To(Equal(1))
 		})
 
 		It("query successfully transactions -- with before and after filter", func() {
@@ -466,12 +462,9 @@ var _ = Describe("query", Ordered, func() {
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
 			Expect(err).To(BeNil())
 
-			afterTime := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC)
-			beforeTime := time.Date(now.Year(), 2, 2, 0, 0, 0, 0, time.UTC)
-			transactions, err := dt.QueryTransactions(context.TODO(), pg.TransactionFilter{
-				Before: &beforeTime,
-				After:  &afterTime,
-			}, &pg.QueryTransactionOptions{})
+			end := time.Date(now.Year(), 2, 1, 0, 0, 0, 0, time.UTC)
+			start := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC)
+			transactions, err := dt.QueryTransactions(context.TODO(), pg.IntervalDateQueryFilter(&start, &end))
 			Expect(err).To(BeNil())
 
 			Expect(transactions).To(HaveLen(2))
@@ -486,7 +479,7 @@ var _ = Describe("query", Ordered, func() {
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
 			Expect(err).To(BeNil())
 
-			transactions, err := dt.QueryTransactions(context.TODO(), pg.TransactionFilter{}, &pg.QueryTransactionOptions{Offset: 1})
+			transactions, err := dt.QueryTransactions(context.TODO(), pg.OffsetQueryFilter(1))
 			Expect(err).To(BeNil())
 			Expect(transactions).To(HaveLen(1))
 		})
@@ -500,7 +493,7 @@ var _ = Describe("query", Ordered, func() {
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
 			Expect(err).To(BeNil())
 
-			transactions, err := dt.QueryTransactions(context.TODO(), pg.TransactionFilter{}, &pg.QueryTransactionOptions{Limit: 1})
+			transactions, err := dt.QueryTransactions(context.TODO(), pg.LimitQueryFilter(1))
 			Expect(err).To(BeNil())
 			Expect(transactions).To(HaveLen(1))
 		})

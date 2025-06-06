@@ -3,7 +3,6 @@ package pg
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"git.tls.tupangiu.ro/cosmin/finante/internal/datastore/pg/models"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
@@ -11,12 +10,6 @@ import (
 	"github.com/georgysavva/scany/v2/pgxscan"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-//go:generate go run github.com/ecordell/optgen -output zz_generated.transaction_filter.go . TransactionFilter
-type TransactionFilter struct {
-	After  *time.Time `debugmap:"visible"`
-	Before *time.Time `debugmap:"visible"`
-}
 
 //go:generate go run github.com/ecordell/optgen -output zz_generated.rule_filter.go . RuleFilter
 type RuleFilter struct {
@@ -36,6 +29,8 @@ type QueryTransactionOptions struct {
 //xgo:generate go run github.com/ecordell/optgen -output zz_generated.query_rule_opts.go . QueryRuleOptions
 type QueryRuleOptions struct {
 }
+
+type QueryFilter func(original sq.SelectBuilder) sq.SelectBuilder
 
 type Writer interface {
 	WriteTransaction(ctx context.Context, transaction entity.Transaction) error
@@ -72,33 +67,13 @@ func NewPostgresDatastore(ctx context.Context, url string, options ...Option) (*
 	return &Datastore{pool: pgPool}, nil
 }
 
-func (d *Datastore) QueryTransactions(ctx context.Context, filter TransactionFilter, opts *QueryTransactionOptions) ([]entity.Transaction, error) {
+func (d *Datastore) QueryTransactions(ctx context.Context, filterFn ...QueryFilter) ([]entity.Transaction, error) {
 	query := psql.Select(colID, colDate, colTransactionType, colTransactionContent, colAmount, colTagID, colRuleID, colHash).
 		From(transactionTable).
 		LeftJoin("transactions_tags ON transactions_tags.transaction_id = transactions.id")
 
-	if filter.Before != nil && filter.After != nil {
-		query = query.Where(
-			sq.And{
-				sq.GtOrEq{"date": filter.After},
-				sq.LtOrEq{"date": filter.Before},
-			},
-		)
-	} else {
-		if filter.Before != nil {
-			query = query.Where(sq.LtOrEq{"date": filter.Before})
-		}
-		if filter.After != nil {
-			query = query.Where(sq.GtOrEq{"date": filter.After})
-		}
-	}
-
-	if opts.Limit > 0 {
-		query = query.Limit(uint64(opts.Limit))
-	}
-
-	if opts.Offset > 0 {
-		query = query.Offset(uint64(opts.Offset))
+	for _, fn := range filterFn {
+		query = fn(query)
 	}
 
 	sql, args, err := query.ToSql()
