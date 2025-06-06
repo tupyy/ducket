@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	timeFormat = "02/01/2006"
+	queryDateFormat = "02/01/2006"
 )
 
 func transactionHandlers(r *gin.RouterGroup) {
@@ -51,7 +51,7 @@ func parseTime(sTime string, defaultTime time.Time) (time.Time, error) {
 	if sTime == "" {
 		return defaultTime, nil
 	}
-	startTime, err := time.Parse(timeFormat, sTime)
+	startTime, err := time.Parse(queryDateFormat, sTime)
 	if err != nil {
 		return defaultTime, err
 	}
