@@ -1,5 +1,7 @@
 package pg
 
+// copyright SpiceDB
+
 import (
 	"context"
 	"fmt"
@@ -44,7 +46,7 @@ type Writer interface {
 type TxUserFunc func(context.Context, Writer) error
 
 type Datastore struct {
-	pool *pgxpool.Pool
+	pool ConnPooler
 }
 
 func NewPostgresDatastore(ctx context.Context, url string, options ...Option) (*Datastore, error) {
@@ -64,7 +66,7 @@ func NewPostgresDatastore(ctx context.Context, url string, options ...Option) (*
 		return nil, err
 	}
 
-	return &Datastore{pool: pgPool}, nil
+	return &Datastore{pool: MustNewInterceptorPooler(pgPool, newLogInterceptor())}, nil
 }
 
 func (d *Datastore) QueryTransactions(ctx context.Context, filterFn ...QueryFilter) ([]entity.Transaction, error) {
