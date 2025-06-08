@@ -22,7 +22,7 @@ func (tt Transactions) ToEntity() []entity.Transaction {
 	for _, v := range tt {
 		transaction := entity.Transaction{Tags: make(map[string]string)}
 		for _, vv := range v {
-			transaction.ID = int(vv.ID)
+			transaction.ID = vv.ID
 			transaction.Date = vv.Date
 			transaction.RawContent = vv.Content
 			transaction.Amount = vv.Amount

@@ -8,6 +8,21 @@ import (
 	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
 )
 
+//go:generate go run github.com/ecordell/optgen -output zz_generated.rule_filter.go . RuleFilter
+type RuleFilter struct {
+	Name string `debugmap:"visible"`
+}
+
+func (rf *RuleFilter) QueriesFn() []pg.QueryFilter {
+	qf := []pg.QueryFilter{}
+
+	qf = append(qf,
+		pg.RuleNameQueryFilter(rf.Name),
+	)
+
+	return qf
+}
+
 type RuleService struct {
 	dt *pg.Datastore
 }
@@ -17,11 +32,11 @@ func NewRuleService(dt *pg.Datastore) *RuleService {
 }
 
 func (r *RuleService) GetRules(ctx context.Context) ([]entity.Rule, error) {
-	return r.dt.QueryRules(ctx, pg.RuleFilter{}, &pg.QueryRuleOptions{})
+	return r.dt.QueryRules(ctx)
 }
 
 func (r *RuleService) GetRule(ctx context.Context, name string) (*entity.Rule, error) {
-	rules, err := r.dt.QueryRules(ctx, pg.RuleFilter{Name: &name}, &pg.QueryRuleOptions{})
+	rules, err := r.dt.QueryRules(ctx, NewRuleFilterWithOptions(WithName(name)).QueriesFn()...)
 	if err != nil {
 		return nil, err
 	}

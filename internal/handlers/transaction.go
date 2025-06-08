@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
+	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/inbound"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/outbound"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/services"
 	"github.com/gin-gonic/gin"
@@ -15,6 +18,8 @@ const (
 )
 
 func transactionHandlers(r *gin.RouterGroup) {
+	validate.RegisterStructValidation(inbound.TransactionFormValidation, inbound.TransactionForm{})
+
 	r.GET("/transactions", func(c *gin.Context) {
 		now := time.Now()
 		start, err := parseTime(c.Query("start"), time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC))
@@ -45,6 +50,105 @@ func transactionHandlers(r *gin.RouterGroup) {
 
 		c.JSON(http.StatusAccepted, t)
 	})
+
+	r.POST("/transactions", func(c *gin.Context) {
+		var form inbound.TransactionForm
+		if err := c.ShouldBindJSON(&form); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		if err := validate.Struct(form); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		tEntity, err := form.Entity()
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		dt := MustFromContext(c)
+		tSrv := services.NewTransactionService(dt)
+
+		existingTransaction, err := tSrv.GetTransaction(c.Request.Context(), tEntity.Hash)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		if existingTransaction != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("transaction %d already exists", existingTransaction.ID)})
+			return
+		}
+
+		t, err := tSrv.CreateOrUpdate(c.Request.Context(), tEntity)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusCreated, outbound.FromEntity(t))
+	})
+
+	r.PUT("/transactions/:id", func(c *gin.Context) {
+		idParam := c.Param("id")
+
+		id, err := strconv.ParseInt(idParam, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "id must be an int"})
+			return
+		}
+
+		var form inbound.TransactionForm
+		if err := c.ShouldBindJSON(&form); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		if err := validate.Struct(form); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		tEntity, err := form.Entity()
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		tEntity.ID = id
+
+		dt := MustFromContext(c)
+		tSrv := services.NewTransactionService(dt)
+		t, err := tSrv.CreateOrUpdate(c.Request.Context(), tEntity)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusCreated, outbound.FromEntity(t))
+	})
+
+	r.DELETE("/transactions/:id", func(c *gin.Context) {
+		idParam := c.Param("id")
+
+		id, err := strconv.ParseInt(idParam, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "id must be an int"})
+			return
+		}
+
+		dt := MustFromContext(c)
+		tSrv := services.NewTransactionService(dt)
+		if err := tSrv.Delete(c.Request.Context(), id); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusNoContent, gin.H{})
+	})
+
 }
 
 func parseTime(sTime string, defaultTime time.Time) (time.Time, error) {

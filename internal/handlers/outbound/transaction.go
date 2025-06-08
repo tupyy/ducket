@@ -18,6 +18,7 @@ type TransactionTagAssociation struct {
 }
 
 type Transaction struct {
+	Href        string                      `json:"href"`
 	Kind        string                      `json:"kind"`
 	Date        string                      `json:"date"`
 	Description string                      `json:"description"`
@@ -27,6 +28,7 @@ type Transaction struct {
 
 func FromEntity(t entity.Transaction) Transaction {
 	transaction := Transaction{
+		Href:        fmt.Sprintf("%s/transactions/%d", apiV1, t.ID),
 		Kind:        string(t.Kind),
 		Date:        t.Date.Format(time.RFC3339),
 		Description: t.RawContent,

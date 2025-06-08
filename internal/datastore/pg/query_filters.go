@@ -6,6 +6,15 @@ import (
 	sq "github.com/Masterminds/squirrel"
 )
 
+func TransactionHashQueryFilter(hash string) func(orig sq.SelectBuilder) sq.SelectBuilder {
+	return func(o sq.SelectBuilder) sq.SelectBuilder {
+		if hash == "" {
+			return o
+		}
+		return o.Where(sq.Eq{colHash: hash})
+	}
+}
+
 func IntervalDateQueryFilter(start, end *time.Time) func(orig sq.SelectBuilder) sq.SelectBuilder {
 	return func(orig sq.SelectBuilder) sq.SelectBuilder {
 		if start != nil && end != nil {
@@ -53,11 +62,21 @@ func RuleNameQueryFilter(name string) func(orig sq.SelectBuilder) sq.SelectBuild
 	}
 }
 
-func TagNameQueryFilter(ruleName string) func(orig sq.SelectBuilder) sq.SelectBuilder {
+func RuleTagNameQueryFilter(ruleName string) func(orig sq.SelectBuilder) sq.SelectBuilder {
 	return func(orig sq.SelectBuilder) sq.SelectBuilder {
 		if ruleName == "" {
 			return orig
 		}
 		return orig.Where(sq.Eq{colRuleID: ruleName})
+	}
+}
+
+func TagQueryFilter(tags []string) func(orig sq.SelectBuilder) sq.SelectBuilder {
+	return func(orig sq.SelectBuilder) sq.SelectBuilder {
+		or := sq.Or{}
+		for _, t := range tags {
+			or = append(or, sq.Eq{colValue: t})
+		}
+		return orig.Where(or)
 	}
 }

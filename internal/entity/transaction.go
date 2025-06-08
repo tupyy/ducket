@@ -15,7 +15,7 @@ const (
 )
 
 type Transaction struct {
-	ID         int
+	ID         int64
 	Kind       TransactionKind
 	Date       time.Time
 	RawContent string

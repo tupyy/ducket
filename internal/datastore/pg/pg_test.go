@@ -502,7 +502,8 @@ var _ = Describe("query", Ordered, func() {
 			t := entity.NewTransaction(entity.CreditTransaction, time.Now(), 1.1, "content")
 
 			err := dt.WriteTx(context.TODO(), func(ctx context.Context, w pg.Writer) error {
-				return w.WriteTransaction(ctx, *t)
+				_, err := w.WriteTransaction(ctx, *t)
+				return err
 			})
 			Expect(err).To(BeNil())
 
@@ -539,7 +540,8 @@ var _ = Describe("query", Ordered, func() {
 			t.Tags["tag1"] = "rule1"
 
 			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w pg.Writer) error {
-				return w.WriteTransaction(ctx, *t)
+				_, err := w.WriteTransaction(ctx, *t)
+				return err
 			})
 			Expect(err).To(BeNil())
 
@@ -593,7 +595,8 @@ var _ = Describe("query", Ordered, func() {
 			t.ID = 1 // fix ID
 
 			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w pg.Writer) error {
-				return w.WriteTransaction(ctx, *t)
+				_, err := w.WriteTransaction(ctx, *t)
+				return err
 			})
 			Expect(err).To(BeNil())
 
@@ -623,7 +626,8 @@ var _ = Describe("query", Ordered, func() {
 			t.ID = 1 // fix ID
 
 			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w pg.Writer) error {
-				return w.WriteTransaction(ctx, *t)
+				_, err := w.WriteTransaction(ctx, *t)
+				return err
 			})
 			Expect(err).To(BeNil())
 

@@ -145,18 +145,18 @@ func (w *writerTx) DeleteTag(ctx context.Context, value string) error {
 	return nil
 }
 
-func (w *writerTx) WriteTransaction(ctx context.Context, transaction entity.Transaction) error {
+func (w *writerTx) WriteTransaction(ctx context.Context, transaction entity.Transaction) (int64, error) {
 	transactionID := transaction.ID
 	stmt := selectTransactionStmp.Where(sq.Eq{colID: transactionID})
 
 	sql, args, err := stmt.ToSql()
 	if err != nil {
-		return fmt.Errorf(errUnableToWriteTransaction, err)
+		return 0, fmt.Errorf(errUnableToWriteTransaction, err)
 	}
 
 	rows, err := w.tx.Query(ctx, sql, args...)
 	if err != nil {
-		return fmt.Errorf(errUnableToWriteTransaction, err)
+		return 0, fmt.Errorf(errUnableToWriteTransaction, err)
 	}
 
 	tagsToDissociate := []string{}
@@ -166,7 +166,7 @@ func (w *writerTx) WriteTransaction(ctx context.Context, transaction entity.Tran
 		t := models.Transaction{}
 		err := rs.Scan(&t)
 		if err != nil {
-			return fmt.Errorf(errUnableToWriteTransaction, err)
+			return 0, fmt.Errorf(errUnableToWriteTransaction, err)
 		}
 		if t.Tag != nil && t.RuleID != nil {
 			tagsToDissociate = append(tagsToDissociate, *t.Tag, *t.RuleID)
@@ -186,17 +186,17 @@ func (w *writerTx) WriteTransaction(ctx context.Context, transaction entity.Tran
 			transaction.Amount,
 		).Suffix("RETURNING id").ToSql()
 		if err != nil {
-			return fmt.Errorf(errUnableToWriteTransaction, err)
+			return 0, fmt.Errorf(errUnableToWriteTransaction, err)
 		}
 
 		rows, err := w.tx.Query(ctx, sql, args...)
 		if err != nil {
-			return fmt.Errorf(errUnableToWriteTransaction, err)
+			return 0, fmt.Errorf(errUnableToWriteTransaction, err)
 		}
 
 		if rows.Next() {
 			if err := rows.Scan(&transactionID); err != nil {
-				return fmt.Errorf(errUnableToWriteTransaction, err)
+				return 0, fmt.Errorf(errUnableToWriteTransaction, err)
 			}
 		}
 		rows.Close()
@@ -210,12 +210,12 @@ func (w *writerTx) WriteTransaction(ctx context.Context, transaction entity.Tran
 			Where(sq.Eq{colID: transactionID}).
 			ToSql()
 		if err != nil {
-			return fmt.Errorf(errUnableToWriteTransaction, err)
+			return 0, fmt.Errorf(errUnableToWriteTransaction, err)
 		}
 
 		_, err := w.tx.Exec(ctx, sql, args...)
 		if err != nil {
-			return fmt.Errorf(errUnableToWriteTransaction, err)
+			return 0, fmt.Errorf(errUnableToWriteTransaction, err)
 		}
 	}
 
@@ -223,10 +223,10 @@ func (w *writerTx) WriteTransaction(ctx context.Context, transaction entity.Tran
 	if len(tagsToDissociate) > 0 {
 		sql, arg, err := psql.Delete(transactionsTagsTable).Where(sq.Eq{colTransactionID: transactionID}).ToSql()
 		if err != nil {
-			return fmt.Errorf(errUnableToWriteTag, err)
+			return 0, fmt.Errorf(errUnableToWriteTag, err)
 		}
 		if _, err := w.tx.Exec(ctx, sql, arg...); err != nil {
-			return fmt.Errorf(errUnableToWriteTag, err)
+			return 0, fmt.Errorf(errUnableToWriteTag, err)
 		}
 	}
 
@@ -238,18 +238,18 @@ func (w *writerTx) WriteTransaction(ctx context.Context, transaction entity.Tran
 
 		sql, arg, err := addTagStmt.ToSql()
 		if err != nil {
-			return fmt.Errorf(errUnableToWriteTag, err)
+			return 0, fmt.Errorf(errUnableToWriteTag, err)
 		}
 		if _, err := w.tx.Exec(ctx, sql, arg...); err != nil {
-			return fmt.Errorf(errUnableToWriteTag, err)
+			return 0, fmt.Errorf(errUnableToWriteTag, err)
 		}
 	}
 
-	return nil
+	return int64(transactionID), nil
 
 }
 
-func (w *writerTx) DeleteTransaction(ctx context.Context, id string) error {
+func (w *writerTx) DeleteTransaction(ctx context.Context, id int64) error {
 	sql, args, err := psql.Delete(transactionTable).Where(sq.Eq{colID: id}).ToSql()
 	if err != nil {
 		return fmt.Errorf(errUnableToDeleteTransaction, err)

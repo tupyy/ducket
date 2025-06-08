@@ -15,11 +15,11 @@ func NewTagService(dt *pg.Datastore) *TagService {
 }
 
 func (t *TagService) GetTags(ctx context.Context) ([]string, error) {
-	return t.dt.QueryTags(ctx, pg.TagFilter{})
+	return t.dt.QueryTags(ctx)
 }
 
 func (t *TagService) IsExists(ctx context.Context, tag string) (bool, error) {
-	tags, err := t.dt.QueryTags(ctx, pg.TagFilter{})
+	tags, err := t.dt.QueryTags(ctx)
 	if err != nil {
 		return false, err
 	}

@@ -16,8 +16,8 @@ import (
 type QueryFilter func(original sq.SelectBuilder) sq.SelectBuilder
 
 type Writer interface {
-	WriteTransaction(ctx context.Context, transaction entity.Transaction) error
-	DeleteTransaction(ctx context.Context, id string) error
+	WriteTransaction(ctx context.Context, transaction entity.Transaction) (int64, error)
+	DeleteTransaction(ctx context.Context, id int64) error
 	WriteTag(ctx context.Context, value string) error
 	DeleteTag(ctx context.Context, value string) error
 	WriteRule(ctx context.Context, rule entity.Rule, update bool) error

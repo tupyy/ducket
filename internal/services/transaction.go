@@ -44,3 +44,43 @@ func NewTransactionService(dt *pg.Datastore) *TransactionService {
 func (t *TransactionService) GetTransactions(ctx context.Context, filter *TransactionFilter) ([]entity.Transaction, error) {
 	return t.dt.QueryTransactions(ctx, filter.QueriesFn()...)
 }
+
+func (t *TransactionService) GetTransaction(ctx context.Context, hash string) (*entity.Transaction, error) {
+	tt, err := t.dt.QueryTransactions(ctx, pg.TransactionHashQueryFilter(hash))
+	if err != nil {
+		return nil, err
+	}
+	if len(tt) == 0 {
+		return nil, nil
+	}
+	return &tt[0], err
+}
+
+func (t *TransactionService) CreateOrUpdate(ctx context.Context, transaction entity.Transaction) (entity.Transaction, error) {
+	tt, err := t.dt.QueryTransactions(ctx, pg.TransactionHashQueryFilter(transaction.Hash))
+	if err != nil {
+		return transaction, err
+	}
+
+	if len(tt) == 1 {
+		transaction.ID = tt[0].ID
+	}
+
+	if err := t.dt.WriteTx(ctx, func(ctx context.Context, w pg.Writer) error {
+		id, err := w.WriteTransaction(ctx, transaction)
+		if err != nil {
+			return err
+		}
+		transaction.ID = id
+		return nil
+	}); err != nil {
+		return transaction, err
+	}
+	return transaction, nil
+}
+
+func (t *TransactionService) Delete(ctx context.Context, id int64) error {
+	return t.dt.WriteTx(ctx, func(ctx context.Context, w pg.Writer) error {
+		return w.DeleteTransaction(ctx, id)
+	})
+}
