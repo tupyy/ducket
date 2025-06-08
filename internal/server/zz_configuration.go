@@ -82,6 +82,12 @@ func WithCloseCallback(cb func() error) RunnableServerConfigOption {
 	}
 }
 
+func WithGinMode(ginMode string) RunnableServerConfigOption {
+	return func(r *RunnableServerConfig) {
+		r.GinMode = ginMode
+	}
+}
+
 // WithPort returns an option that can set Port on a RunnableServerConfig
 func WithPort(port int) RunnableServerConfigOption {
 	return func(r *RunnableServerConfig) {

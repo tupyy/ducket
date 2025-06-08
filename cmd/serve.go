@@ -46,6 +46,7 @@ func NewServeCommand(config *config.Config) *cobra.Command {
 					server.WithRegisterHandlersFn(func(r *gin.RouterGroup) {
 						handlers.RegisterHandlers(r)
 					}),
+					server.WithGinMode(config.GinMode),
 					server.WithCloseCallback(func() error {
 						zap.S().Info("close datastore")
 						dt.Close()
