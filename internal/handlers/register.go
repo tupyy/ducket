@@ -15,4 +15,5 @@ func RegisterHandlers(r *gin.RouterGroup) {
 	transactionHandlers(r)
 	tagHandlers(r)
 	rulesHandlers(r)
+	summaryHandlers(r)
 }

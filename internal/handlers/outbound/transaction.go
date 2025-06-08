@@ -62,3 +62,10 @@ func NewTransactions(total int, start, end time.Time) *Transactions {
 		Items:        make([]Transaction, 0, total),
 	}
 }
+
+type Summary struct {
+	TotalAmmount float32            `json:"total"`
+	StartingDate string             `json:"start"`
+	EndingDate   string             `json:"end"`
+	Items        map[string]float32 `json:"items"`
+}
