@@ -1,55 +1,39 @@
 {
   "name": "ui",
-  "version": "0.1.0",
   "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
   "dependencies": {
     "@elastic/datemath": "^5.0.3",
-    "@elastic/eui": "^102.1.0",
-    "@elastic/eui-theme-borealis": "^1.0.0",
+    "@elastic/eui": "^103.0.0",
+    "@elastic/eui-theme-borealis": "^2.0.0",
     "@emotion/css": "^11.13.5",
     "@emotion/react": "^11.14.0",
     "@reduxjs/toolkit": "^2.8.2",
-    "@testing-library/dom": "^10.4.0",
-    "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/react": "^16.1.0",
-    "@testing-library/user-event": "^13.2.1",
-    "@types/jest": "^27.0.1",
-    "@types/node": "^16.7.13",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
     "moment": "^2.30.1",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "react": "^16.12 || ^17.0 || ^18.0",
+    "react-dom": "^16.12 || ^17.0 || ^18.0",
     "react-redux": "^9.2.0",
-    "react-scripts": "5.0.1",
-    "typescript": "^4.4.2",
-    "web-vitals": "^2.1.0"
-  },
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+    "react-router": "^7.6.2"
   },
   "devDependencies": {
-    "prettier": "3.5.3"
-  }
+    "@eslint/js": "^9.25.0",
+    "@types/react": "^16.9 || ^17.0 || ^18.0",
+    "@types/react-dom": "^16.9 || ^17.0 || ^18.0",
+    "@vitejs/plugin-react": "^4.4.1",
+    "eslint": "^9.25.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.19",
+    "globals": "^16.0.0",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.30.1",
+    "vite": "^6.3.5"
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }
