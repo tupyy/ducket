@@ -5,7 +5,7 @@ import reducer from '../shared/reducers';
 import loggerMiddleware from './logger-middleware';
 
 const store = configureStore({
-  reducer,
+  reducer: reducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
@@ -13,6 +13,7 @@ const store = configureStore({
         ignoredActionPaths: [
           'payload.config',
           'payload.request',
+          'payload.headers',
           'error',
           'meta.arg',
         ],

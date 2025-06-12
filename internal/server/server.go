@@ -38,6 +38,7 @@ func NewRunnableServer(cfg *RunnableServerConfig) *runnableServer {
 
 	router := engine.Group("/api/v1/")
 	router.Use(
+		middlewares.Headers(),
 		middlewares.Logger(),
 		middlewares.DatastoreMiddleware(cfg.Datastore),
 		ginzap.RecoveryWithZap(zap.S().Desugar(), true),

@@ -1,6 +1,11 @@
-import React from 'react';
+import TagsPage from "../tag/tags";
+
 export const Home = () => {
-  return <div>Hey</div>;
+  return (
+      <div>
+        <TagsPage/>
+      </div>
+  );
 };
 
 export default Home;
