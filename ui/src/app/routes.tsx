@@ -1,9 +1,9 @@
 import * as React from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { Dashboard } from '@app/pages/Dashboard/Dashboard';
-import { Tags } from '@app/pages/Tags/Tags';
 import { NotFound } from '@app/pages/NotFound/NotFound';
 import { Rules } from '@app/pages/Rules/Rules';
+import { TagsPage } from './pages/Tags/Page';
 
 export interface IAppRoute {
   label?: string; // Excluding the label will exclude the route from the nav sidebar in AppLayout
@@ -32,7 +32,7 @@ const routes: AppRouteConfig[] = [
     title: 'PatternFly Seed | Main Dashboard',
   },
   {
-    element: <Tags />,
+    element: <TagsPage />,
     exact: true,
     label: 'Tags',
     path: '/tags',
