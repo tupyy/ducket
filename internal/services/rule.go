@@ -68,7 +68,7 @@ func (r *RuleService) Create(ctx context.Context, rule entity.Rule) error {
 		for _, tag := range rule.Tags {
 			found := false
 			for _, t := range existingTags {
-				if t == tag {
+				if t.Value == tag {
 					found = true
 					break
 				}
@@ -101,7 +101,7 @@ func (r *RuleService) UpdateOrCreate(ctx context.Context, rule entity.Rule) (boo
 		for _, tag := range rule.Tags {
 			found := false
 			for _, t := range existingTags {
-				if t == tag {
+				if t.Value == tag {
 					found = true
 					break
 				}

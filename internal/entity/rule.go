@@ -1,5 +1,13 @@
 package entity
 
+import "time"
+
+type Tag struct {
+	Value     string
+	CreatedAt time.Time
+	Rules     []string
+}
+
 type Rule struct {
 	Name    string
 	Pattern string

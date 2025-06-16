@@ -1,6 +1,10 @@
 package models
 
-import "git.tls.tupangiu.ro/cosmin/finante/internal/entity"
+import (
+	"time"
+
+	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
+)
 
 type RuleRows map[string][]RuleRow
 
@@ -31,7 +35,8 @@ func (r RuleRows) Add(ruleRow RuleRow) {
 }
 
 type RuleRow struct {
-	ID      string
-	Pattern string
-	Tag     *string `db:"value"`
+	ID        string
+	Pattern   string
+	CreatedAt time.Time
+	Tag       *string `db:"value"`
 }

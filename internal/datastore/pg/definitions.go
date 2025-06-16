@@ -21,6 +21,7 @@ const (
 	colValue              = "value"
 	colTag                = "tag"
 	colRuleID             = "rule_id"
+	colCreatedAt          = "created_at"
 	colAmount             = "amount"
 	colHash               = "hash"
 
@@ -41,10 +42,13 @@ var (
 			From(rulesTable).
 			LeftJoin("(SELECT * FROM tags JOIN rules_tags as a on a.tag = tags.value) as b ON b.rule_id = rules.id")
 
-	selectTagsStmt = psql.Select(colValue, colRuleID).From(tagsTable).
+	selectTagsStmt = psql.Select(colValue, colRuleID, colCreatedAt).From(tagsTable).
 			LeftJoin("rules_tags on rules_tags.tag = tags.value")
 
 	selectTransactionTagsStmt = psql.Select("*").From(transactionsTagsTable)
+
+	countTransactionsPerTagStmt = psql.Select(colValue, "COUNT(transactions_id)").From(tagsTable).
+					InnerJoin("transactions_tags on transactions_tags.tag_id = tags.value").GroupBy(colValue)
 
 	insertTransaction = psql.Insert(transactionTable).
 				Columns(

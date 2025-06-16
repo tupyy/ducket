@@ -2,6 +2,7 @@ package outbound
 
 import (
 	"fmt"
+	"time"
 
 	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
 )
@@ -12,9 +13,10 @@ type Tags struct {
 }
 
 type Tag struct {
-	HRef  string `json:"href"`
-	Value string `json:"value"`
-	Rules []Rule `json:"rules,omitempty"`
+	HRef      string `json:"href"`
+	Value     string `json:"value"`
+	Rules     []Rule `json:"rules,omitempty"`
+	CreatedAt string `json:"created_at"`
 }
 
 func NewTag(value string, rules ...entity.Rule) Tag {
@@ -31,7 +33,7 @@ func NewTag(value string, rules ...entity.Rule) Tag {
 	return tag
 }
 
-func NewTags(tags []string, rules []entity.Rule) Tags {
+func NewTags(tags []entity.Tag, rules []entity.Rule) Tags {
 	mtags := Tags{
 		Tags: make([]Tag, 0),
 	}
@@ -55,11 +57,16 @@ func NewTags(tags []string, rules []entity.Rule) Tags {
 	}
 
 	for _, eTag := range tags {
-		if _, ok := r[eTag]; !ok {
-			r[eTag] = Tag{
-				HRef:  fmt.Sprintf("/api/v1/tags/%s", eTag),
-				Value: eTag,
+		if _, ok := r[eTag.Value]; !ok {
+			r[eTag.Value] = Tag{
+				HRef:      fmt.Sprintf("/api/v1/tags/%s", eTag.Value),
+				Value:     eTag.Value,
+				CreatedAt: eTag.CreatedAt.Format(time.RFC3339),
 			}
+		} else {
+			tt := r[eTag.Value]
+			tt.CreatedAt = eTag.CreatedAt.Format(time.RFC3339)
+			r[eTag.Value] = tt
 		}
 	}
 
