@@ -69,11 +69,15 @@
     "webpack-merge": "^6.0.1"
   },
   "dependencies": {
+    "@emotion/css": "^11.13.5",
+    "@patternfly/react-component-groups": "^6.2.1",
     "@patternfly/react-core": "^6.2.1",
+    "@patternfly/react-data-view": "^6.2.0",
     "@patternfly/react-icons": "^6.2.1",
     "@patternfly/react-styles": "^6.2.1",
     "@reduxjs/toolkit": "^2.8.2",
     "axios": "^1.9.0",
+    "axios-date-transformer": "^1.2.1",
     "react": "^18",
     "react-dom": "^18",
     "react-redux": "^9.2.0",

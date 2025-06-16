@@ -20,24 +20,43 @@ import {
   PageSection,
   Pagination,
   PaginationVariant,
-  Toolbar,
-  ToolbarContent,
-  ToolbarItem,
   Tooltip,
 } from '@patternfly/react-core';
 import { ITag } from '@app/shared/models/tag';
 import { IRule } from '@app/shared/models/rule';
+import { DataView, DataViewToolbar, useDataViewFilters } from '@patternfly/react-data-view';
+import { DataViewFilters } from '@patternfly/react-data-view/dist/dynamic/DataViewFilters';
+import { DataViewTextFilter } from '@patternfly/react-data-view/dist/dynamic/DataViewTextFilter';
 
 export interface ITagListProps {
-  tags: ReadonlyArray<ITag> | [];
+  tags: Array<ITag> | [];
   showCreateTagFormCB: () => void;
+}
+
+interface RepositoryFilters {
+  name: string;
+  rules: string;
 }
 
 // eslint-disable-next-line prefer-const
 const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagFormCB }) => {
   const [page, setPage] = React.useState<number | undefined>(1);
   const [perPage, setPerPage] = React.useState<number>(10);
-  const [paginatedRows, setPaginatedRows] = React.useState(tags.slice(0, 10));
+  const { filters, onSetFilters, clearAllFilters } = useDataViewFilters<RepositoryFilters>({
+    initialFilters: { name: '', rules: '' },
+  });
+
+  const filteredRows = React.useMemo(
+    () =>
+      tags.filter((tag) => !filters.name || tag.value.toLocaleLowerCase().includes(filters.name?.toLocaleLowerCase())),
+    [filters, tags]
+  );
+  const [paginatedRows, setPaginatedRows] = React.useState(filteredRows.slice(0, 10));
+
+  React.useEffect(() => {
+    setPaginatedRows(filteredRows?.slice(0, 10));
+    setPage(1);
+  }, [filteredRows]);
 
   const handleSetPage = (
     _evt: React.MouseEvent | React.KeyboardEvent | MouseEvent,
@@ -46,7 +65,7 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
     startIdx: number | undefined,
     endIdx: number | undefined
   ) => {
-    setPaginatedRows(tags?.slice(startIdx, endIdx));
+    setPaginatedRows(filteredRows?.slice(startIdx, endIdx));
     setPage(newPage);
   };
 
@@ -57,10 +76,11 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
     startIdx: number | undefined,
     endIdx: number | undefined
   ) => {
-    setPaginatedRows(tags.slice(startIdx, endIdx));
+    setPaginatedRows(filteredRows.slice(startIdx, endIdx));
     setPage(newPage);
     setPerPage(newPerPage);
   };
+
   const emptyState = (
     <EmptyState variant={EmptyStateVariant.full} titleText="No tags" icon={CubesIcon}>
       <EmptyStateBody>
@@ -74,7 +94,7 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
     </EmptyState>
   );
 
-  const renderRow = (tag: ITag) => {
+  const renderRuleCell = (tag: ITag) => {
     if (tag.rules === undefined) {
       return (
         <DataListCell key="rules">
@@ -88,7 +108,9 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
           {tag.rules.map((rule: IRule, idx: number) => (
             <FlexItem key={`rule-${idx}`}>
               <Label variant="filled" color="green" href={`/api/rules/${rule.name}`}>
-                <strong>{rule.name}</strong>
+                <Content component="p">
+                  <strong>{rule.name}</strong>
+                </Content>
               </Label>
             </FlexItem>
           ))}
@@ -101,7 +123,7 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
     <Pagination
       id={`datalist-${variant}-pagination`}
       variant={variant}
-      itemCount={tags.length}
+      itemCount={filteredRows.length}
       page={page}
       perPage={perPage}
       isCompact={isCompact}
@@ -115,23 +137,28 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
     />
   );
 
-  const toolbarItems = (
-    <React.Fragment>
-      <ToolbarItem>
-        <Button variant="secondary" onClick={() => showCreateTagFormCB()}>
+  const renderToolbar = (
+    <DataViewToolbar
+      bulkSelect={
+        <Button onClick={showCreateTagFormCB} variant="secondary">
           Create tag
         </Button>
-      </ToolbarItem>
-      <ToolbarItem variant="pagination" align={{ default: 'alignEnd' }}>
-        {renderPagination(PaginationVariant.top, true, false, false)}
-      </ToolbarItem>
-    </React.Fragment>
+      }
+      clearAllFilters={clearAllFilters}
+      filters={
+        <DataViewFilters onChange={(_e, values) => onSetFilters(values)} values={filters}>
+          <DataViewTextFilter filterId="name" title="Name" placeholder="Filter by name" />
+          <DataViewTextFilter filterId="rules" title="Rules" placeholder="Filter by rules" />
+        </DataViewFilters>
+      }
+      pagination={renderPagination(PaginationVariant.top, true, false, false)}
+    />
   );
 
   const renderTagList = (
     <React.Fragment>
       <DataList aria-label="tag list">
-        {tags.map((tag: ITag, i: number) => (
+        {paginatedRows.map((tag: ITag, i: number) => (
           <DataListItem key={`tag-${i}`}>
             <DataListItemRow>
               <DataListItemCells
@@ -152,12 +179,21 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
                               </div>
                             </Tooltip>
                           </FlexItem>
-                          <FlexItem>Created date-of-creation</FlexItem>
+                          <FlexItem>
+                            Updated
+                            {` ` +
+                              tag.created_at.toLocaleDateString('fr-FR', {
+                                weekday: 'long',
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                              })}
+                          </FlexItem>
                         </Flex>
                       </FlexItem>
                     </Flex>
                   </DataListCell>,
-                  renderRow(tag),
+                  renderRuleCell(tag),
                 ]}
               />
               <DataListAction
@@ -190,13 +226,11 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
       {tags.length == 0 ? (
         emptyState
       ) : (
-        <React.Fragment>
-          <Toolbar id="tags-toolbar">
-            <ToolbarContent>{toolbarItems}</ToolbarContent>
-          </Toolbar>
+        <DataView>
+          {renderToolbar}
           {renderTagList}
           {renderPagination(PaginationVariant.bottom, false, false, true)}
-        </React.Fragment>
+        </DataView>
       )}
     </PageSection>
   );

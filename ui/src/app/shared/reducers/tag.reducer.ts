@@ -3,6 +3,7 @@ import axios from 'axios';
 import { ITag, ITagForm, ITagUpdateForm, ITags } from '@app/shared/models/tag';
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { serializeAxiosError } from '../../shared/reducers/reducer.utils';
+import { createAxiosDateTransformer } from 'axios-date-transformer';
 
 const tagApiUrl = 'api/v1/tags';
 
@@ -20,7 +21,7 @@ const initialState = {
 export const getTags = createAsyncThunk(
   'tags/get',
   async () => {
-    return axios.get<ITags>(tagApiUrl);
+    return createAxiosDateTransformer().get<ITags>(tagApiUrl);
   },
   { serializeError: serializeAxiosError }
 );
@@ -28,8 +29,9 @@ export const getTags = createAsyncThunk(
 export const createTag = createAsyncThunk(
   'tags/create',
   async (tag: ITagForm, thunkAPI) => {
-    const result = axios.post<ITagForm>(tagApiUrl, tag);
-    thunkAPI.dispatch(getTags());
+    const result = axios.post<ITagForm>(tagApiUrl, tag).then(() => {
+      thunkAPI.dispatch(getTags());
+    });
     return result;
   },
   { serializeError: serializeAxiosError }
