@@ -14,6 +14,8 @@ const initialState = {
   createSuccess: false,
   updating: false,
   updateSuccess: false,
+  deleting: false,
+  deleteSuccess: false,
   tags: [] as Array<ITag>,
   totalItems: 0,
 };
@@ -46,6 +48,19 @@ export const updateTag = createAsyncThunk(
     };
     const result = axios.put<ITagForm>(url, newTag);
     thunkAPI.dispatch(getTags());
+    return result;
+  },
+  { serializeError: serializeAxiosError }
+);
+
+export const deleteTag = createAsyncThunk(
+  'tags/delete',
+  async (name: string, thunkAPI) => {
+    const url = `${tagApiUrl}/${name}`;
+    const result = axios.delete<void>(url).then(() => {
+      thunkAPI.dispatch(getTags());
+      return result;
+    });
     return result;
   },
   { serializeError: serializeAxiosError }
@@ -87,6 +102,11 @@ export const TagManagementSlice = createSlice({
         state.errorMessage = '';
         state.updateSuccess = false;
       })
+      .addCase(deleteTag.pending, (state) => {
+        state.deleting = true;
+        state.deleteSuccess = false;
+        state.errorMessage = '';
+      })
       .addCase(createTag.fulfilled, (state) => {
         state.creating = false;
         state.errorMessage = '';
@@ -95,6 +115,11 @@ export const TagManagementSlice = createSlice({
       .addCase(updateTag.fulfilled, (state) => {
         state.updating = false;
         state.updateSuccess = true;
+        state.errorMessage = '';
+      })
+      .addCase(deleteTag.fulfilled, (state) => {
+        state.deleting = false;
+        state.deleteSuccess = true;
         state.errorMessage = '';
       })
       .addCase(createTag.rejected, (state, action) => {
@@ -106,6 +131,11 @@ export const TagManagementSlice = createSlice({
         state.updating = false;
         state.errorMessage = action.error.message || 'error updating tag';
         state.updateSuccess = false;
+      })
+      .addCase(deleteTag.rejected, (state, action) => {
+        state.deleting = false;
+        state.errorMessage = action.error.message || 'error deleting tag';
+        state.deleteSuccess = false;
       });
   },
 });

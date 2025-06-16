@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { CodeBranchIcon, CubesIcon } from '@patternfly/react-icons';
+import { CodeBranchIcon, CubesIcon, OutlinedCalendarIcon } from '@patternfly/react-icons';
 import {
   Button,
   Content,
@@ -31,6 +31,7 @@ import { DataViewTextFilter } from '@patternfly/react-data-view/dist/dynamic/Dat
 export interface ITagListProps {
   tags: Array<ITag> | [];
   showCreateTagFormCB: () => void;
+  deleteTagCB: (name: string) => void;
 }
 
 interface RepositoryFilters {
@@ -39,7 +40,7 @@ interface RepositoryFilters {
 }
 
 // eslint-disable-next-line prefer-const
-const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagFormCB }) => {
+const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagFormCB, deleteTagCB }) => {
   const [page, setPage] = React.useState<number | undefined>(1);
   const [perPage, setPerPage] = React.useState<number>(10);
   const { filters, onSetFilters, clearAllFilters } = useDataViewFilters<RepositoryFilters>({
@@ -180,7 +181,7 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
                             </Tooltip>
                           </FlexItem>
                           <FlexItem>
-                            Updated
+                            <OutlinedCalendarIcon />
                             {` ` +
                               tag.created_at.toLocaleDateString('fr-FR', {
                                 weekday: 'long',
@@ -202,11 +203,11 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
                 aria-label="Actions"
               >
                 <Button
-                  // onClick={() => {
-                  //   if (confirm('Are you sure?')) {
-                  //     setIsDeleted(true);
-                  //   }
-                  // }}
+                  onClick={() => {
+                    if (confirm('Are you sure?')) {
+                      deleteTagCB(tag.value);
+                    }
+                  }}
                   variant="secondary"
                   key="delete-action"
                   size="sm"

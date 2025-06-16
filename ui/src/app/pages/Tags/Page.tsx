@@ -2,7 +2,7 @@ import { useAppDispatch, useAppSelector } from '@app/shared/store';
 import { PageSection } from '@patternfly/react-core';
 import * as React from 'react';
 import { TagsList } from './Tags';
-import { createTag, getTags } from '@app/shared/reducers/tag.reducer';
+import { createTag, getTags, deleteTag } from '@app/shared/reducers/tag.reducer';
 import { TagForm } from './TagForm';
 import { CreateTagError, Result } from '@app/shared/models/result';
 import { ITag } from '@app/shared/models/tag';
@@ -24,6 +24,10 @@ const TagsPage: React.FunctionComponent = () => {
 
   const closeCreateForm = () => {
     setIsCreateFormActive(false);
+  };
+
+  const _deleteTag = (name: string) => {
+    dispatch(deleteTag(name));
   };
 
   const handleSubmitForm = (value: string) => {
@@ -52,7 +56,7 @@ const TagsPage: React.FunctionComponent = () => {
     if (loading) {
       return <div>loading</div>;
     }
-    return <TagsList tags={sortTags(tags.slice())} showCreateTagFormCB={showCreateForm} />;
+    return <TagsList tags={sortTags(tags.slice())} showCreateTagFormCB={showCreateForm} deleteTagCB={_deleteTag} />;
   };
 
   React.useEffect(() => {
