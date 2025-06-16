@@ -13,10 +13,11 @@ type Tags struct {
 }
 
 type Tag struct {
-	HRef      string `json:"href"`
-	Value     string `json:"value"`
-	Rules     []Rule `json:"rules,omitempty"`
-	CreatedAt string `json:"created_at"`
+	HRef         string `json:"href"`
+	Value        string `json:"value"`
+	Rules        []Rule `json:"rules,omitempty"`
+	CreatedAt    string `json:"created_at"`
+	Transactions int    `json:"transactions"`
 }
 
 func NewTag(value string, rules ...entity.Rule) Tag {
@@ -59,13 +60,15 @@ func NewTags(tags []entity.Tag, rules []entity.Rule) Tags {
 	for _, eTag := range tags {
 		if _, ok := r[eTag.Value]; !ok {
 			r[eTag.Value] = Tag{
-				HRef:      fmt.Sprintf("/api/v1/tags/%s", eTag.Value),
-				Value:     eTag.Value,
-				CreatedAt: eTag.CreatedAt.Format(time.RFC3339),
+				HRef:         fmt.Sprintf("/api/v1/tags/%s", eTag.Value),
+				Value:        eTag.Value,
+				Transactions: eTag.CountTransactions,
+				CreatedAt:    eTag.CreatedAt.Format(time.RFC3339),
 			}
 		} else {
 			tt := r[eTag.Value]
 			tt.CreatedAt = eTag.CreatedAt.Format(time.RFC3339)
+			tt.Transactions = eTag.CountTransactions
 			r[eTag.Value] = tt
 		}
 	}

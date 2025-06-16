@@ -47,8 +47,11 @@ var (
 
 	selectTransactionTagsStmt = psql.Select("*").From(transactionsTagsTable)
 
-	countTransactionsPerTagStmt = psql.Select(colValue, "COUNT(transactions_id)").From(tagsTable).
-					InnerJoin("transactions_tags on transactions_tags.tag_id = tags.value").GroupBy(colValue)
+	countTransactionsPerTagPerRuleStmt = psql.
+						Select(colValue, "b.rule_id", "COUNT(transaction_id)").
+						FromSelect(selectTagsStmt, "b").
+						InnerJoin("transactions_tags on transactions_tags.tag_id = b.value").
+						GroupBy(colValue, "b.rule_id")
 
 	insertTransaction = psql.Insert(transactionTable).
 				Columns(

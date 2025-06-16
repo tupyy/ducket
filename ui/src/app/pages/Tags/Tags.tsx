@@ -176,7 +176,7 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
                           <FlexItem>
                             <Tooltip content={<div>Number of transactions on which this tag is applied</div>}>
                               <div>
-                                <CodeBranchIcon /> 3
+                                <CodeBranchIcon /> {tag.transactions}
                               </div>
                             </Tooltip>
                           </FlexItem>

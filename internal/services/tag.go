@@ -16,7 +16,41 @@ func NewTagService(dt *pg.Datastore) *TagService {
 }
 
 func (t *TagService) GetTags(ctx context.Context) ([]entity.Tag, error) {
-	return t.dt.QueryTags(ctx)
+	// count transaction first
+	stats, err := t.dt.CountTransactions(ctx)
+	if err != nil {
+		return []entity.Tag{}, err
+	}
+
+	tags, err := t.dt.QueryTags(ctx)
+	if err != nil {
+		return []entity.Tag{}, err
+	}
+
+	modifiedTags := make(map[string]entity.Tag)
+	for _, tag := range tags {
+		mTag, ok := modifiedTags[tag.Value]
+		if !ok {
+			mTag = entity.Tag{
+				Value:     tag.Value,
+				Rules:     tag.Rules,
+				CreatedAt: tag.CreatedAt,
+			}
+		}
+		for _, s := range stats {
+			if s.Tag == tag.Value {
+				mTag.CountTransactions += s.Count
+			}
+		}
+		modifiedTags[mTag.Value] = mTag
+	}
+
+	exportedTags := make([]entity.Tag, 0, len(modifiedTags))
+	for _, t := range modifiedTags {
+		exportedTags = append(exportedTags, t)
+	}
+
+	return exportedTags, nil
 }
 
 func (t *TagService) IsExists(ctx context.Context, tag string) (bool, error) {

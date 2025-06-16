@@ -49,3 +49,10 @@ func (t *Transaction) String() string {
 	}
 	return sb.String()
 }
+
+// Holds how many transactions are associated with this tag and rule
+type TransactionStat struct {
+	Tag    string
+	RuleID string
+	Count  int
+}

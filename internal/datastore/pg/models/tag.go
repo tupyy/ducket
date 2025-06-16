@@ -39,3 +39,9 @@ type Tag struct {
 	CreatedAt time.Time `db:"created_at"`
 	RuleID    *string
 }
+
+type TransactionCountRow struct {
+	Value  string
+	RuleID string
+	Count  int
+}

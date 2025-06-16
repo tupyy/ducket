@@ -3,9 +3,10 @@ package entity
 import "time"
 
 type Tag struct {
-	Value     string
-	CreatedAt time.Time
-	Rules     []string
+	Value             string
+	CreatedAt         time.Time
+	Rules             []string
+	CountTransactions int
 }
 
 type Rule struct {

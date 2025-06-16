@@ -4,6 +4,7 @@ export interface ITag {
   href: string;
   value: string;
   created_at: Date;
+  transactions: number;
   rules: IRule[];
 }
 

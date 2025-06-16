@@ -151,6 +151,32 @@ func (d *Datastore) QueryTags(ctx context.Context, filter ...QueryFilter) ([]ent
 
 }
 
+func (d *Datastore) CountTransactions(ctx context.Context) ([]entity.TransactionStat, error) {
+	sql, args, err := countTransactionsPerTagPerRuleStmt.ToSql()
+	if err != nil {
+		return []entity.TransactionStat{}, fmt.Errorf(errUnableToReadTag, err)
+	}
+
+	rows, err := d.pool.Query(ctx, sql, args...)
+	if err != nil {
+		return []entity.TransactionStat{}, fmt.Errorf(errUnableToReadTag, err)
+	}
+
+	stats := make([]entity.TransactionStat, 0)
+	rs := pgxscan.NewRowScanner(rows)
+
+	for rows.Next() {
+		row := models.TransactionCountRow{}
+		err := rs.Scan(&row)
+		if err != nil {
+			return []entity.TransactionStat{}, fmt.Errorf(errUnableToReadTag, err)
+		}
+		stats = append(stats, entity.TransactionStat{Tag: row.Value, RuleID: row.RuleID, Count: row.Count})
+	}
+
+	return stats, nil
+}
+
 func (d *Datastore) WriteTx(ctx context.Context, txFn TxUserFunc) error {
 	tx, err := d.pool.Begin(ctx)
 	if err != nil {
