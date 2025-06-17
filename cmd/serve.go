@@ -46,11 +46,10 @@ func NewServeCommand(config *config.Config) *cobra.Command {
 
 			server := server.NewRunnableServer(
 				server.NewRunnableServerConfigWithOptionsAndDefaults(
-					server.WithApiVersion(string(ApiV1)),
 					server.WithDatastore(dt),
 					server.WithGraceTimeout(1*time.Second),
 					server.WithPort(config.ServerPort),
-					server.WithRegisterHandlersFn(func(r *gin.RouterGroup) {
+					server.WithRegisterHandlersFn(string(ApiV1), func(r *gin.RouterGroup) {
 						handlers.RegisterHandlers(r)
 					}),
 					server.WithGinMode(config.GinMode),

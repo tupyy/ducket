@@ -17,10 +17,11 @@ import (
 )
 
 type RunnableServerConfig struct {
-	Datastore          *pg.Datastore
-	GraceTimeout       time.Duration
-	Port               int
-	RegisterHandlersFn func(router *gin.RouterGroup)
+	Datastore    *pg.Datastore
+	GraceTimeout time.Duration
+	Port         int
+	// RegisterHandlersFn holds a map of handler for each api version
+	RegisterHandlersFn map[string]func(router *gin.RouterGroup)
 	CloseCb            func() error
 	GinMode            string
 	ApiVersion         string
@@ -37,16 +38,17 @@ func NewRunnableServer(cfg *RunnableServerConfig) *runnableServer {
 	gin.SetMode(cfg.GinMode)
 	engine := gin.New()
 
-	router := engine.Group(cfg.ApiVersion)
-	router.Use(
-		middlewares.Headers(),
-		middlewares.Logger(),
-		middlewares.DatastoreMiddleware(cfg.Datastore),
-		ginzap.RecoveryWithZap(zap.S().Desugar(), true),
-	)
-
-	// register handlers
-	cfg.RegisterHandlersFn(router)
+	// for each api version register handlers
+	for apiVersion, handlerFn := range cfg.RegisterHandlersFn {
+		router := engine.Group(apiVersion)
+		handlerFn(router)
+		router.Use(
+			middlewares.Headers(),
+			middlewares.Logger(),
+			middlewares.DatastoreMiddleware(cfg.Datastore),
+			ginzap.RecoveryWithZap(zap.S().Desugar(), true),
+		)
+	}
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf("0.0.0.0:%d", cfg.Port),

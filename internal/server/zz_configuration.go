@@ -23,7 +23,7 @@ func NewRunnableServerConfigWithOptions(opts ...RunnableServerConfigOption) *Run
 func NewRunnableServerConfigWithOptionsAndDefaults(opts ...RunnableServerConfigOption) *RunnableServerConfig {
 	r := &RunnableServerConfig{
 		Port:               8080,
-		RegisterHandlersFn: func(engine *gin.RouterGroup) {},
+		RegisterHandlersFn: make(map[string]func(router *gin.RouterGroup)),
 	}
 	defaults.MustSet(r)
 	for _, o := range opts {
@@ -64,9 +64,9 @@ func WithGraceTimeout(graceTimeout time.Duration) RunnableServerConfigOption {
 	}
 }
 
-func WithRegisterHandlersFn(fn func(engine *gin.RouterGroup)) RunnableServerConfigOption {
+func WithRegisterHandlersFn(apiVersion string, fn func(engine *gin.RouterGroup)) RunnableServerConfigOption {
 	return func(r *RunnableServerConfig) {
-		r.RegisterHandlersFn = fn
+		r.RegisterHandlersFn[apiVersion] = fn
 	}
 }
 
