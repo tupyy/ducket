@@ -1,16 +1,10 @@
 import * as React from 'react';
-import { CubesIcon } from '@patternfly/react-icons';
-import {
-  Button,
-  Content,
-  EmptyState,
-  EmptyStateBody,
-  EmptyStateFooter,
-  EmptyStateVariant,
-  PageSection,
-} from '@patternfly/react-core';
-import { useAppDispatch } from '@app/shared/store';
-import { getTags } from '@app/shared/reducers/tag.reducer';
+import { PageSection } from '@patternfly/react-core';
+import { useAppDispatch, useAppSelector } from '@app/shared/store';
+import { getRules } from '@app/shared/reducers/rule.reducer';
+import { RulesList } from '@app/pages/Rules/List';
+import { IRule } from '@app/shared/models/rule';
+import { RuleForm } from './Form';
 
 export interface ISupportProps {
   sampleProp?: string;
@@ -19,29 +13,36 @@ export interface ISupportProps {
 // eslint-disable-next-line prefer-const
 let Rules: React.FunctionComponent<ISupportProps> = () => {
   const dispatch = useAppDispatch();
+  const rules = useAppSelector((state) => state.rules);
+  const [isCreateFormActive, setIsCreateFormActive] = React.useState<boolean>(false);
 
-  const getTagsFromProps = () => {
-    dispatch(getTags());
-  };
+  const showCreateForm = () => setIsCreateFormActive(true);
+  const closeCreateForm = () => setIsCreateFormActive(false);
 
   React.useEffect(() => {
-    getTagsFromProps();
+    dispatch(getRules());
   }, []);
 
-  const emptyState = (
-    <EmptyState variant={EmptyStateVariant.full} titleText="No rules" icon={CubesIcon}>
-      <EmptyStateBody>
-        <Content>
-          <Content component="p">Please add some rules</Content>
-        </Content>
-      </EmptyStateBody>
-      <EmptyStateFooter>
-        <Button variant="primary">Add rules</Button>
-      </EmptyStateFooter>
-    </EmptyState>
-  );
+  const renderList = (loading: boolean, rules: Array<IRule>) => {
+    const sortRules = (rules: Array<IRule> | []) => {
+      return rules.sort((rule1, rule2) => {
+        if (rule1.name < rule2.name) {
+          return -1;
+        }
+        if (rule1.name > rule2.name) {
+          return 1;
+        }
+        return 0;
+      });
+    };
+    return <RulesList rules={sortRules(rules.slice())} showCreateRuleFormCB={showCreateForm} />;
+  };
 
-  return <PageSection hasBodyWrapper={false}>{emptyState}</PageSection>;
+  return (
+    <PageSection hasBodyWrapper={false}>
+      {isCreateFormActive ? <RuleForm closeFormCB={closeCreateForm} /> : renderList(rules.loading, rules.rules)}
+    </PageSection>
+  );
 };
 
 export { Rules };

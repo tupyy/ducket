@@ -16,41 +16,41 @@ import {
   EmptyStateVariant,
   Flex,
   FlexItem,
-  Label,
   PageSection,
   Pagination,
   PaginationVariant,
   Tooltip,
 } from '@patternfly/react-core';
-import { ITag } from '@app/shared/models/tag';
 import { IRule } from '@app/shared/models/rule';
 import { DataView, DataViewToolbar, useDataViewFilters } from '@patternfly/react-data-view';
 import { DataViewFilters } from '@patternfly/react-data-view/dist/dynamic/DataViewFilters';
 import { DataViewTextFilter } from '@patternfly/react-data-view/dist/dynamic/DataViewTextFilter';
 
-export interface ITagListProps {
-  tags: Array<ITag> | [];
-  showCreateTagFormCB: () => void;
-  deleteTagCB: (name: string) => void;
+export interface IRuleListProps {
+  rules: Array<IRule> | [];
+  showCreateRuleFormCB: () => void;
+  // deleteTagCB: (name: string) => void;
 }
 
 interface RepositoryFilters {
   name: string;
-  rules: string;
+  pattern: string;
 }
 
 // eslint-disable-next-line prefer-const
-const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagFormCB, deleteTagCB }) => {
+const RulesList: React.FunctionComponent<IRuleListProps> = ({ rules, showCreateRuleFormCB }) => {
   const [page, setPage] = React.useState<number | undefined>(1);
   const [perPage, setPerPage] = React.useState<number>(10);
   const { filters, onSetFilters, clearAllFilters } = useDataViewFilters<RepositoryFilters>({
-    initialFilters: { name: '', rules: '' },
+    initialFilters: { name: '', pattern: '' },
   });
 
   const filteredRows = React.useMemo(
     () =>
-      tags.filter((tag) => !filters.name || tag.value.toLocaleLowerCase().includes(filters.name?.toLocaleLowerCase())),
-    [filters, tags]
+      rules.filter(
+        (rule) => !filters.name || rule.name.toLocaleLowerCase().includes(filters.name?.toLocaleLowerCase())
+      ),
+    [filters, rules]
   );
   const [paginatedRows, setPaginatedRows] = React.useState(filteredRows.slice(0, 10));
 
@@ -83,42 +83,19 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
   };
 
   const emptyState = (
-    <EmptyState variant={EmptyStateVariant.full} titleText="No tags" icon={CubesIcon}>
+    <EmptyState variant={EmptyStateVariant.full} titleText="No rules" icon={CubesIcon}>
       <EmptyStateBody>
         <Content>
-          <Content component="p">Please add some tags</Content>
+          <Content component="p">Please add some rules</Content>
         </Content>
       </EmptyStateBody>
       <EmptyStateFooter>
-        <Button variant="primary">Add tag</Button>
+        <Button variant="primary" onClick={showCreateRuleFormCB}>
+          Add rule
+        </Button>
       </EmptyStateFooter>
     </EmptyState>
   );
-
-  const renderRuleCell = (tag: ITag) => {
-    if (tag.rules === undefined) {
-      return (
-        <DataListCell key="rules">
-          <span>-</span>
-        </DataListCell>
-      );
-    }
-    return (
-      <DataListCell key="rules">
-        <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsMd', sm: 'spaceItemsXs' }}>
-          {tag.rules.map((rule: IRule, idx: number) => (
-            <FlexItem key={`rule-${idx}`}>
-              <Label variant="filled" color="green" href={`/api/rules/${rule.name}`}>
-                <Content component="p">
-                  <strong>{rule.name}</strong>
-                </Content>
-              </Label>
-            </FlexItem>
-          ))}
-        </Flex>
-      </DataListCell>
-    );
-  };
 
   const renderPagination = (variant: PaginationVariant, isCompact: boolean, isSticky: boolean, isStatic: boolean) => (
     <Pagination
@@ -141,15 +118,15 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
   const renderToolbar = (
     <DataViewToolbar
       bulkSelect={
-        <Button onClick={showCreateTagFormCB} variant="control">
-          Create tag
+        <Button onClick={showCreateRuleFormCB} variant="control">
+          Create rule
         </Button>
       }
       clearAllFilters={clearAllFilters}
       filters={
         <DataViewFilters onChange={(_e, values) => onSetFilters(values)} values={filters}>
           <DataViewTextFilter filterId="name" title="Name" placeholder="Filter by name" />
-          <DataViewTextFilter filterId="rules" title="Rules" placeholder="Filter by rules" />
+          <DataViewTextFilter filterId="pattern" title="Pattern" placeholder="Filter by pattern" />
         </DataViewFilters>
       }
       pagination={renderPagination(PaginationVariant.top, true, false, false)}
@@ -159,7 +136,7 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
   const renderTagList = (
     <React.Fragment>
       <DataList aria-label="tag list">
-        {paginatedRows.map((tag: ITag, i: number) => (
+        {paginatedRows.map((rule: IRule, i: number) => (
           <DataListItem key={`tag-${i}`}>
             <DataListItemRow>
               <DataListItemCells
@@ -168,7 +145,7 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
                     <Flex direction={{ default: 'column' }}>
                       <FlexItem>
                         <Content component={ContentVariants.p}>
-                          <strong>{tag.value}</strong>
+                          <strong>{rule.name}</strong>
                         </Content>
                       </FlexItem>
                       <FlexItem>
@@ -176,25 +153,24 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
                           <FlexItem>
                             <Tooltip content={<div>Number of transactions on which this tag is applied</div>}>
                               <div>
-                                <CodeBranchIcon /> {tag.transactions}
+                                <CodeBranchIcon /> {rule.transactions}
                               </div>
                             </Tooltip>
                           </FlexItem>
                           <FlexItem>
                             <OutlinedCalendarIcon />
-                            {` ` +
-                              tag.created_at.toLocaleDateString('fr-FR', {
-                                weekday: 'long',
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                              })}
                           </FlexItem>
                         </Flex>
                       </FlexItem>
                     </Flex>
                   </DataListCell>,
-                  renderRuleCell(tag),
+                  <DataListCell key="pattern">
+                    <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsMd', sm: 'spaceItemsXs' }}>
+                      <Content component="p">
+                        /<strong>{rule.pattern}</strong>/
+                      </Content>
+                    </Flex>
+                  </DataListCell>,
                 ]}
               />
               <DataListAction
@@ -203,11 +179,11 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
                 aria-label="Actions"
               >
                 <Button
-                  onClick={() => {
-                    if (confirm('Are you sure?')) {
-                      deleteTagCB(tag.value);
-                    }
-                  }}
+                  // onClick={() => {
+                  //   if (confirm('Are you sure?')) {
+                  //     deleteTagCB(rule.name);
+                  //   }
+                  // }}
                   variant="secondary"
                   key="delete-action"
                   size="sm"
@@ -224,7 +200,7 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
 
   return (
     <PageSection hasBodyWrapper={false}>
-      {tags.length == 0 ? (
+      {rules.length == 0 ? (
         emptyState
       ) : (
         <DataView>
@@ -237,4 +213,4 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
   );
 };
 
-export { TagsList };
+export { RulesList };

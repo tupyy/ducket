@@ -2,7 +2,7 @@ import { useAppDispatch, useAppSelector } from '@app/shared/store';
 import { PageSection } from '@patternfly/react-core';
 import * as React from 'react';
 import { TagsList } from './Tags';
-import { createTag, getTags, deleteTag } from '@app/shared/reducers/tag.reducer';
+import { createTag, deleteTag, getTags } from '@app/shared/reducers/tag.reducer';
 import { TagForm } from './TagForm';
 import { CreateTagError, Result } from '@app/shared/models/result';
 import { ITag } from '@app/shared/models/tag';
@@ -43,10 +43,10 @@ const TagsPage: React.FunctionComponent = () => {
   const renderTagList = (loading: boolean, tags: ReadonlyArray<ITag>) => {
     const sortTags = (tags: Array<ITag> | []) => {
       return tags.sort((tag1, tag2) => {
-        if (tag1.value < tag2.value) {
+        if (tag1.created_at > tag2.created_at) {
           return -1;
         }
-        if (tag1.value > tag2.value) {
+        if (tag1.created_at < tag2.created_at) {
           return 1;
         }
         return 0;
