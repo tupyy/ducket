@@ -50,7 +50,7 @@ func NewServeCommand(config *config.Config) *cobra.Command {
 					server.WithGraceTimeout(1*time.Second),
 					server.WithPort(config.ServerPort),
 					server.WithRegisterHandlersFn(string(ApiV1), func(r *gin.RouterGroup) {
-						handlers.RegisterHandlers(r)
+						handlers.RegisterApiV1Handlers(r)
 					}),
 					server.WithGinMode(config.GinMode),
 					server.WithCloseCallback(func() error {

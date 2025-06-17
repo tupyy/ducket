@@ -1,20 +1,20 @@
-package handlers
+package v1
 
 import (
 	"net/http"
 
-	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/inbound"
-	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/outbound"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1/inbound"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1/outbound"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/services"
+	dtContext "git.tls.tupangiu.ro/cosmin/finante/pkg/context"
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"go.uber.org/zap"
 )
 
-func tagHandlers(r *gin.RouterGroup) {
-	validate.RegisterStructValidation(inbound.TagFormValidation, inbound.TagForm{})
-
+func TagHandlers(r *gin.RouterGroup, validator *validator.Validate) {
 	r.GET("/tags", func(c *gin.Context) {
-		dt := MustFromContext(c)
+		dt := dtContext.MustFromContext(c)
 
 		// get tags from tagSrv
 		tagSrv := services.NewTagService(dt)
@@ -43,12 +43,12 @@ func tagHandlers(r *gin.RouterGroup) {
 			return
 		}
 
-		if err := validate.Struct(form); err != nil {
+		if err := validator.Struct(form); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		dt := MustFromContext(c)
+		dt := dtContext.MustFromContext(c)
 		tagSrv := services.NewTagService(dt)
 		if err := tagSrv.Create(c.Request.Context(), form.Value); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -61,7 +61,7 @@ func tagHandlers(r *gin.RouterGroup) {
 	r.DELETE("/tags/:id", func(c *gin.Context) {
 		id := c.Param("id")
 
-		dt := MustFromContext(c)
+		dt := dtContext.MustFromContext(c)
 		tagSrv := services.NewTagService(dt)
 		if err := tagSrv.Delete(c.Request.Context(), id); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

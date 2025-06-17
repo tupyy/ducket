@@ -1,22 +1,24 @@
-package handlers
+package v1
 
 import (
 	"net/http"
 
 	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
-	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/inbound"
-	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/outbound"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1/inbound"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1/outbound"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/services"
+	dtContext "git.tls.tupangiu.ro/cosmin/finante/pkg/context"
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"go.uber.org/zap"
 )
 
-func rulesHandlers(r *gin.RouterGroup) {
-	validate.RegisterStructValidation(inbound.RuleFormValidation, inbound.RuleForm{})
-	validate.RegisterStructValidation(inbound.UpdateRuleFormValidation, inbound.UpdateRuleForm{})
+func RulesHandlers(r *gin.RouterGroup, validator *validator.Validate) {
+	validator.RegisterStructValidation(inbound.RuleFormValidation, inbound.RuleForm{})
+	validator.RegisterStructValidation(inbound.UpdateRuleFormValidation, inbound.UpdateRuleForm{})
 
 	r.GET("/rules", func(c *gin.Context) {
-		dt := MustFromContext(c)
+		dt := dtContext.MustFromContext(c)
 
 		ruleSrv := services.NewRuleService(dt)
 		rules, err := ruleSrv.GetRules(c.Request.Context())
@@ -36,12 +38,12 @@ func rulesHandlers(r *gin.RouterGroup) {
 			return
 		}
 
-		if err := validate.Struct(form); err != nil {
+		if err := validator.Struct(form); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		dt := MustFromContext(c)
+		dt := dtContext.MustFromContext(c)
 		ruleSrv := services.NewRuleService(dt)
 		if err := ruleSrv.Create(c.Request.Context(), inbound.FormToEntity(form)); err != nil {
 			zap.S().Errorw("failed to create rule", "error", err.Error(), "form", form)
@@ -66,12 +68,12 @@ func rulesHandlers(r *gin.RouterGroup) {
 			return
 		}
 
-		if err := validate.Struct(form); err != nil {
+		if err := validator.Struct(form); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		dt := MustFromContext(c)
+		dt := dtContext.MustFromContext(c)
 		ruleSrv := services.NewRuleService(dt)
 
 		ruleToCreate := entity.NewRule(name, form.Pattern, form.Tags...)
@@ -98,7 +100,7 @@ func rulesHandlers(r *gin.RouterGroup) {
 			return
 		}
 
-		dt := MustFromContext(c)
+		dt := dtContext.MustFromContext(c)
 		ruleSrv := services.NewRuleService(dt)
 		if err := ruleSrv.DeleteRule(c.Request.Context(), name); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

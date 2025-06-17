@@ -1,4 +1,4 @@
-package handlers
+package v1
 
 import (
 	"fmt"
@@ -6,10 +6,12 @@ import (
 	"strconv"
 	"time"
 
-	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/inbound"
-	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/outbound"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1/inbound"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1/outbound"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/services"
+	dtContext "git.tls.tupangiu.ro/cosmin/finante/pkg/context"
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"go.uber.org/zap"
 )
 
@@ -17,8 +19,8 @@ const (
 	queryDateFormat = "02/01/2006"
 )
 
-func transactionHandlers(r *gin.RouterGroup) {
-	validate.RegisterStructValidation(inbound.TransactionFormValidation, inbound.TransactionForm{})
+func TransactionHandlers(r *gin.RouterGroup, validator *validator.Validate) {
+	validator.RegisterStructValidation(inbound.TransactionFormValidation, inbound.TransactionForm{})
 
 	r.GET("/transactions", func(c *gin.Context) {
 		now := time.Now()
@@ -32,7 +34,7 @@ func transactionHandlers(r *gin.RouterGroup) {
 			zap.S().Warnw("failed to parse ending date. defaults to now", "error", err, "url", c.Request.URL)
 		}
 
-		dt := MustFromContext(c)
+		dt := dtContext.MustFromContext(c)
 		srv := services.NewTransactionService(dt)
 		transactions, err := srv.GetTransactions(c.Request.Context(), services.NewTransactionFilterWithOptions(
 			services.WithStart(&start),
@@ -58,7 +60,7 @@ func transactionHandlers(r *gin.RouterGroup) {
 			return
 		}
 
-		if err := validate.Struct(form); err != nil {
+		if err := validator.Struct(form); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
@@ -69,7 +71,7 @@ func transactionHandlers(r *gin.RouterGroup) {
 			return
 		}
 
-		dt := MustFromContext(c)
+		dt := dtContext.MustFromContext(c)
 		tSrv := services.NewTransactionService(dt)
 
 		existingTransaction, err := tSrv.GetTransaction(c.Request.Context(), tEntity.Hash)
@@ -107,7 +109,7 @@ func transactionHandlers(r *gin.RouterGroup) {
 			return
 		}
 
-		if err := validate.Struct(form); err != nil {
+		if err := validator.Struct(form); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
@@ -119,7 +121,7 @@ func transactionHandlers(r *gin.RouterGroup) {
 		}
 		tEntity.ID = id
 
-		dt := MustFromContext(c)
+		dt := dtContext.MustFromContext(c)
 		tSrv := services.NewTransactionService(dt)
 		t, err := tSrv.CreateOrUpdate(c.Request.Context(), tEntity)
 		if err != nil {
@@ -139,7 +141,7 @@ func transactionHandlers(r *gin.RouterGroup) {
 			return
 		}
 
-		dt := MustFromContext(c)
+		dt := dtContext.MustFromContext(c)
 		tSrv := services.NewTransactionService(dt)
 		if err := tSrv.Delete(c.Request.Context(), id); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
