@@ -38,7 +38,7 @@ func NewRule(rule entity.Rule) Rule {
 	}
 
 	for _, t := range rule.Tags {
-		r.Tags = append(r.Tags, NewTag(t))
+		r.Tags = append(r.Tags, Tag{Value: t, HRef: fmt.Sprintf("/api/v1/tags/%s", t)})
 	}
 
 	return r

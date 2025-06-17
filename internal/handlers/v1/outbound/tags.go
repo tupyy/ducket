@@ -16,8 +16,8 @@ type Tag struct {
 	HRef         string `json:"href"`
 	Value        string `json:"value"`
 	Rules        []Rule `json:"rules,omitempty"`
-	CreatedAt    string `json:"created_at"`
-	Transactions int    `json:"transactions"`
+	CreatedAt    string `json:"created_at,omitempty"`
+	Transactions int    `json:"transactions,omitempty"`
 }
 
 func NewTag(value string, rules ...entity.Rule) Tag {
@@ -43,7 +43,7 @@ func NewTags(tags []entity.Tag, rules []entity.Rule) Tags {
 	for _, rule := range rules {
 		for _, t := range rule.Tags {
 			if tag, ok := r[t]; ok {
-				tag.Rules = append(tag.Rules, NewRule(rule))
+				tag.Rules = append(tag.Rules, Rule{Name: rule.Name, HRef: fmt.Sprintf("/api/v1/rules/%s", rule.Name)})
 				r[t] = tag
 				continue
 			}
