@@ -13,10 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func RulesHandlers(r *gin.RouterGroup, validator *validator.Validate) {
-	validator.RegisterStructValidation(inbound.RuleFormValidation, inbound.RuleForm{})
-	validator.RegisterStructValidation(inbound.UpdateRuleFormValidation, inbound.UpdateRuleForm{})
-
+func RulesHandlers(r *gin.RouterGroup) {
 	r.GET("/rules", func(c *gin.Context) {
 		dt := dtContext.MustFromContext(c)
 
@@ -37,6 +34,9 @@ func RulesHandlers(r *gin.RouterGroup, validator *validator.Validate) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+
+		validator := validator.New()
+		validator.RegisterStructValidation(inbound.RuleFormValidation, inbound.RuleForm{})
 
 		if err := validator.Struct(form); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -67,6 +67,9 @@ func RulesHandlers(r *gin.RouterGroup, validator *validator.Validate) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+
+		validator := validator.New()
+		validator.RegisterStructValidation(inbound.UpdateRuleFormValidation, inbound.UpdateRuleForm{})
 
 		if err := validator.Struct(form); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

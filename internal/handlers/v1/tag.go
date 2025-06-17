@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func TagHandlers(r *gin.RouterGroup, validator *validator.Validate) {
+func TagHandlers(r *gin.RouterGroup) {
 	r.GET("/tags", func(c *gin.Context) {
 		dt := dtContext.MustFromContext(c)
 
@@ -43,6 +43,7 @@ func TagHandlers(r *gin.RouterGroup, validator *validator.Validate) {
 			return
 		}
 
+		validator := validator.New()
 		if err := validator.Struct(form); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return

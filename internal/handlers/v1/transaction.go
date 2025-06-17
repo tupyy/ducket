@@ -19,9 +19,7 @@ const (
 	queryDateFormat = "02/01/2006"
 )
 
-func TransactionHandlers(r *gin.RouterGroup, validator *validator.Validate) {
-	validator.RegisterStructValidation(inbound.TransactionFormValidation, inbound.TransactionForm{})
-
+func TransactionHandlers(r *gin.RouterGroup) {
 	r.GET("/transactions", func(c *gin.Context) {
 		now := time.Now()
 		start, err := parseTime(c.Query("start"), time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC))
@@ -60,6 +58,8 @@ func TransactionHandlers(r *gin.RouterGroup, validator *validator.Validate) {
 			return
 		}
 
+		validator := validator.New()
+		validator.RegisterStructValidation(inbound.TransactionFormValidation, inbound.TransactionForm{})
 		if err := validator.Struct(form); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -108,6 +108,9 @@ func TransactionHandlers(r *gin.RouterGroup, validator *validator.Validate) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+
+		validator := validator.New()
+		validator.RegisterStructValidation(inbound.TransactionFormValidation, inbound.TransactionForm{})
 
 		if err := validator.Struct(form); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

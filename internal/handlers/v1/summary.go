@@ -4,18 +4,14 @@ import (
 	"net/http"
 	"time"
 
-	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1/inbound"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1/outbound"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/services"
 	dtContext "git.tls.tupangiu.ro/cosmin/finante/pkg/context"
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
 	"go.uber.org/zap"
 )
 
-func SummaryHandlers(r *gin.RouterGroup, validator *validator.Validate) {
-	validator.RegisterStructValidation(inbound.TransactionFormValidation, inbound.TransactionForm{})
-
+func SummaryHandlers(r *gin.RouterGroup) {
 	r.GET("/summary", func(c *gin.Context) {
 		now := time.Now()
 		start, err := parseTime(c.Query("start"), time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC))
