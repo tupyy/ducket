@@ -41,13 +41,13 @@ func NewRunnableServer(cfg *RunnableServerConfig) *runnableServer {
 	// for each api version register handlers
 	for apiVersion, handlerFn := range cfg.RegisterHandlersFn {
 		router := engine.Group(apiVersion)
-		handlerFn(router)
 		router.Use(
 			middlewares.Headers(),
 			middlewares.Logger(),
 			middlewares.DatastoreMiddleware(cfg.Datastore),
 			ginzap.RecoveryWithZap(zap.S().Desugar(), true),
 		)
+		handlerFn(router)
 	}
 
 	srv := &http.Server{
