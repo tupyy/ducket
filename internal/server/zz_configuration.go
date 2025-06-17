@@ -64,7 +64,7 @@ func WithGraceTimeout(graceTimeout time.Duration) RunnableServerConfigOption {
 	}
 }
 
-func WithRegisterHandlersFn(apiVersion string, fn func(engine *gin.RouterGroup)) RunnableServerConfigOption {
+func WithRegisterHandlers(apiVersion string, fn func(engine *gin.RouterGroup)) RunnableServerConfigOption {
 	return func(r *RunnableServerConfig) {
 		r.RegisterHandlersFn[apiVersion] = fn
 	}
