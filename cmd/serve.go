@@ -18,6 +18,12 @@ import (
 	"go.uber.org/zap"
 )
 
+type ApiVersion string
+
+const (
+	ApiV1 ApiVersion = "/api/v1"
+)
+
 func NewServeCommand(config *config.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "serve",
@@ -40,6 +46,7 @@ func NewServeCommand(config *config.Config) *cobra.Command {
 
 			server := server.NewRunnableServer(
 				server.NewRunnableServerConfigWithOptionsAndDefaults(
+					server.WithApiVersion(string(ApiV1)),
 					server.WithDatastore(dt),
 					server.WithGraceTimeout(1*time.Second),
 					server.WithPort(config.ServerPort),

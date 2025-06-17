@@ -94,3 +94,9 @@ func WithPort(port int) RunnableServerConfigOption {
 		r.Port = port
 	}
 }
+
+func WithApiVersion(apiVersion string) RunnableServerConfigOption {
+	return func(r *RunnableServerConfig) {
+		r.ApiVersion = apiVersion
+	}
+}

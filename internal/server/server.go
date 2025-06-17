@@ -23,6 +23,7 @@ type RunnableServerConfig struct {
 	RegisterHandlersFn func(router *gin.RouterGroup)
 	CloseCb            func() error
 	GinMode            string
+	ApiVersion         string
 }
 
 type runnableServer struct {
@@ -36,7 +37,7 @@ func NewRunnableServer(cfg *RunnableServerConfig) *runnableServer {
 	gin.SetMode(cfg.GinMode)
 	engine := gin.New()
 
-	router := engine.Group("/api/v1/")
+	router := engine.Group(cfg.ApiVersion)
 	router.Use(
 		middlewares.Headers(),
 		middlewares.Logger(),
