@@ -16,6 +16,7 @@ import {
   EmptyStateVariant,
   Flex,
   FlexItem,
+  Label,
   PageSection,
   Pagination,
   PaginationVariant,
@@ -25,6 +26,8 @@ import { IRule } from '@app/shared/models/rule';
 import { DataView, DataViewToolbar, useDataViewFilters } from '@patternfly/react-data-view';
 import { DataViewFilters } from '@patternfly/react-data-view/dist/dynamic/DataViewFilters';
 import { DataViewTextFilter } from '@patternfly/react-data-view/dist/dynamic/DataViewTextFilter';
+import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
+import { ITag } from '@app/shared/models/tag';
 
 export interface IRuleListProps {
   rules: Array<IRule> | [];
@@ -36,6 +39,15 @@ interface RepositoryFilters {
   name: string;
   pattern: string;
 }
+
+const columns = {
+  name: 'Name',
+  pattern: 'Pattern',
+  tags: 'Tags',
+  transactions: 'Transactions',
+  createdAt: 'Created at',
+  action: 'action',
+};
 
 // eslint-disable-next-line prefer-const
 const RulesList: React.FunctionComponent<IRuleListProps> = ({ rules, showCreateRuleFormCB }) => {
@@ -126,75 +138,87 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({ rules, showCreateR
       filters={
         <DataViewFilters onChange={(_e, values) => onSetFilters(values)} values={filters}>
           <DataViewTextFilter filterId="name" title="Name" placeholder="Filter by name" />
-          <DataViewTextFilter filterId="pattern" title="Pattern" placeholder="Filter by pattern" />
         </DataViewFilters>
       }
       pagination={renderPagination(PaginationVariant.top, true, false, false)}
     />
   );
 
-  const renderTagList = (
+  const renderList = (
     <React.Fragment>
-      <DataList aria-label="tag list">
-        {paginatedRows.map((rule: IRule, i: number) => (
-          <DataListItem key={`tag-${i}`}>
-            <DataListItemRow>
-              <DataListItemCells
-                dataListCells={[
-                  <DataListCell key="tag name">
-                    <Flex direction={{ default: 'column' }}>
-                      <FlexItem>
-                        <Content component={ContentVariants.p}>
-                          <strong>{rule.name}</strong>
-                        </Content>
-                      </FlexItem>
-                      <FlexItem>
-                        <Flex flexWrap={{ default: 'wrap' }} key="info">
-                          <FlexItem>
-                            <Tooltip content={<div>Number of transactions on which this tag is applied</div>}>
-                              <div>
-                                <CodeBranchIcon /> {rule.transactions}
-                              </div>
-                            </Tooltip>
-                          </FlexItem>
-                          <FlexItem>
-                            <OutlinedCalendarIcon />
-                          </FlexItem>
-                        </Flex>
-                      </FlexItem>
-                    </Flex>
-                  </DataListCell>,
-                  <DataListCell key="pattern">
-                    <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsMd', sm: 'spaceItemsXs' }}>
-                      <Content component="p">
-                        /<strong>{rule.pattern}</strong>/
-                      </Content>
-                    </Flex>
-                  </DataListCell>,
-                ]}
-              />
-              <DataListAction
-                aria-labelledby="single-action-item1 single-action-action1"
-                id="single-action-action1"
-                aria-label="Actions"
-              >
+      <Table aria-label="rule-list">
+        <Thead>
+          <Tr>
+            <Th>
+              <Content component="p">
+                <strong>{columns.name}</strong>
+              </Content>
+            </Th>
+            <Th>
+              <Content component="p">
+                <strong>{columns.pattern}</strong>
+              </Content>
+            </Th>
+            <Th>
+              <Content component="p">
+                <strong>{columns.tags}</strong>
+              </Content>
+            </Th>
+            <Th width={10}>
+              <Content component="p">
+                <strong>{columns.transactions}</strong>
+              </Content>
+            </Th>
+            <Th width={10}>
+              <Content component="p">
+                <strong>{columns.createdAt}</strong>
+              </Content>
+            </Th>
+            <Th />
+          </Tr>
+        </Thead>
+        <Tbody>
+          {paginatedRows.map((rule: IRule, i: number) => (
+            <Tr key={`row-${i}`}>
+              <Td dataLabel="{columns.name}">{rule.name}</Td>
+              <Td dataLabel="{columns.pattern">/{rule.pattern}/</Td>
+              <Td dataLabel="{columns.tags}">
+                <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                  {rule.tags.map((tag: ITag, idx: number) => (
+                    <FlexItem key={`tag-${idx}`}>
+                      <Label variant="filled" color="green" href={`/api/tags/${tag.value}`}>
+                        <Content component="p">{tag.value}</Content>
+                      </Label>
+                    </FlexItem>
+                  ))}
+                </Flex>
+              </Td>
+              <Td dataLabel="{columns.transactions">{rule.transactions}</Td>
+              <Td dataLabel={columns.createdAt}>
+                {rule.created_at.toLocaleDateString('fr-FR', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })}
+              </Td>
+              <Td isActionCell dataLabel={columns.action}>
                 <Button
-                  // onClick={() => {
-                  //   if (confirm('Are you sure?')) {
-                  //     deleteTagCB(rule.name);
-                  //   }
-                  // }}
                   variant="secondary"
-                  key="delete-action"
                   size="sm"
+                  onClick={() => {
+                    if (confirm('Are you sure?')) {
+                      console.log('delete rule');
+                    }
+                  }}
                 >
                   Delete
                 </Button>
-              </DataListAction>
-            </DataListItemRow>
-          </DataListItem>
-        ))}
-      </DataList>
+              </Td>
+            </Tr>
+          ))}
+        </Tbody>
+      </Table>
     </React.Fragment>
   );
 
@@ -205,7 +229,7 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({ rules, showCreateR
       ) : (
         <DataView>
           {renderToolbar}
-          {renderTagList}
+          {renderList}
           {renderPagination(PaginationVariant.bottom, false, false, true)}
         </DataView>
       )}

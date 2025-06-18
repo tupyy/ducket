@@ -1,15 +1,9 @@
 import * as React from 'react';
-import { CodeBranchIcon, CubesIcon, OutlinedCalendarIcon } from '@patternfly/react-icons';
+import {CubesIcon} from '@patternfly/react-icons';
 import {
   Button,
   Content,
   ContentVariants,
-  DataList,
-  DataListAction,
-  DataListCell,
-  DataListItem,
-  DataListItemCells,
-  DataListItemRow,
   EmptyState,
   EmptyStateBody,
   EmptyStateFooter,
@@ -20,13 +14,13 @@ import {
   PageSection,
   Pagination,
   PaginationVariant,
-  Tooltip,
 } from '@patternfly/react-core';
 import { ITag } from '@app/shared/models/tag';
 import { IRule } from '@app/shared/models/rule';
 import { DataView, DataViewToolbar, useDataViewFilters } from '@patternfly/react-data-view';
 import { DataViewFilters } from '@patternfly/react-data-view/dist/dynamic/DataViewFilters';
 import { DataViewTextFilter } from '@patternfly/react-data-view/dist/dynamic/DataViewTextFilter';
+import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
 
 export interface ITagListProps {
   tags: Array<ITag> | [];
@@ -38,6 +32,14 @@ interface RepositoryFilters {
   name: string;
   rules: string;
 }
+
+const columns = {
+  name: 'Name',
+  rules: 'Rules',
+  createdAt: 'Created at',
+  transactions: 'Transactions',
+  action: 'action',
+};
 
 // eslint-disable-next-line prefer-const
 const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagFormCB, deleteTagCB }) => {
@@ -97,26 +99,18 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
 
   const renderRuleCell = (tag: ITag) => {
     if (tag.rules === undefined) {
-      return (
-        <DataListCell key="rules">
-          <span>-</span>
-        </DataListCell>
-      );
+      return <span></span>;
     }
     return (
-      <DataListCell key="rules">
-        <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsMd', sm: 'spaceItemsXs' }}>
-          {tag.rules.map((rule: IRule, idx: number) => (
-            <FlexItem key={`rule-${idx}`}>
-              <Label variant="filled" color="green" href={`/api/rules/${rule.name}`}>
-                <Content component="p">
-                  <strong>{rule.name}</strong>
-                </Content>
-              </Label>
-            </FlexItem>
-          ))}
-        </Flex>
-      </DataListCell>
+      <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsMd', sm: 'spaceItemsXs' }}>
+        {tag.rules.map((rule: IRule, idx: number) => (
+          <FlexItem key={`rule-${idx}`}>
+            <Label variant="filled" color="green" href={`/api/rules/${rule.name}`}>
+              <Content component="p">{rule.name}</Content>
+            </Label>
+          </FlexItem>
+        ))}
+      </Flex>
     );
   };
 
@@ -158,67 +152,65 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
 
   const renderTagList = (
     <React.Fragment>
-      <DataList aria-label="tag list">
-        {paginatedRows.map((tag: ITag, i: number) => (
-          <DataListItem key={`tag-${i}`}>
-            <DataListItemRow>
-              <DataListItemCells
-                dataListCells={[
-                  <DataListCell key="tag name">
-                    <Flex direction={{ default: 'column' }}>
-                      <FlexItem>
-                        <Content component={ContentVariants.p}>
-                          <strong>{tag.value}</strong>
-                        </Content>
-                      </FlexItem>
-                      <FlexItem>
-                        <Flex flexWrap={{ default: 'wrap' }} key="info">
-                          <FlexItem>
-                            <Tooltip content={<div>Number of transactions on which this tag is applied</div>}>
-                              <div>
-                                <CodeBranchIcon /> {tag.transactions}
-                              </div>
-                            </Tooltip>
-                          </FlexItem>
-                          <FlexItem>
-                            <OutlinedCalendarIcon />
-                            {` ` +
-                              tag.created_at.toLocaleDateString('fr-FR', {
-                                weekday: 'long',
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                              })}
-                          </FlexItem>
-                        </Flex>
-                      </FlexItem>
-                    </Flex>
-                  </DataListCell>,
-                  renderRuleCell(tag),
-                ]}
-              />
-              <DataListAction
-                aria-labelledby="single-action-item1 single-action-action1"
-                id="single-action-action1"
-                aria-label="Actions"
-              >
+      <Table aria-label="tag list">
+        <Thead>
+          <Tr>
+            <Th>
+              <Content component={ContentVariants.p}>
+                <strong>{columns.name}</strong>
+              </Content>
+            </Th>
+            <Th>
+              <Content component={ContentVariants.p}>
+                <strong>{columns.rules}</strong>
+              </Content>
+            </Th>
+            <Th width={10}>
+              <Content component={ContentVariants.p}>
+                <strong>{columns.transactions}</strong>
+              </Content>
+            </Th>
+            <Th width={10}>
+              <Content component={ContentVariants.p}>
+                <strong>{columns.createdAt}</strong>
+              </Content>
+            </Th>
+            <Th screenReaderText="action" />
+          </Tr>
+        </Thead>
+        <Tbody>
+          {paginatedRows.map((tag: ITag, i: number) => (
+            <Tr key={`tag-${i}`}>
+              <Td dataLabel={columns.name}>
+                <Content component={ContentVariants.p}>{tag.value}</Content>
+              </Td>
+              <Td dataLabel={columns.rules}>{renderRuleCell(tag)}</Td>
+              <Td dataLabel={columns.transactions}>{tag.transactions}</Td>
+              <Td dataLabel={columns.createdAt}>
+                {tag.created_at.toLocaleDateString('fr-FR', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })}
+              </Td>
+              <Td isActionCell dataLabel={columns.action}>
                 <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => {
                     if (confirm('Are you sure?')) {
                       deleteTagCB(tag.value);
                     }
                   }}
-                  variant="secondary"
-                  key="delete-action"
-                  size="sm"
                 >
                   Delete
                 </Button>
-              </DataListAction>
-            </DataListItemRow>
-          </DataListItem>
-        ))}
-      </DataList>
+              </Td>
+            </Tr>
+          ))}
+        </Tbody>
+      </Table>
     </React.Fragment>
   );
 
