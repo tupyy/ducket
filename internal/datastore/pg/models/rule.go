@@ -15,6 +15,7 @@ func (r RuleRows) ToEntity() []entity.Rule {
 		for _, vv := range v {
 			rule.Name = vv.ID
 			rule.Pattern = vv.Pattern
+			rule.CreatedAt = vv.CreatedAt
 			if vv.Tag != nil {
 				rule.Tags = append(rule.Tags, *vv.Tag)
 			}

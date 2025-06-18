@@ -10,9 +10,11 @@ type Tag struct {
 }
 
 type Rule struct {
-	Name    string
-	Pattern string
-	Tags    []string
+	Name              string
+	Pattern           string
+	CreatedAt         time.Time
+	CountTransactions int
+	Tags              []string
 }
 
 func NewRule(name, pattern string, tags ...string) Rule {

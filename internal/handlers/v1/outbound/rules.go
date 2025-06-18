@@ -2,6 +2,7 @@ package outbound
 
 import (
 	"fmt"
+	"time"
 
 	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
 )
@@ -24,17 +25,21 @@ func NewRules(rules []entity.Rule) Rules {
 }
 
 type Rule struct {
-	HRef    string `json:"href"`
-	Name    string `json:"name"`
-	Pattern string `json:"pattern,omitempty"`
-	Tags    []Tag  `json:"tags,omitempty"`
+	HRef         string `json:"href"`
+	Name         string `json:"name"`
+	Pattern      string `json:"pattern,omitempty"`
+	CreatedAt    string `json:"created_at,omitempty"`
+	Transactions int    `json:"transactions"`
+	Tags         []Tag  `json:"tags,omitempty"`
 }
 
 func NewRule(rule entity.Rule) Rule {
 	r := Rule{
-		HRef:    fmt.Sprintf("%s/rules/%s", apiV1, rule.Name),
-		Name:    rule.Name,
-		Pattern: rule.Pattern,
+		HRef:         fmt.Sprintf("%s/rules/%s", apiV1, rule.Name),
+		Name:         rule.Name,
+		Pattern:      rule.Pattern,
+		CreatedAt:    rule.CreatedAt.Format(time.RFC3339),
+		Transactions: rule.CountTransactions,
 	}
 
 	for _, t := range rule.Tags {
