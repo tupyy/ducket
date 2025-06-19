@@ -27,6 +27,7 @@ func (t *TagService) GetTags(ctx context.Context) ([]entity.Tag, error) {
 		return []entity.Tag{}, err
 	}
 
+	// Add number of transactions for each tag
 	modifiedTags := make(map[string]entity.Tag)
 	for _, tag := range tags {
 		mTag, ok := modifiedTags[tag.Value]

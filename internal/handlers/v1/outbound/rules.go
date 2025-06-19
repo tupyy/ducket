@@ -29,7 +29,7 @@ type Rule struct {
 	Name         string `json:"name"`
 	Pattern      string `json:"pattern,omitempty"`
 	CreatedAt    string `json:"created_at,omitempty"`
-	Transactions int    `json:"transactions"`
+	Transactions int    `json:"transactions,omitempty"`
 	Tags         []Tag  `json:"tags,omitempty"`
 }
 

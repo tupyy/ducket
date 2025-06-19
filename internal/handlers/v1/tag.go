@@ -16,7 +16,6 @@ func TagHandlers(r *gin.RouterGroup) {
 	r.GET("/tags", func(c *gin.Context) {
 		dt := dtContext.MustFromContext(c)
 
-		// get tags from tagSrv
 		tagSrv := services.NewTagService(dt)
 		tags, err := tagSrv.GetTags(c.Request.Context())
 		if err != nil {
@@ -25,15 +24,7 @@ func TagHandlers(r *gin.RouterGroup) {
 			return
 		}
 
-		ruleSrv := services.NewRuleService(dt)
-		rules, err := ruleSrv.GetRules(c.Request.Context())
-		if err != nil {
-			zap.S().Errorw("failed to get rules", "error", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error})
-			return
-		}
-
-		c.JSON(http.StatusOK, outbound.NewTags(tags, rules))
+		c.JSON(http.StatusOK, outbound.NewTags(tags))
 	})
 
 	r.POST("/tags", func(c *gin.Context) {

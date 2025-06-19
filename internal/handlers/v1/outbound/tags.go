@@ -34,49 +34,26 @@ func NewTag(value string, rules ...entity.Rule) Tag {
 	return tag
 }
 
-func NewTags(tags []entity.Tag, rules []entity.Rule) Tags {
+func NewTags(tags []entity.Tag) Tags {
 	mtags := Tags{
 		Tags: make([]Tag, 0),
 	}
-	r := make(map[string]Tag)
-
-	for _, rule := range rules {
-		for _, t := range rule.Tags {
-			if tag, ok := r[t]; ok {
-				tag.Rules = append(tag.Rules, Rule{Name: rule.Name, HRef: fmt.Sprintf("/api/v1/rules/%s", rule.Name)})
-				r[t] = tag
-				continue
-			}
-			r[t] = Tag{
-				HRef:  fmt.Sprintf("/api/v1/tags/%s", t),
-				Value: t,
-				Rules: []Rule{
-					{Name: rule.Name, HRef: fmt.Sprintf("/api/v1/rules/%s", rule.Name)},
-				},
-			}
-		}
-	}
 
 	for _, eTag := range tags {
-		if _, ok := r[eTag.Value]; !ok {
-			r[eTag.Value] = Tag{
-				HRef:         fmt.Sprintf("/api/v1/tags/%s", eTag.Value),
-				Value:        eTag.Value,
-				Transactions: eTag.CountTransactions,
-				CreatedAt:    eTag.CreatedAt.Format(time.RFC3339),
-			}
-		} else {
-			tt := r[eTag.Value]
-			tt.CreatedAt = eTag.CreatedAt.Format(time.RFC3339)
-			tt.Transactions = eTag.CountTransactions
-			r[eTag.Value] = tt
+		t := Tag{
+			HRef:         fmt.Sprintf("/api/v1/tags/%s", eTag.Value),
+			Value:        eTag.Value,
+			Transactions: eTag.CountTransactions,
+			CreatedAt:    eTag.CreatedAt.Format(time.RFC3339),
+			Rules:        make([]Rule, 0),
 		}
+		for _, rule := range eTag.Rules {
+			t.Rules = append(t.Rules, Rule{Name: rule, HRef: fmt.Sprintf("/api/v1/rules/%s", rule)})
+		}
+		mtags.Tags = append(mtags.Tags, t)
 	}
 
-	for _, v := range r {
-		mtags.Tags = append(mtags.Tags, v)
-	}
-	mtags.Total = len(r)
+	mtags.Total = len(mtags.Tags)
 
 	return mtags
 }
