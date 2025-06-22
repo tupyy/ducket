@@ -27,7 +27,7 @@ func TransactionHandlers(r *gin.RouterGroup) {
 			zap.S().Warnw("failed to parse starting date. defaults to first day of the current month", "error", err, "url", c.Request.URL)
 		}
 
-		end, err := parseTime(c.Query("end"), now)
+		end, err := parseTime(c.Query("end"), time.Date(now.Year(), now.Month(), 31, 0, 0, 0, 0, time.UTC))
 		if err != nil {
 			zap.S().Warnw("failed to parse ending date. defaults to now", "error", err, "url", c.Request.URL)
 		}
@@ -48,7 +48,7 @@ func TransactionHandlers(r *gin.RouterGroup) {
 			t.Items = append(t.Items, outbound.FromEntity(transaction))
 		}
 
-		c.JSON(http.StatusAccepted, t)
+		c.JSON(http.StatusOK, t)
 	})
 
 	r.POST("/transactions", func(c *gin.Context) {

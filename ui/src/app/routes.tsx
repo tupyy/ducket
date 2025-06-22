@@ -4,6 +4,7 @@ import { Dashboard } from '@app/pages/Dashboard/Dashboard';
 import { NotFound } from '@app/pages/NotFound/NotFound';
 import { Rules } from '@app/pages/Rules/Rules';
 import { TagsPage } from './pages/Tags/Page';
+import { Transactions } from './pages/Transactions/transactions';
 
 export interface IAppRoute {
   label?: string; // Excluding the label will exclude the route from the nav sidebar in AppLayout
@@ -30,6 +31,13 @@ const routes: AppRouteConfig[] = [
     label: 'Dashboard',
     path: '/',
     title: 'PatternFly Seed | Main Dashboard',
+  },
+  {
+    element: <Transactions />,
+    exact: true,
+    label: 'Transactions',
+    path: '/transactions',
+    title: 'Finance | Transactions Page',
   },
   {
     element: <TagsPage />,

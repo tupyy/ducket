@@ -3,8 +3,6 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   Button,
   Masthead,
-  MastheadBrand,
-  MastheadLogo,
   MastheadMain,
   MastheadToggle,
   Nav,

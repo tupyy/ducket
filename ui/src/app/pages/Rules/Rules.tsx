@@ -6,12 +6,7 @@ import { RulesList } from '@app/pages/Rules/List';
 import { IRule } from '@app/shared/models/rule';
 import { RuleForm } from './Form';
 
-export interface ISupportProps {
-  sampleProp?: string;
-}
-
-// eslint-disable-next-line prefer-const
-let Rules: React.FunctionComponent<ISupportProps> = () => {
+const Rules: React.FunctionComponent = () => {
   const dispatch = useAppDispatch();
   const rules = useAppSelector((state) => state.rules);
   const [isCreateFormActive, setIsCreateFormActive] = React.useState<boolean>(false);

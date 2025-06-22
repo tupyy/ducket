@@ -1,15 +1,8 @@
 import * as React from 'react';
-import { CodeBranchIcon, CubesIcon, OutlinedCalendarIcon } from '@patternfly/react-icons';
+import {CubesIcon} from '@patternfly/react-icons';
 import {
   Button,
   Content,
-  ContentVariants,
-  DataList,
-  DataListAction,
-  DataListCell,
-  DataListItem,
-  DataListItemCells,
-  DataListItemRow,
   EmptyState,
   EmptyStateBody,
   EmptyStateFooter,
@@ -20,7 +13,6 @@ import {
   PageSection,
   Pagination,
   PaginationVariant,
-  Tooltip,
 } from '@patternfly/react-core';
 import { IRule } from '@app/shared/models/rule';
 import { DataView, DataViewToolbar, useDataViewFilters } from '@patternfly/react-data-view';
@@ -164,12 +156,12 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({ rules, showCreateR
                 <strong>{columns.tags}</strong>
               </Content>
             </Th>
-            <Th width={10}>
+            <Th width={20}>
               <Content component="p">
                 <strong>{columns.transactions}</strong>
               </Content>
             </Th>
-            <Th width={10}>
+            <Th width={20}>
               <Content component="p">
                 <strong>{columns.createdAt}</strong>
               </Content>

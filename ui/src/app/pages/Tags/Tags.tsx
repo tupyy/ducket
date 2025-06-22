@@ -165,12 +165,12 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
                 <strong>{columns.rules}</strong>
               </Content>
             </Th>
-            <Th width={10}>
+            <Th width={20}>
               <Content component={ContentVariants.p}>
                 <strong>{columns.transactions}</strong>
               </Content>
             </Th>
-            <Th width={10}>
+            <Th width={20}>
               <Content component={ContentVariants.p}>
                 <strong>{columns.createdAt}</strong>
               </Content>
