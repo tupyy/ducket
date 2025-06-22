@@ -30,6 +30,14 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   const [perPage, setPerPage] = React.useState<number>(10);
   const [paginatedRows, setPaginatedRows] = React.useState(sortedTransactions.slice(0, 10));
 
+  const [expandedTransactions, setExpandedTransactions] = React.useState<string[]>([]);
+  const setTransactionExpanded = (t: ITransaction, isExpanding = true) =>
+    setExpandedTransactions((prevExpanded) => {
+      const otherExpandedRepoNames = prevExpanded.filter((tt) => tt !== t.href);
+      return isExpanding ? [...otherExpandedRepoNames, t.href] : otherExpandedRepoNames;
+    });
+  const isTransactionExpanded = (t: ITransaction) => expandedTransactions.includes(t.href);
+
   React.useEffect(() => {
     setPaginatedRows(sortedTransactions?.slice(0, 10));
     setPage(1);
@@ -67,7 +75,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
       );
       setActiveSortIndex(index);
       setActiveSortDirection(direction);
-      setPaginatedRows(sortedTransactions.slice(0, 10));
+      setPaginatedRows(sortedTransactions.slice(0, perPage));
       setPage(1);
     },
     columnIndex,
@@ -129,6 +137,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
       <Table aria-label="rule-list">
         <Thead>
           <Tr>
+            <Th screenReaderText="Row expansion" />
             <Th sort={getSortParams(1)}>
               <Content component="p">
                 <strong>{columns.date}</strong>
@@ -156,9 +165,21 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
             </Th>
           </Tr>
         </Thead>
-        {paginatedRows.map((t: ITransaction) => (
-          <Tbody key={t.href}>
+        {paginatedRows.map((t: ITransaction, i: number) => (
+          <Tbody key={t.href} isExpanded={isTransactionExpanded(t)}>
             <Tr>
+              <Td
+                expand={
+                  t.description
+                    ? {
+                        rowIndex: i,
+                        isExpanded: isTransactionExpanded(t),
+                        onToggle: () => setTransactionExpanded(t, !isTransactionExpanded(t)),
+                        expandId: 'composable-expandable-example',
+                      }
+                    : undefined
+                }
+              />
               <Td dataLabel={columns.date}>
                 {t.date.toLocaleDateString('fr-FR', {
                   weekday: 'long',
@@ -199,6 +220,11 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                 })}
               </Td>
             </Tr>
+              <Tr isExpanded={isTransactionExpanded(t)}>
+                <Td noPadding={false} colSpan={5}>
+                  <ExpandableRowContent>{t.description}</ExpandableRowContent>
+                </Td>
+              </Tr>
           </Tbody>
         ))}
       </Table>
