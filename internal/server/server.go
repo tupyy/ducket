@@ -34,6 +34,7 @@ type runnableServer struct {
 	closePostCb func() error
 }
 
+// NewRunnableServer creates a new runnable server instance with the provided configuration.
 func NewRunnableServer(cfg *RunnableServerConfig) *runnableServer {
 	gin.SetMode(cfg.GinMode)
 	engine := gin.New()
@@ -58,6 +59,7 @@ func NewRunnableServer(cfg *RunnableServerConfig) *runnableServer {
 	return &runnableServer{srv: srv, cfg: cfg, closePostCb: cfg.CloseCb}
 }
 
+// Run starts the HTTP server and handles graceful shutdown when the context is cancelled.
 func (r *runnableServer) Run(ctx context.Context) {
 	go func() {
 		if err := r.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {

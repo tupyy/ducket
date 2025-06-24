@@ -13,10 +13,13 @@ type RuleForm struct {
 	Tags    []string `form:"tags" json:"tags" binding:"required"`
 }
 
+// FormToEntity converts a RuleForm to an entity.Rule for business logic processing.
 func FormToEntity(r RuleForm) entity.Rule {
 	return entity.NewRule(r.Name, r.Pattern, r.Tags...)
 }
 
+// RuleFormValidation provides custom validation logic for RuleForm structures.
+// It implements the validator.StructLevel interface for complex validation rules.
 func RuleFormValidation(sl validator.StructLevel) {
 	form := sl.Current().Interface().(RuleForm)
 
@@ -44,6 +47,8 @@ type UpdateRuleForm struct {
 	Tags    []string `form:"tags" json:"tags" binding:"required"`
 }
 
+// UpdateRuleFormValidation provides custom validation logic for UpdateRuleForm structures.
+// It implements the validator.StructLevel interface for update-specific validation rules.
 func UpdateRuleFormValidation(sl validator.StructLevel) {
 	form := sl.Current().Interface().(UpdateRuleForm)
 

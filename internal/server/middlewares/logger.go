@@ -8,6 +8,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// Logger returns a gin middleware that logs HTTP requests using zap logger.
+// It logs the method, path, status code, and response time for each request.
 func Logger() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()

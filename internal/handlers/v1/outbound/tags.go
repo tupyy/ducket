@@ -20,6 +20,7 @@ type Tag struct {
 	Transactions int    `json:"transactions,omitempty"`
 }
 
+// NewTag creates a new Tag response structure with the given value and associated rules.
 func NewTag(value string, rules ...entity.Rule) Tag {
 	tag := Tag{
 		HRef:  fmt.Sprintf("/api/v1/tags/%s", value),
@@ -34,6 +35,7 @@ func NewTag(value string, rules ...entity.Rule) Tag {
 	return tag
 }
 
+// NewTags creates a new Tags response structure from a slice of entity.Tag.
 func NewTags(tags []entity.Tag) Tags {
 	mtags := Tags{
 		Tags: make([]Tag, 0),

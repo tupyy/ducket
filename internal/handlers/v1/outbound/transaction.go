@@ -26,6 +26,8 @@ type Transaction struct {
 	Tags        []TransactionTagAssociation `json:"tags"`
 }
 
+// FromEntity converts an entity.Transaction to an outbound Transaction model
+// suitable for API responses.
 func FromEntity(t entity.Transaction) Transaction {
 	transaction := Transaction{
 		Href:        fmt.Sprintf("%s/transactions/%d", apiV1, t.ID),
@@ -54,6 +56,8 @@ type Transactions struct {
 	Items        []Transaction `json:"items"`
 }
 
+// NewTransactions creates a new Transactions response structure with the given
+// total count, time range, and transaction data.
 func NewTransactions(total int, start, end time.Time) *Transactions {
 	return &Transactions{
 		Total:        total,

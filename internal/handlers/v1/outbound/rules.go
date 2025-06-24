@@ -12,6 +12,7 @@ type Rules struct {
 	Total int    `json:"total"`
 }
 
+// NewRules creates a new Rules response structure from a slice of entity.Rule.
 func NewRules(rules []entity.Rule) Rules {
 	r := Rules{
 		Rules: make([]Rule, 0),
@@ -33,6 +34,7 @@ type Rule struct {
 	Tags         []Tag  `json:"tags,omitempty"`
 }
 
+// NewRule creates a new Rule response structure from an entity.Rule.
 func NewRule(rule entity.Rule) Rule {
 	r := Rule{
 		HRef:         fmt.Sprintf("%s/rules/%s", apiV1, rule.Name),

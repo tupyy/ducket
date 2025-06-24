@@ -5,6 +5,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// RegisterApiV1Handlers registers all version 1 API handlers with the provided router group.
+// This includes handlers for transactions, rules, tags, and summary endpoints.
 func RegisterApiV1Handlers(r *gin.RouterGroup) {
 	v1.TransactionHandlers(r)
 	v1.TagHandlers(r)

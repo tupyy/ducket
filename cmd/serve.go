@@ -24,6 +24,8 @@ const (
 	ApiV1 ApiVersion = "/api/v1"
 )
 
+// NewServeCommand creates a new cobra command for starting the server.
+// It sets up the database connection, configures the HTTP server, and handles graceful shutdown.
 func NewServeCommand(config *config.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "serve",

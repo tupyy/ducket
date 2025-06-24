@@ -18,6 +18,9 @@ const (
 
 type ExcelReader struct{}
 
+// Read parses an Excel file from the provided io.Reader and extracts transaction data.
+// It looks for a sheet named "Sheet0" and starts reading transactions after finding
+// a row that begins with "date". Returns a slice of Transaction entities.
 func (e *ExcelReader) Read(r io.Reader) ([]*entity.Transaction, error) {
 	f, err := excel.OpenReader(r, excel.Options{})
 	if err != nil {

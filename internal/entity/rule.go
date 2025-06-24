@@ -17,6 +17,7 @@ type Rule struct {
 	Tags              []string
 }
 
+// NewRule creates a new Rule entity with the specified name, pattern, and associated tags.
 func NewRule(name, pattern string, tags ...string) Rule {
 	_tags := make([]string, 0, len(tags))
 	for _, tag := range tags {

@@ -20,6 +20,7 @@ type TransactionForm struct {
 	Tags    map[string]string `form:"tags" json:"tags" binding:"required"`
 }
 
+// Entity converts a TransactionForm to an entity.Transaction for business logic processing.
 func (t TransactionForm) Entity() (entity.Transaction, error) {
 	date, err := time.Parse(queryDateFormat, t.Date)
 	if err != nil {
@@ -31,6 +32,8 @@ func (t TransactionForm) Entity() (entity.Transaction, error) {
 	return *te, nil
 }
 
+// TransactionFormValidation provides custom validation logic for TransactionForm structures.
+// It implements the validator.StructLevel interface for complex validation rules.
 func TransactionFormValidation(sl validator.StructLevel) {
 	form := sl.Current().Interface().(TransactionForm)
 

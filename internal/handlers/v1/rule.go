@@ -13,6 +13,8 @@ import (
 	"go.uber.org/zap"
 )
 
+// RulesHandlers registers all rule-related HTTP handlers with the provided router group.
+// This includes endpoints for CRUD operations on rules.
 func RulesHandlers(r *gin.RouterGroup) {
 	r.GET("/rules", func(c *gin.Context) {
 		dt := dtContext.MustFromContext(c)

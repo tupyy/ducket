@@ -26,6 +26,7 @@ type Transaction struct {
 	Tags map[string]string
 }
 
+// NewTransaction creates a new Transaction entity with the specified kind, date, amount, and raw content.
 func NewTransaction(kind TransactionKind, date time.Time, sum float32, rawContent string) *Transaction {
 	hash := fmt.Sprintf("%s%s%f%s", kind, date, sum, rawContent)
 	h := sha256.New()
@@ -41,6 +42,7 @@ func NewTransaction(kind TransactionKind, date time.Time, sum float32, rawConten
 	}
 }
 
+// String returns a string representation of the transaction for debugging and logging purposes.
 func (t *Transaction) String() string {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "%s | %s | %.2f€ | ", t.Date, t.RawContent, t.Amount)

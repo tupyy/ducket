@@ -19,6 +19,8 @@ const (
 	queryDateFormat = "02/01/2006"
 )
 
+// TransactionHandlers registers all transaction-related HTTP handlers with the provided router group.
+// This includes endpoints for CRUD operations on transactions.
 func TransactionHandlers(r *gin.RouterGroup) {
 	r.GET("/transactions", func(c *gin.Context) {
 		now := time.Now()
@@ -156,6 +158,8 @@ func TransactionHandlers(r *gin.RouterGroup) {
 
 }
 
+// parseTime parses a time string using the default format or returns the provided default time.
+// Used for parsing query parameters that represent timestamps.
 func parseTime(sTime string, defaultTime time.Time) (time.Time, error) {
 	if sTime == "" {
 		return defaultTime, nil

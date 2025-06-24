@@ -97,18 +97,22 @@ func (l *lexer) next() {
 	l.offset++
 }
 
+// IsAlpha checks if the given byte is an alphabetic character (a-z, A-Z).
 func isAlpha(ch byte) bool {
 	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')
 }
 
+// IsDot checks if the given byte is a dot character.
 func isDot(ch byte) bool {
 	return ch == '.'
 }
 
+// IsComma checks if the given byte is a comma character.
 func isComma(ch byte) bool {
 	return ch == ','
 }
 
+// IsSymbol checks if the given byte is one of the recognized symbol characters.
 func isSymbol(ch byte) bool {
 	return ch == '*' ||
 		ch == '-' ||
@@ -119,10 +123,12 @@ func isSymbol(ch byte) bool {
 		ch == '°'
 }
 
+// IsDigit checks if the given byte is a numeric digit (0-9).
 func isDigit(ch byte) bool {
 	return ch >= '0' && ch <= '9'
 }
 
+// IsSpace checks if the given byte is a space character.
 func isSpace(ch byte) bool {
 	return ch == ' '
 }

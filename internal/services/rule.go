@@ -13,6 +13,7 @@ type RuleFilter struct {
 	Name string `debugmap:"visible"`
 }
 
+// QueriesFn returns a slice of query filters based on the rule filter criteria.
 func (rf *RuleFilter) QueriesFn() []pg.QueryFilter {
 	qf := []pg.QueryFilter{}
 
@@ -27,14 +28,18 @@ type RuleService struct {
 	dt *pg.Datastore
 }
 
+// NewRuleService creates a new instance of RuleService with the provided datastore.
 func NewRuleService(dt *pg.Datastore) *RuleService {
 	return &RuleService{dt: dt}
 }
 
+// GetRules retrieves all rules from the database.
 func (r *RuleService) GetRules(ctx context.Context) ([]entity.Rule, error) {
 	return r.dt.QueryRules(ctx)
 }
 
+// GetRule retrieves a single rule by its name.
+// Returns nil if no rule is found with the given name.
 func (r *RuleService) GetRule(ctx context.Context, name string) (*entity.Rule, error) {
 	rules, err := r.dt.QueryRules(ctx, NewRuleFilterWithOptions(WithName(name)).QueriesFn()...)
 	if err != nil {
@@ -48,6 +53,9 @@ func (r *RuleService) GetRule(ctx context.Context, name string) (*entity.Rule, e
 	return &rules[0], nil
 }
 
+// Create creates a new rule in the database.
+// Returns an error if a rule with the same name already exists.
+// Also ensures that all tags referenced by the rule exist in the database.
 func (r *RuleService) Create(ctx context.Context, rule entity.Rule) error {
 	existingRule, err := r.GetRule(ctx, rule.Name)
 	if err != nil {
@@ -84,6 +92,9 @@ func (r *RuleService) Create(ctx context.Context, rule entity.Rule) error {
 	})
 }
 
+// UpdateOrCreate creates a new rule or updates an existing one based on the name.
+// Returns true if an existing rule was updated, false if a new rule was created.
+// Also ensures that all tags referenced by the rule exist in the database.
 func (r *RuleService) UpdateOrCreate(ctx context.Context, rule entity.Rule) (bool, error) {
 	existingRule, err := r.GetRule(ctx, rule.Name)
 	if err != nil {
@@ -118,6 +129,7 @@ func (r *RuleService) UpdateOrCreate(ctx context.Context, rule entity.Rule) (boo
 	return update, err
 }
 
+// DeleteRule removes a rule from the database by its name.
 func (r *RuleService) DeleteRule(ctx context.Context, name string) error {
 	return r.dt.WriteTx(ctx, func(ctx context.Context, w pg.Writer) error {
 		return w.DeleteRule(ctx, name)

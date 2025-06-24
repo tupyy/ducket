@@ -12,6 +12,8 @@ import (
 	"go.uber.org/zap"
 )
 
+// TagHandlers registers all tag-related HTTP handlers with the provided router group.
+// This includes endpoints for CRUD operations on tags.
 func TagHandlers(r *gin.RouterGroup) {
 	r.GET("/tags", func(c *gin.Context) {
 		dt := dtContext.MustFromContext(c)

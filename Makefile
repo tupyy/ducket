@@ -25,12 +25,12 @@ sed -u -e "s/\\\\\"/'/g; \
 s/method=\([^ ]*\)/method=$(COLOR_BLUE)\1$(RESET_COLOR)/g;        \
 s/error=\"\([^\"]*\)\"/error=\"$(COLOR_RED)\1$(RESET_COLOR)\"/g;  \
 s/msg=\"\([^\"]*\)\"/msg=\"$(COLOR_YELLOW)\1$(RESET_COLOR)\"/g;   \
-s/level=trace/level=$(COLOR_LEVEL_TRACE)trace$(RESET_COLOR)/g;    \
-s/level=debug/level=$(COLOR_LEVEL_DEBUG)debug$(RESET_COLOR)/g;    \
-s/level=info/level=$(COLOR_LEVEL_INFO)info$(RESET_COLOR)/g;       \
-s/level=warning/level=$(COLOR_LEVEL_WARN)warning$(RESET_COLOR)/g; \
-s/level=error/level=$(COLOR_LEVEL_ERROR)error$(RESET_COLOR)/g;    \
-s/level=fatal/level=$(COLOR_LEVEL_FATAL)fatal$(RESET_COLOR)/g"
+s/trace/$(COLOR_LEVEL_TRACE)trace$(RESET_COLOR)/g;    \
+s/debug/$(COLOR_LEVEL_DEBUG)debug$(RESET_COLOR)/g;    \
+s/info/$(COLOR_LEVEL_INFO)info$(RESET_COLOR)/g;       \
+s/warning/$(COLOR_LEVEL_WARN)warning$(RESET_COLOR)/g; \
+s/error/$(COLOR_LEVEL_ERROR)error$(RESET_COLOR)/g;    \
+s/fatal/$(COLOR_LEVEL_FATAL)fatal$(RESET_COLOR)/g"
 endef
 
 #####################
@@ -90,7 +90,7 @@ build.local:
 	go build -o $(BUILD_DIR)/$(NAME) main.go
 
 run:
-	$(BUILD_DIR)/$(NAME) serve
+	$(BUILD_DIR)/$(NAME) serve | $(COLORIZE)
 
 DB_HOST=localhost
 DB_PORT=5432

@@ -8,6 +8,7 @@ import (
 
 type Transactions map[int64][]Transaction
 
+// Add appends a transaction to the collection, grouping by transaction ID.
 func (tt Transactions) Add(t Transaction) {
 	rows, ok := tt[t.ID]
 	if !ok {
@@ -17,6 +18,7 @@ func (tt Transactions) Add(t Transaction) {
 	tt[t.ID] = append(rows, t)
 }
 
+// ToEntity converts the database model transactions to entity transactions.
 func (tt Transactions) ToEntity() []entity.Transaction {
 	transactions := []entity.Transaction{}
 	for _, v := range tt {

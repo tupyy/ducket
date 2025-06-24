@@ -24,6 +24,7 @@ var tokenNames = map[token]string{
 	SYMBOL:     "symbol",
 }
 
+// String returns the string representation of the token for debugging and logging purposes.
 func (t token) String() string {
 	return tokenNames[t]
 }

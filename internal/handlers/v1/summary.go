@@ -11,6 +11,8 @@ import (
 	"go.uber.org/zap"
 )
 
+// SummaryHandlers registers all summary-related HTTP handlers with the provided router group.
+// This includes endpoints for retrieving aggregated statistics and summaries.
 func SummaryHandlers(r *gin.RouterGroup) {
 	r.GET("/summary", func(c *gin.Context) {
 		now := time.Now()

@@ -8,6 +8,7 @@ import (
 
 type RuleRows map[string][]RuleRow
 
+// ToEntity converts the database model rules to entity rules.
 func (r RuleRows) ToEntity() []entity.Rule {
 	rules := []entity.Rule{}
 	for _, v := range r {
@@ -26,6 +27,7 @@ func (r RuleRows) ToEntity() []entity.Rule {
 	return rules
 }
 
+// Add appends a rule row to the collection, grouping by rule ID.
 func (r RuleRows) Add(ruleRow RuleRow) {
 	rows, ok := r[ruleRow.ID]
 	if !ok {

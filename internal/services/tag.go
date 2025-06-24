@@ -11,10 +11,13 @@ type TagService struct {
 	dt *pg.Datastore
 }
 
+// NewTagService creates a new instance of TagService with the provided datastore.
 func NewTagService(dt *pg.Datastore) *TagService {
 	return &TagService{dt: dt}
 }
 
+// GetTags retrieves all tags from the database along with their associated transaction counts.
+// It also includes the rules that reference each tag.
 func (t *TagService) GetTags(ctx context.Context) ([]entity.Tag, error) {
 	// count transaction first
 	stats, err := t.dt.CountTransactions(ctx)
@@ -54,6 +57,7 @@ func (t *TagService) GetTags(ctx context.Context) ([]entity.Tag, error) {
 	return exportedTags, nil
 }
 
+// IsExists checks if a tag with the given value exists in the database.
 func (t *TagService) IsExists(ctx context.Context, tag string) (bool, error) {
 	tags, err := t.dt.QueryTags(ctx)
 	if err != nil {
@@ -69,6 +73,8 @@ func (t *TagService) IsExists(ctx context.Context, tag string) (bool, error) {
 	return false, nil
 }
 
+// Create creates a new tag in the database if it doesn't already exist.
+// If the tag already exists, this method returns without error.
 func (t *TagService) Create(ctx context.Context, tag string) error {
 	exists, err := t.IsExists(ctx, tag)
 	if err != nil {
@@ -84,6 +90,7 @@ func (t *TagService) Create(ctx context.Context, tag string) error {
 	})
 }
 
+// Delete removes a tag from the database by its value.
 func (t *TagService) Delete(ctx context.Context, tag string) error {
 	return t.dt.WriteTx(ctx, func(ctx context.Context, w pg.Writer) error {
 		return w.DeleteTag(ctx, tag)

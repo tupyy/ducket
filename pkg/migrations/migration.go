@@ -8,6 +8,9 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
+// MigrateStore runs database migrations using the goose migration tool.
+// It takes a database connection and migration folder path, and applies
+// all pending migrations in the specified folder.
 func MigrateStore(db *sql.DB, migrationFolder string) error {
 	goose.SetLogger(&logger{})
 

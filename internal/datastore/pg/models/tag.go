@@ -9,6 +9,7 @@ import (
 // store tags by value because we can have the same tag associated with multiple rules
 type Tags map[string][]Tag
 
+// ToEntity converts the database model tags to entity tags.
 func (tags Tags) ToEntity() []entity.Tag {
 	tt := []entity.Tag{}
 	for k, tagRows := range tags {
@@ -25,6 +26,7 @@ func (tags Tags) ToEntity() []entity.Tag {
 	return tt
 }
 
+// Add appends a tag to the collection, grouping by tag value.
 func (tags Tags) Add(t Tag) {
 	rows, ok := tags[t.Value]
 	if !ok {

@@ -30,6 +30,8 @@ type Datastore struct {
 	pool ConnPooler
 }
 
+// NewPostgresDatastore creates a new Postgres datastore instance with the given configuration options.
+// It establishes a connection pool and sets up query interceptors for logging and monitoring.
 func NewPostgresDatastore(ctx context.Context, url string, options ...Option) (*Datastore, error) {
 	pgOptions := newPostgresConfig(options)
 
@@ -50,6 +52,7 @@ func NewPostgresDatastore(ctx context.Context, url string, options ...Option) (*
 	return &Datastore{pool: MustNewInterceptorPooler(pgPool, newLogInterceptor())}, nil
 }
 
+// QueryTransactions retrieves transactions from the database based on the provided query filters.
 func (d *Datastore) QueryTransactions(ctx context.Context, filterFn ...QueryFilter) ([]entity.Transaction, error) {
 	query := psql.Select(colID, colDate, colTransactionType, colTransactionContent, colAmount, colTagID, colRuleID, colHash).
 		From(transactionTable).
@@ -85,6 +88,7 @@ func (d *Datastore) QueryTransactions(ctx context.Context, filterFn ...QueryFilt
 	return tRows.ToEntity(), nil
 }
 
+// QueryRules retrieves rules from the database based on the provided query filters.
 func (d *Datastore) QueryRules(ctx context.Context, filter ...QueryFilter) ([]entity.Rule, error) {
 	query := selectRulesStmt
 
@@ -118,6 +122,7 @@ func (d *Datastore) QueryRules(ctx context.Context, filter ...QueryFilter) ([]en
 	return ruleRows.ToEntity(), nil
 }
 
+// QueryTags retrieves tags from the database based on the provided query filters.
 func (d *Datastore) QueryTags(ctx context.Context, filter ...QueryFilter) ([]entity.Tag, error) {
 	query := selectTagsStmt
 
@@ -151,6 +156,7 @@ func (d *Datastore) QueryTags(ctx context.Context, filter ...QueryFilter) ([]ent
 
 }
 
+// CountTransactions returns transaction statistics grouped by tags for reporting purposes.
 func (d *Datastore) CountTransactions(ctx context.Context) ([]entity.TransactionStat, error) {
 	sql, args, err := countTransactionsPerTagPerRuleStmt.ToSql()
 	if err != nil {
@@ -177,6 +183,8 @@ func (d *Datastore) CountTransactions(ctx context.Context) ([]entity.Transaction
 	return stats, nil
 }
 
+// WriteTx executes a write transaction with the provided user function.
+// It manages transaction lifecycle and provides a Writer interface for data modifications.
 func (d *Datastore) WriteTx(ctx context.Context, txFn TxUserFunc) error {
 	tx, err := d.pool.Begin(ctx)
 	if err != nil {
@@ -197,6 +205,7 @@ func (d *Datastore) WriteTx(ctx context.Context, txFn TxUserFunc) error {
 	return nil
 }
 
+// Close gracefully shuts down the datastore and closes all database connections.
 func (d *Datastore) Close() {
 	d.pool.Close()
 }
