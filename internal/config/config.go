@@ -6,6 +6,7 @@ type Config struct {
 	ServerPort int       `debugmap:"visible" default:"8080"`
 
 	GinMode string `debugmap:"visible"`
+	Mode    string `debugmap:"visible" default:"dev"`
 
 	// Log
 	LogFormat string `debugmap:"visible"`

@@ -33,6 +33,7 @@ func (c *Config) ToOption() ConfigOption {
 		to.Database = c.Database
 		to.ServerPort = c.ServerPort
 		to.GinMode = c.GinMode
+		to.Mode = c.Mode
 		to.LogFormat = c.LogFormat
 		to.LogLevel = c.LogLevel
 	}
@@ -44,6 +45,7 @@ func (c Config) DebugMap() map[string]any {
 	debugMap["Database"] = helpers.DebugValue(c.Database, false)
 	debugMap["ServerPort"] = helpers.DebugValue(c.ServerPort, false)
 	debugMap["GinMode"] = helpers.DebugValue(c.GinMode, false)
+	debugMap["Mode"] = helpers.DebugValue(c.Mode, false)
 	debugMap["LogFormat"] = helpers.DebugValue(c.LogFormat, false)
 	debugMap["LogLevel"] = helpers.DebugValue(c.LogLevel, false)
 	return debugMap
@@ -83,6 +85,13 @@ func WithServerPort(serverPort int) ConfigOption {
 func WithGinMode(ginMode string) ConfigOption {
 	return func(c *Config) {
 		c.GinMode = ginMode
+	}
+}
+
+// WithMode returns an option that can set Mode on a Config
+func WithMode(mode string) ConfigOption {
+	return func(c *Config) {
+		c.Mode = mode
 	}
 }
 

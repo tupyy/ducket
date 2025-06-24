@@ -158,7 +158,6 @@ curl -X GET "http://localhost:8080/api/v1/transactions?start=2024-01-01&end=2024
       "hash": "abc123def456",
       "tags": {
         "food": "grocery-rule",
-        "essentials": "grocery-rule"
       }
     }
   ],
@@ -394,11 +393,9 @@ curl -X GET http://localhost:8080/api/v1/summary
 {
   "total_transactions": 156,
   "total_amount": 4567.89,
-  "date_range": {
-    "start": "2024-01-01T00:00:00Z",
-    "end": "2024-01-31T23:59:59Z"
-  },
-  "by_category": [
+  "from": "2024-01-01T00:00:00Z",
+  "to": "2024-01-31T23:59:59Z",
+  "by_tag": [
     {
       "tag": "food",
       "count": 25,
@@ -422,26 +419,6 @@ curl -X GET http://localhost:8080/api/v1/summary
       "total_amount": 5678.90
     }
   }
-}
-```
-
-#### File Upload
-
-##### Upload Excel File
-```bash
-curl -X POST http://localhost:8080/api/v1/transactions/upload \
-  -H "Content-Type: multipart/form-data" \
-  -F "file=@transactions.xlsx"
-```
-
-**Response:**
-```json
-{
-  "message": "File uploaded successfully",
-  "processed": 45,
-  "created": 42,
-  "updated": 3,
-  "errors": []
 }
 ```
 
@@ -479,24 +456,24 @@ Common HTTP status codes:
 ```
 finante/
 ├── cmd/                    # Command-line interface
-│   └── serve.go           # Server start command
-├── internal/              # Private application code
-│   ├── config/           # Configuration management
-│   ├── datastore/        # Database layer
-│   │   └── pg/          # PostgreSQL implementation
-│   ├── entity/          # Domain entities
-│   ├── handlers/        # HTTP handlers
-│   │   └── v1/         # API v1 handlers
-│   ├── server/         # HTTP server setup
-│   └── services/       # Business logic layer
-├── pkg/                  # Public libraries
-│   ├── context/         # Context utilities
-│   ├── logger/          # Logging setup
-│   ├── migrations/      # Database migrations
-│   ├── parser/          # Text parsing utilities
-│   └── reader/          # File reading utilities
-├── ui/                   # React frontend
-└── main.go              # Application entry point
+│   └── serve.go            # Server start command
+├── internal/               # Private application code
+│   ├── config/             # Configuration management
+│   ├── datastore/          # Database layer
+│   │   └── pg/             # PostgreSQL implementation
+│   ├── entity/             # Domain entities
+│   ├── handlers/           # HTTP handlers
+│   │   └── v1/             # API v1 handlers
+│   ├── server/             # HTTP server setup
+│   └── services/           # Business logic layer
+├── pkg/                    # Public libraries
+│   ├── context/            # Context utilities
+│   ├── logger/             # Logging setup
+│   ├── migrations/         # Database migrations
+│   ├── parser/             # Text parsing utilities
+│   └── reader/             # File reading utilities
+├── ui/                     # React frontend
+└── main.go                 # Application entry point
 ```
 
 ## 🔄 Development Workflow

@@ -60,6 +60,7 @@ func NewServeCommand(config *config.Config) *cobra.Command {
 						dt.Close()
 						return nil
 					}),
+					server.WithMode(config.Mode),
 				),
 			)
 
@@ -94,4 +95,5 @@ func registerDatabaseFlags(flagSet *pflag.FlagSet, config *config.Database) {
 func registerServerFlags(flagSet *pflag.FlagSet, config *config.Config) {
 	flagSet.IntVar(&config.ServerPort, "server-port", config.ServerPort, "port on which the server is listening")
 	flagSet.StringVar(&config.GinMode, "server-gin-mode", config.GinMode, "gin mode: either release or debug. It applies only on server-type web")
+	flagSet.StringVar(&config.Mode, "server-mode", config.Mode, "server mod: dev or prod")
 }

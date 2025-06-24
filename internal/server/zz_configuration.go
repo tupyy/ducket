@@ -100,3 +100,9 @@ func WithApiVersion(apiVersion string) RunnableServerConfigOption {
 		r.ApiVersion = apiVersion
 	}
 }
+
+func WithMode(mode string) RunnableServerConfigOption {
+	return func(r *RunnableServerConfig) {
+		r.Mode = mode
+	}
+}

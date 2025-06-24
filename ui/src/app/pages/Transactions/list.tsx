@@ -1,17 +1,11 @@
 import * as React from 'react';
 import { Content, Flex, FlexItem, Label, PageSection, Pagination, PaginationVariant } from '@patternfly/react-core';
-import { DataView, DataViewToolbar, useDataViewFilters } from '@patternfly/react-data-view';
-import { DataViewFilters } from '@patternfly/react-data-view/dist/dynamic/DataViewFilters';
-import { DataViewTextFilter } from '@patternfly/react-data-view/dist/dynamic/DataViewTextFilter';
+import { DataView, DataViewToolbar } from '@patternfly/react-data-view';
 import { ExpandableRowContent, Table, Tbody, Td, Th, Thead, ThProps, Tr } from '@patternfly/react-table';
 import { ITagTransaction, ITransaction } from '@app/shared/models/transaction';
 
 export interface ITransactionListProps {
   transactions: Array<ITransaction> | [];
-}
-
-interface RepositoryFilters {
-  kind: string;
 }
 
 const columns = {
@@ -43,7 +37,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     setPage(1);
   }, [sortedTransactions]);
 
-  const getSortParams = (columnIndex: number): ThProps['sort'] => ({
+    const getSortParams = (columnIndex: number): ThProps['sort'] => ({
     sortBy: {
       index: activeSortIndex || undefined,
       direction: activeSortDirection || undefined,
@@ -220,11 +214,11 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                 })}
               </Td>
             </Tr>
-              <Tr isExpanded={isTransactionExpanded(t)}>
-                <Td noPadding={false} colSpan={5}>
-                  <ExpandableRowContent>{t.description}</ExpandableRowContent>
-                </Td>
-              </Tr>
+            <Tr isExpanded={isTransactionExpanded(t)}>
+              <Td noPadding={false} colSpan={5}>
+                <ExpandableRowContent>{t.description}</ExpandableRowContent>
+              </Td>
+            </Tr>
           </Tbody>
         ))}
       </Table>
