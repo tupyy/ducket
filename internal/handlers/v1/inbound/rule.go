@@ -23,7 +23,7 @@ func FormToEntity(r RuleForm) entity.Rule {
 func RuleFormValidation(sl validator.StructLevel) {
 	form := sl.Current().Interface().(RuleForm)
 
-	if len(form.Name) > 20 {
+	if form.Name == "" || len(form.Name) > 20 {
 		sl.ReportError(form.Name, "name", "name", "lt 20", "")
 	}
 
