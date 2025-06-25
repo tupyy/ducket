@@ -11,7 +11,7 @@ CREATE TABLE transactions (
     date TIMESTAMP NOT NULL,
     kind VARCHAR(30) NOT NULL,
     content TEXT NOT NULL,
-    amount NUMERIC(7,2) NOT NULL
+    amount NUMERIC(15,2) NOT NULL
 );
 
 CREATE UNIQUE INDEX transaction_hash_idx ON transactions (hash);
