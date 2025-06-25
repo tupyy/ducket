@@ -430,7 +430,7 @@ var _ = Describe("query", Ordered, func() {
 			Expect(err).To(BeNil())
 			Expect(transactions).To(HaveLen(1))
 
-			Expect(transactions[0].ID).To(Equal(2))
+			Expect(transactions[0].ID).To(Equal(int64(2)))
 		})
 
 		It("query successfully transactions -- with end filter", func() {
@@ -448,7 +448,7 @@ var _ = Describe("query", Ordered, func() {
 			Expect(err).To(BeNil())
 			Expect(transactions).To(HaveLen(1))
 
-			Expect(transactions[0].ID).To(Equal(1))
+			Expect(transactions[0].ID).To(Equal(int64(1)))
 		})
 
 		It("query successfully transactions -- with before and after filter", func() {

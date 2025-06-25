@@ -101,13 +101,22 @@ ROOT_USER=postgres
 ROOT_PWD=postgres
 CONNSTR="postgresql://$(ROOT_USER):$(ROOT_PWD)@$(DB_HOST):$(DB_PORT)"
 
-postgres.start:
+postgres.start.dev:
 	$(PODMAN) run --rm -p $(DB_PORT):5432 --name pg-finante -e POSTGRES_PASSWORD=$(ROOT_PWD) -d $(POSTGRES_IMAGE)
+
+postgres.start.test:
+	$(PODMAN) run --rm -p $(DB_PORT):5432 --name pg-test -e POSTGRES_PASSWORD=$(ROOT_PWD) -d $(POSTGRES_IMAGE)
 
 postgres.stop:
 	$(PODMAN) stop pg-finante
 
+postgres.stop.test:
+	$(PODMAN) stop pg-finante
+
 postgres.migrate:
+	GOOSE_DRIVER=postgres GOOSE_DBSTRING=$(CONNSTR) GOOSE_MIGRATION_DIR=$(CURDIR)/pkg/migrations/sql goose up
+
+postgres.migrate.test:
 	GOOSE_DRIVER=postgres GOOSE_DBSTRING=$(CONNSTR) GOOSE_MIGRATION_DIR=$(CURDIR)/pkg/migrations/sql goose up
 
 #####################
