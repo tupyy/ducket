@@ -5,6 +5,11 @@ import {
   Masthead,
   MastheadMain,
   MastheadToggle,
+  MastheadContent,
+  Toolbar,
+  ToolbarContent,
+  ToolbarGroup,
+  ToolbarItem,
   Nav,
   NavExpandable,
   NavItem,
@@ -15,7 +20,7 @@ import {
   SkipToContent,
 } from '@patternfly/react-core';
 import { IAppRoute, IAppRouteGroup, routes } from '@app/routes';
-import { BarsIcon } from '@patternfly/react-icons';
+import { BarsIcon, MoonIcon, SunIcon } from '@patternfly/react-icons';
 
 interface IAppLayout {
   children: React.ReactNode;
@@ -23,6 +28,29 @@ interface IAppLayout {
 
 const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
+  const [isDarkTheme, setIsDarkTheme] = React.useState(() => {
+    // Check localStorage for saved theme preference
+    const savedTheme = localStorage.getItem('theme');
+    return savedTheme === 'dark';
+  });
+
+  React.useEffect(() => {
+    // Apply theme to document html element
+    if (isDarkTheme) {
+      document.documentElement.classList.add('pf-v6-theme-dark');
+      document.documentElement.classList.remove('pf-v6-theme-light');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.add('pf-v6-theme-light');
+      document.documentElement.classList.remove('pf-v6-theme-dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkTheme]);
+
+  const toggleTheme = () => {
+    setIsDarkTheme(!isDarkTheme);
+  };
+
   const masthead = (
     <Masthead>
       <MastheadMain>
@@ -35,6 +63,22 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
           />
         </MastheadToggle>
       </MastheadMain>
+      <MastheadContent>
+        <Toolbar id="masthead-toolbar">
+          <ToolbarContent>
+            <ToolbarGroup align={{ default: 'alignEnd' }}>
+              <ToolbarItem>
+                <Button
+                  variant="plain"
+                  icon={isDarkTheme ? <SunIcon /> : <MoonIcon />}
+                  onClick={toggleTheme}
+                  aria-label={`Switch to ${isDarkTheme ? 'light' : 'dark'} theme`}
+                />
+              </ToolbarItem>
+            </ToolbarGroup>
+          </ToolbarContent>
+        </Toolbar>
+      </MastheadContent>
     </Masthead>
   );
 
