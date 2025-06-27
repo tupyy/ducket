@@ -1,8 +1,20 @@
 import * as React from 'react';
-import { Content, Flex, FlexItem, Label, PageSection, Pagination, PaginationVariant } from '@patternfly/react-core';
+import {
+  Content,
+  Flex,
+  FlexItem,
+  Label,
+  PageSection,
+  Pagination,
+  PaginationVariant,
+  Toolbar,
+  ToolbarContent,
+  ToolbarItem,
+} from '@patternfly/react-core';
 import { DataView, DataViewToolbar } from '@patternfly/react-data-view';
 import { ExpandableRowContent, Table, Tbody, Td, Th, Thead, ThProps, Tr } from '@patternfly/react-table';
 import { ITagTransaction, ITransaction } from '@app/shared/models/transaction';
+import { DateRangePicker } from '@app/shared/components/time-picker';
 
 export interface ITransactionListProps {
   transactions: Array<ITransaction> | [];
@@ -24,6 +36,10 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   const [perPage, setPerPage] = React.useState<number>(10);
   const [paginatedRows, setPaginatedRows] = React.useState(sortedTransactions.slice(0, 10));
 
+  // Date filter state
+  const [startDate, setStartDate] = React.useState<string>('');
+  const [endDate, setEndDate] = React.useState<string>('');
+
   const [expandedTransactions, setExpandedTransactions] = React.useState<string[]>([]);
   const setTransactionExpanded = (t: ITransaction, isExpanding = true) =>
     setExpandedTransactions((prevExpanded) => {
@@ -32,12 +48,17 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     });
   const isTransactionExpanded = (t: ITransaction) => expandedTransactions.includes(t.href);
 
+  // Filter transactions based on date range
   React.useEffect(() => {
-    setPaginatedRows(sortedTransactions?.slice(0, 10));
-    setPage(1);
-  }, [sortedTransactions]);
+    setSortedTransactions(Array.from(transactions));
+  }, [transactions]);
 
-    const getSortParams = (columnIndex: number): ThProps['sort'] => ({
+  React.useEffect(() => {
+    setPaginatedRows(sortedTransactions?.slice(0, perPage));
+    setPage(1);
+  }, [sortedTransactions, perPage]);
+
+  const getSortParams = (columnIndex: number): ThProps['sort'] => ({
     sortBy: {
       index: activeSortIndex || undefined,
       direction: activeSortDirection || undefined,
@@ -74,6 +95,15 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     },
     columnIndex,
   });
+
+  // Date picker handlers
+  const handleStartDateChange = (value: string) => {
+    setStartDate(value);
+  };
+
+  const handleEndDateChange = (value: string) => {
+    setEndDate(value);
+  };
 
   const handleSetPage = (
     _evt: React.MouseEvent | React.KeyboardEvent | MouseEvent,
@@ -120,10 +150,6 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
         paginationAriaLabel: `${variant} pagination`,
       }}
     />
-  );
-
-  const renderToolbar = (
-    <DataViewToolbar pagination={renderPagination(sortedTransactions, PaginationVariant.top, true, false, false)} />
   );
 
   const renderList = (
@@ -228,7 +254,6 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   return (
     <PageSection hasBodyWrapper={false}>
       <DataView>
-        {renderToolbar}
         {renderList}
         {renderPagination(sortedTransactions, PaginationVariant.bottom, false, false, true)}
       </DataView>

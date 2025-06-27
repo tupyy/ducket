@@ -16,14 +16,24 @@ import (
 func SummaryHandlers(r *gin.RouterGroup) {
 	r.GET("/summary", func(c *gin.Context) {
 		now := time.Now()
-		start, err := parseTime(c.Query("start"), time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC))
+		start, err := parseTimestamp(c.Query("startDate"), time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC))
 		if err != nil {
-			zap.S().Warnw("failed to parse starting date. defaults to first day of the current month", "error", err, "url", c.Request.URL)
+			zap.S().Warnw("failed to parse starting date timestamp. defaults to first day of the current month", "error", err, "url", c.Request.URL)
 		}
 
-		end, err := parseTime(c.Query("end"), now)
+		end, err := parseTimestamp(c.Query("endDate"), now)
 		if err != nil {
-			zap.S().Warnw("failed to parse ending date. defaults to now", "error", err, "url", c.Request.URL)
+			zap.S().Warnw("failed to parse ending date timestamp. defaults to now", "error", err, "url", c.Request.URL)
+		}
+
+		// Validate that start date is before end date
+		if start.After(end) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":     "startDate must be before endDate",
+				"startDate": start.Format(time.RFC3339),
+				"endDate":   end.Format(time.RFC3339),
+			})
+			return
 		}
 
 		dt := dtContext.MustFromContext(c)

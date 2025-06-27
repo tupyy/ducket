@@ -111,7 +111,7 @@ postgres.stop:
 	$(PODMAN) stop pg-finante
 
 postgres.stop.test:
-	$(PODMAN) stop pg-finante
+	$(PODMAN) stop pg-test
 
 postgres.migrate:
 	GOOSE_DRIVER=postgres GOOSE_DBSTRING=$(CONNSTR) GOOSE_MIGRATION_DIR=$(CURDIR)/pkg/migrations/sql goose up

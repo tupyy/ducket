@@ -24,14 +24,24 @@ const (
 func TransactionHandlers(r *gin.RouterGroup) {
 	r.GET("/transactions", func(c *gin.Context) {
 		now := time.Now()
-		start, err := parseTime(c.Query("start"), time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC))
+		start, err := parseTimestamp(c.Query("startDate"), time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC))
 		if err != nil {
-			zap.S().Warnw("failed to parse starting date. defaults to first day of the current month", "error", err, "url", c.Request.URL)
+			zap.S().Warnw("failed to parse starting date timestamp. defaults to first day of the current month", "error", err, "url", c.Request.URL)
 		}
 
-		end, err := parseTime(c.Query("end"), time.Date(now.Year(), now.Month(), 31, 0, 0, 0, 0, time.UTC))
+		end, err := parseTimestamp(c.Query("endDate"), time.Date(now.Year(), now.Month(), 31, 0, 0, 0, 0, time.UTC))
 		if err != nil {
-			zap.S().Warnw("failed to parse ending date. defaults to now", "error", err, "url", c.Request.URL)
+			zap.S().Warnw("failed to parse ending date timestamp. defaults to end of current month", "error", err, "url", c.Request.URL)
+		}
+
+		// Validate that start date is before end date
+		if start.After(end) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":     "startDate must be before endDate",
+				"startDate": start.Format(time.RFC3339),
+				"endDate":   end.Format(time.RFC3339),
+			})
+			return
 		}
 
 		dt := dtContext.MustFromContext(c)
@@ -158,15 +168,16 @@ func TransactionHandlers(r *gin.RouterGroup) {
 
 }
 
-// parseTime parses a time string using the default format or returns the provided default time.
-// Used for parsing query parameters that represent timestamps.
-func parseTime(sTime string, defaultTime time.Time) (time.Time, error) {
-	if sTime == "" {
+// parseTimestamp parses a timestamp string (milliseconds since epoch) and returns the corresponding time.
+// Used for parsing query parameters that represent timestamps from the frontend.
+func parseTimestamp(sTimestamp string, defaultTime time.Time) (time.Time, error) {
+	if sTimestamp == "" {
 		return defaultTime, nil
 	}
-	startTime, err := time.Parse(queryDateFormat, sTime)
+	timestamp, err := strconv.ParseInt(sTimestamp, 10, 64)
 	if err != nil {
 		return defaultTime, err
 	}
-	return startTime, nil
+	// Convert milliseconds to seconds for time.Unix
+	return time.Unix(timestamp/1000, (timestamp%1000)*1000000), nil
 }

@@ -63,40 +63,51 @@ var _ = Describe("SummaryHandlers", func() {
 			Expect(w.Code).To(BeElementOf([]int{http.StatusOK, http.StatusAccepted}))
 		})
 
-		It("should handle valid date parameters", func() {
-			req, _ := http.NewRequest("GET", "/api/v1/summary?start=01/01/2024&end=31/01/2024", nil)
+		It("should handle valid timestamp parameters", func() {
+			// Using timestamps: 1704067200000 = 2024-01-01, 1706745600000 = 2024-02-01
+			req, _ := http.NewRequest("GET", "/api/v1/summary?startDate=1704067200000&endDate=1706745600000", nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
-			// The handler should process valid date parameters
+			// The handler should process valid timestamp parameters
 			Expect(w.Code).To(BeElementOf([]int{http.StatusOK, http.StatusAccepted}))
 		})
 
-		It("should handle invalid date parameters gracefully", func() {
-			req, _ := http.NewRequest("GET", "/api/v1/summary?start=invalid-date&end=invalid-date", nil)
+		It("should handle invalid timestamp parameters gracefully", func() {
+			req, _ := http.NewRequest("GET", "/api/v1/summary?startDate=invalid-timestamp&endDate=invalid-timestamp", nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
-			// The handler should handle invalid dates gracefully (logs warning but continues)
+			// The handler should handle invalid timestamps gracefully (logs warning but continues)
 			Expect(w.Code).To(BeElementOf([]int{http.StatusOK, http.StatusAccepted}))
 		})
 
-		It("should handle partial date parameters", func() {
-			req, _ := http.NewRequest("GET", "/api/v1/summary?start=01/01/2024", nil)
+		It("should handle partial timestamp parameters", func() {
+			req, _ := http.NewRequest("GET", "/api/v1/summary?startDate=1704067200000", nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
-			// The handler should handle partial date parameters
+			// The handler should handle partial timestamp parameters
 			Expect(w.Code).To(BeElementOf([]int{http.StatusOK, http.StatusAccepted}))
 		})
 
-		It("should handle malformed query parameters", func() {
-			req, _ := http.NewRequest("GET", "/api/v1/summary?start=&end=", nil)
+		It("should handle empty query parameters", func() {
+			req, _ := http.NewRequest("GET", "/api/v1/summary?startDate=&endDate=", nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
 			// The handler should handle empty query parameters
 			Expect(w.Code).To(BeElementOf([]int{http.StatusOK, http.StatusAccepted}))
+		})
+
+		It("should return 400 when startDate is after endDate", func() {
+			// startDate: 1706745600000 = 2024-02-01, endDate: 1704067200000 = 2024-01-01
+			req, _ := http.NewRequest("GET", "/api/v1/summary?startDate=1706745600000&endDate=1704067200000", nil)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			// The handler should return 400 Bad Request for invalid date range
+			Expect(w.Code).To(Equal(http.StatusBadRequest))
 		})
 
 		It("should return JSON response", func() {
@@ -112,36 +123,36 @@ var _ = Describe("SummaryHandlers", func() {
 	})
 
 	Context("Date Parameter Parsing", func() {
-		It("should handle various date formats gracefully", func() {
-			dateFormats := []string{
-				"01/01/2024",
-				"1/1/2024",
-				"2024-01-01",
-				"01-01-2024",
-				"2024/01/01",
+		It("should handle various timestamp formats gracefully", func() {
+			timestampFormats := []string{
+				"1704067200000", // Valid timestamp
+				"1706745600000", // Valid timestamp
+				"0",             // Zero timestamp (epoch)
+				"-1000000000",   // Negative timestamp
+				"9999999999999", // Large timestamp
 			}
 
-			for _, dateFormat := range dateFormats {
-				req, _ := http.NewRequest("GET", "/api/v1/summary?start="+dateFormat, nil)
+			for _, timestampFormat := range timestampFormats {
+				req, _ := http.NewRequest("GET", "/api/v1/summary?startDate="+timestampFormat, nil)
 				w := httptest.NewRecorder()
 				router.ServeHTTP(w, req)
 
-				// Should not crash regardless of date format
+				// Should not crash regardless of timestamp format
 				Expect(w.Code).ToNot(Equal(http.StatusInternalServerError))
 			}
 		})
 
-		It("should handle edge case dates", func() {
+		It("should handle edge case timestamps", func() {
 			edgeCases := []string{
-				"29/02/2024", // Leap year
-				"31/12/2023", // End of year
-				"01/01/2000", // Y2K
-				"",           // Empty string
-				"not-a-date", // Invalid format
+				"1704067200000",   // Valid timestamp
+				"",                // Empty string
+				"not-a-timestamp", // Invalid format
+				"abc123",          // Non-numeric
+				"123.456",         // Decimal number
 			}
 
 			for _, edgeCase := range edgeCases {
-				req, _ := http.NewRequest("GET", "/api/v1/summary?start="+edgeCase, nil)
+				req, _ := http.NewRequest("GET", "/api/v1/summary?startDate="+edgeCase, nil)
 				w := httptest.NewRecorder()
 				router.ServeHTTP(w, req)
 

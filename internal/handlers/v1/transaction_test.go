@@ -69,7 +69,8 @@ var _ = Describe("TransactionHandlers", func() {
 		})
 
 		It("should parse query parameters correctly", func() {
-			req, _ := http.NewRequest("GET", "/api/v1/transactions?start=01/01/2024&end=31/01/2024", nil)
+			// Using timestamps: 1704067200000 = 2024-01-01 00:00:00 UTC, 1706745600000 = 2024-02-01 00:00:00 UTC
+			req, _ := http.NewRequest("GET", "/api/v1/transactions?startDate=1704067200000&endDate=1706745600000", nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
@@ -78,12 +79,111 @@ var _ = Describe("TransactionHandlers", func() {
 		})
 
 		It("should handle invalid query parameters gracefully", func() {
-			req, _ := http.NewRequest("GET", "/api/v1/transactions?start=invalid-date&end=invalid-date", nil)
+			req, _ := http.NewRequest("GET", "/api/v1/transactions?startDate=invalid-timestamp&endDate=invalid-timestamp", nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
-			// The handler should handle invalid dates gracefully (logs warning but continues)
+			// The handler should handle invalid timestamps gracefully (logs warning but continues)
 			Expect(w.Code).To(BeElementOf([]int{http.StatusOK, http.StatusAccepted}))
+		})
+
+		It("should handle only startDate parameter", func() {
+			req, _ := http.NewRequest("GET", "/api/v1/transactions?startDate=1704067200000", nil)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			// The handler should process with only start date provided
+			Expect(w.Code).To(BeElementOf([]int{http.StatusOK, http.StatusAccepted}))
+		})
+
+		It("should handle only endDate parameter", func() {
+			req, _ := http.NewRequest("GET", "/api/v1/transactions?endDate=1706745600000", nil)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			// The handler should process with only end date provided
+			Expect(w.Code).To(BeElementOf([]int{http.StatusOK, http.StatusAccepted}))
+		})
+
+		It("should handle empty timestamp parameters", func() {
+			req, _ := http.NewRequest("GET", "/api/v1/transactions?startDate=&endDate=", nil)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			// The handler should use default values for empty timestamps
+			Expect(w.Code).To(BeElementOf([]int{http.StatusOK, http.StatusAccepted}))
+		})
+
+		It("should handle negative timestamps", func() {
+			req, _ := http.NewRequest("GET", "/api/v1/transactions?startDate=-1000000000&endDate=1706745600000", nil)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			// The handler should process negative timestamps (dates before 1970)
+			Expect(w.Code).To(BeElementOf([]int{http.StatusOK, http.StatusAccepted}))
+		})
+
+		It("should handle very large timestamps", func() {
+			req, _ := http.NewRequest("GET", "/api/v1/transactions?startDate=1704067200000&endDate=9999999999999", nil)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			// The handler should process large timestamps (far future dates)
+			Expect(w.Code).To(BeElementOf([]int{http.StatusOK, http.StatusAccepted}))
+		})
+
+		It("should return 400 when startDate is after endDate", func() {
+			// startDate: 1706745600000 = 2024-02-01, endDate: 1704067200000 = 2024-01-01
+			req, _ := http.NewRequest("GET", "/api/v1/transactions?startDate=1706745600000&endDate=1704067200000", nil)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			// The handler should return 400 Bad Request for invalid date range
+			Expect(w.Code).To(Equal(http.StatusBadRequest))
+
+			// Should return JSON error response
+			contentType := w.Header().Get("Content-Type")
+			Expect(contentType).To(ContainSubstring("application/json"))
+		})
+
+		It("should return 400 when startDate equals endDate", func() {
+			// Both dates are the same: 1704067200000 = 2024-01-01
+			req, _ := http.NewRequest("GET", "/api/v1/transactions?startDate=1704067200000&endDate=1704067200000", nil)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			// The handler should accept equal dates (same day transactions)
+			Expect(w.Code).To(BeElementOf([]int{http.StatusOK, http.StatusAccepted}))
+		})
+
+		It("should include timestamp values in error response", func() {
+			// startDate: 1706745600000 = 2024-02-01, endDate: 1704067200000 = 2024-01-01
+			req, _ := http.NewRequest("GET", "/api/v1/transactions?startDate=1706745600000&endDate=1704067200000", nil)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			Expect(w.Code).To(Equal(http.StatusBadRequest))
+
+			// Parse response body to check error details
+			var response map[string]interface{}
+			err := json.Unmarshal(w.Body.Bytes(), &response)
+			Expect(err).To(BeNil())
+
+			// Check that error message and RFC3339 formatted dates are included
+			Expect(response["error"]).To(Equal("startDate must be before endDate"))
+			Expect(response["startDate"]).To(ContainSubstring("2024-02-01T"))
+			Expect(response["endDate"]).To(ContainSubstring("2024-01-01T"))
+
+			// Verify the dates are in RFC3339 format by parsing them
+			startDateStr, ok := response["startDate"].(string)
+			Expect(ok).To(BeTrue())
+			_, err = time.Parse(time.RFC3339, startDateStr)
+			Expect(err).To(BeNil())
+
+			endDateStr, ok := response["endDate"].(string)
+			Expect(ok).To(BeTrue())
+			_, err = time.Parse(time.RFC3339, endDateStr)
+			Expect(err).To(BeNil())
 		})
 
 		It("should return JSON response", func() {

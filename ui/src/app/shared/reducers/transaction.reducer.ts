@@ -22,8 +22,23 @@ const initialState = {
 
 export const getTransactions = createAsyncThunk(
   'transactions/get',
-  async () => {
-    return createAxiosDateTransformer().get<ITransactions>(transactionApiUrl);
+  async (params?: { startDate?: string; endDate?: string }) => {
+    let url = transactionApiUrl;
+    
+    if (params?.startDate || params?.endDate) {
+      const searchParams = new URLSearchParams();
+      if (params.startDate) {
+        const startTimestamp = new Date(params.startDate).getTime().toString();
+        searchParams.append('startDate', startTimestamp);
+      }
+      if (params.endDate) {
+        const endTimestamp = new Date(params.endDate).getTime().toString();
+        searchParams.append('endDate', endTimestamp);
+      }
+      url = `${transactionApiUrl}?${searchParams.toString()}`;
+    }
+    
+    return createAxiosDateTransformer().get<ITransactions>(url);
   },
   { serializeError: serializeAxiosError }
 );
