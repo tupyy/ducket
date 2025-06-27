@@ -5,6 +5,7 @@ import { NotFound } from '@app/pages/NotFound/NotFound';
 import { Rules } from '@app/pages/Rules/Rules';
 import { TagsPage } from './pages/Tags/Page';
 import { Transactions } from './pages/Transactions/transactions';
+import { FileUpload } from './pages/FileUpload/FileUpload';
 
 export interface IAppRoute {
   label?: string; // Excluding the label will exclude the route from the nav sidebar in AppLayout
@@ -33,11 +34,23 @@ const routes: AppRouteConfig[] = [
     title: 'PatternFly Seed | Main Dashboard',
   },
   {
-    element: <Transactions />,
-    exact: true,
     label: 'Transactions',
-    path: '/transactions',
-    title: 'Finance | Transactions Page',
+    routes: [
+      {
+        element: <Transactions />,
+        exact: true,
+        label: 'View Transactions',
+        path: '/transactions',
+        title: 'Finance | Transactions Page',
+      },
+      {
+        element: <FileUpload />,
+        exact: true,
+        label: 'Upload Files',
+        path: '/transactions/upload',
+        title: 'Finance | File Upload',
+      },
+    ],
   },
   {
     element: <TagsPage />,
