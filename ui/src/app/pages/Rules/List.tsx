@@ -18,13 +18,15 @@ import { IRule } from '@app/shared/models/rule';
 import { DataView, DataViewToolbar, useDataViewFilters } from '@patternfly/react-data-view';
 import { DataViewFilters } from '@patternfly/react-data-view/dist/dynamic/DataViewFilters';
 import { DataViewTextFilter } from '@patternfly/react-data-view/dist/dynamic/DataViewTextFilter';
-import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
+import { Table, Tbody, Td, Th, Thead, Tr, ActionsColumn, IAction } from '@patternfly/react-table';
 import { ITag } from '@app/shared/models/tag';
 
 export interface IRuleListProps {
   rules: Array<IRule> | [];
   showCreateRuleFormCB: () => void;
-  // deleteTagCB: (name: string) => void;
+  showEditRuleFormCB: (rule: IRule) => void;
+  onSyncRule: (ruleName: string) => void;
+  onDeleteRule: (ruleName: string) => void;
 }
 
 interface RepositoryFilters {
@@ -42,7 +44,7 @@ const columns = {
 };
 
 // eslint-disable-next-line prefer-const
-const RulesList: React.FunctionComponent<IRuleListProps> = ({ rules, showCreateRuleFormCB }) => {
+const RulesList: React.FunctionComponent<IRuleListProps> = ({ rules, showCreateRuleFormCB, showEditRuleFormCB, onSyncRule, onDeleteRule }) => {
   const [page, setPage] = React.useState<number | undefined>(1);
   const [perPage, setPerPage] = React.useState<number>(10);
   const { filters, onSetFilters, clearAllFilters } = useDataViewFilters<RepositoryFilters>({
@@ -195,17 +197,29 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({ rules, showCreateR
                 })}
               </Td>
               <Td isActionCell dataLabel={columns.action}>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    if (confirm('Are you sure?')) {
-                      console.log('delete rule');
+                <ActionsColumn
+                  items={[
+                    {
+                      title: 'Sync',
+                      onClick: () => onSyncRule(rule.name)
+                    },
+                    {
+                      title: 'Edit',
+                      onClick: () => showEditRuleFormCB(rule)
+                    },
+                    {
+                      isSeparator: true
+                    },
+                    {
+                      title: 'Delete',
+                      onClick: () => {
+                        if (confirm('Are you sure you want to delete this rule?')) {
+                          onDeleteRule(rule.name);
+                        }
+                      }
                     }
-                  }}
-                >
-                  Delete
-                </Button>
+                  ]}
+                />
               </Td>
             </Tr>
           ))}

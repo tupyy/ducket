@@ -16,6 +16,8 @@ const initialState = {
   updateSuccess: false,
   deleting: false,
   deleteSuccess: false,
+  syncing: false,
+  syncSuccess: false,
   rules: [] as Array<IRule>,
   totalItems: 0,
 };
@@ -63,6 +65,18 @@ export const deleteRule = createAsyncThunk(
   { serializeError: serializeAxiosError }
 );
 
+export const syncRule = createAsyncThunk(
+  'rules/sync',
+  async (ruleName: string, thunkAPI) => {
+    // For now, we'll use a placeholder endpoint that re-applies the rule to transactions
+    // In the future, this could be a dedicated sync endpoint
+    const url = `${ruleApiUrl}/${ruleName}/sync`;
+    const result = axios.post<void>(url).then(() => thunkAPI.dispatch(getRules()));
+    return result;
+  },
+  { serializeError: serializeAxiosError }
+);
+
 export type RuleState = Readonly<typeof initialState>;
 
 export const RuleManagementSlice = createSlice({
@@ -104,6 +118,11 @@ export const RuleManagementSlice = createSlice({
         state.deleteSuccess = false;
         state.errorMessage = '';
       })
+      .addCase(syncRule.pending, (state) => {
+        state.syncing = true;
+        state.syncSuccess = false;
+        state.errorMessage = '';
+      })
       .addCase(createRule.fulfilled, (state) => {
         state.creating = false;
         state.errorMessage = '';
@@ -119,20 +138,30 @@ export const RuleManagementSlice = createSlice({
         state.deleteSuccess = true;
         state.errorMessage = '';
       })
+      .addCase(syncRule.fulfilled, (state) => {
+        state.syncing = false;
+        state.syncSuccess = true;
+        state.errorMessage = '';
+      })
       .addCase(createRule.rejected, (state, action) => {
         state.creating = false;
-        state.errorMessage = action.error.message || 'error creating tag';
+        state.errorMessage = action.error.message || 'error creating rule';
         state.createSuccess = false;
       })
       .addCase(updateRule.rejected, (state, action) => {
         state.updating = false;
-        state.errorMessage = action.error.message || 'error updating tag';
+        state.errorMessage = action.error.message || 'error updating rule';
         state.updateSuccess = false;
       })
       .addCase(deleteRule.rejected, (state, action) => {
         state.deleting = false;
-        state.errorMessage = action.error.message || 'error deleting tag';
+        state.errorMessage = action.error.message || 'error deleting rule';
         state.deleteSuccess = false;
+      })
+      .addCase(syncRule.rejected, (state, action) => {
+        state.syncing = false;
+        state.errorMessage = action.error.message || 'error syncing rule';
+        state.syncSuccess = false;
       });
   },
 });
