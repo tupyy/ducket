@@ -14,7 +14,7 @@ import {
 import { DataView, DataViewToolbar } from '@patternfly/react-data-view';
 import { ExpandableRowContent, Table, Tbody, Td, Th, Thead, ThProps, Tr } from '@patternfly/react-table';
 import { ITagTransaction, ITransaction } from '@app/shared/models/transaction';
-import { DateRangePicker } from '@app/shared/components/time-picker';
+import { TagFilter } from '@app/shared/components/tag-filter';
 
 export interface ITransactionListProps {
   transactions: Array<ITransaction> | [];
@@ -35,6 +35,8 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   const [page, setPage] = React.useState<number | undefined>(1);
   const [perPage, setPerPage] = React.useState<number>(10);
   const [paginatedRows, setPaginatedRows] = React.useState(sortedTransactions.slice(0, 10));
+  const [selectedTags, setSelectedTags] = React.useState<string[]>([]);
+  const [filteredTransactions, setFilteredTransactions] = React.useState<Array<ITransaction>>([]);
 
   // Date filter state
   const [startDate, setStartDate] = React.useState<string>('');
@@ -53,44 +55,75 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     setSortedTransactions(Array.from(transactions));
   }, [transactions]);
 
+  // Client-side filtering by tags
   React.useEffect(() => {
-    setPaginatedRows(sortedTransactions?.slice(0, perPage));
+    let filtered = sortedTransactions;
+    
+    if (selectedTags.length > 0) {
+      filtered = sortedTransactions.filter(transaction => 
+        selectedTags.some(selectedTag => 
+          transaction.tags.some(tag => tag.value === selectedTag)
+        )
+      );
+    }
+    
+    setFilteredTransactions(filtered);
+  }, [sortedTransactions, selectedTags]);
+
+  React.useEffect(() => {
+    setPaginatedRows(filteredTransactions?.slice(0, perPage));
     setPage(1);
-  }, [sortedTransactions, perPage]);
+  }, [filteredTransactions, perPage]);
+
+  // Get available tag values from the actual transactions
+  const availableTags = React.useMemo(() => {
+    const tagSet = new Set<string>();
+    transactions.forEach(transaction => {
+      transaction.tags.forEach(tag => {
+        tagSet.add(tag.value);
+      });
+    });
+    return Array.from(tagSet).sort();
+  }, [transactions]);
+
+  const handleTagsChange = (tags: string[]) => {
+    console.log('Selected tags changed:', tags);
+    setSelectedTags(tags);
+  };
 
   const getSortParams = (columnIndex: number): ThProps['sort'] => ({
     sortBy: {
       index: activeSortIndex || undefined,
       direction: activeSortDirection || undefined,
-      defaultDirection: 'asc', // starting sort direction when first sorting a column. Defaults to 'asc'
+      defaultDirection: 'asc',
     },
     onSort: (_event, index, direction) => {
-      setSortedTransactions(
-        sortedTransactions.sort((a, b) => {
-          let aValue: Date | number = a.date;
-          let bValue: Date | number = b.date;
-          if (index == 5) {
-            aValue = a.amount;
-            bValue = b.amount;
-          }
+      const sorted = [...filteredTransactions].sort((a, b) => {
+        let aValue: Date | number = a.date;
+        let bValue: Date | number = b.date;
+        if (index == 5) {
+          aValue = a.amount;
+          bValue = b.amount;
+        }
 
-          if (typeof aValue === 'number') {
-            // Numeric sort
-            if (direction === 'asc') {
-              return (aValue as number) - (bValue as number);
-            }
-            return (bValue as number) - (aValue as number);
-          }
-          // date sort
+        if (typeof aValue === 'number') {
+          // Numeric sort
           if (direction === 'asc') {
-            return (aValue as Date).getDate() - (bValue as Date).getDate();
+            return (aValue as number) - (bValue as number);
           }
-          return (bValue as Date).getDate() - (aValue as Date).getDate();
-        })
-      );
+          return (bValue as number) - (aValue as number);
+        }
+        // date sort
+        if (direction === 'asc') {
+          return (aValue as Date).getTime() - (bValue as Date).getTime();
+        }
+        return (bValue as Date).getTime() - (aValue as Date).getTime();
+      });
+      
+      setFilteredTransactions(sorted);
       setActiveSortIndex(index);
       setActiveSortDirection(direction);
-      setPaginatedRows(sortedTransactions.slice(0, perPage));
+      setPaginatedRows(sorted.slice(0, perPage));
       setPage(1);
     },
     columnIndex,
@@ -112,7 +145,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     startIdx: number | undefined,
     endIdx: number | undefined
   ) => {
-    setPaginatedRows(sortedTransactions?.slice(startIdx, endIdx));
+    setPaginatedRows(filteredTransactions?.slice(startIdx, endIdx));
     setPage(newPage);
   };
 
@@ -123,13 +156,12 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     startIdx: number | undefined,
     endIdx: number | undefined
   ) => {
-    setPaginatedRows(sortedTransactions.slice(startIdx, endIdx));
+    setPaginatedRows(filteredTransactions.slice(startIdx, endIdx));
     setPage(newPage);
     setPerPage(newPerPage);
   };
 
   const renderPagination = (
-    transactions: Array<ITransaction>,
     variant: PaginationVariant,
     isCompact: boolean,
     isSticky: boolean,
@@ -138,7 +170,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     <Pagination
       id={`datalist-${variant}-pagination`}
       variant={variant}
-      itemCount={transactions.length}
+      itemCount={filteredTransactions.length}
       page={page}
       perPage={perPage}
       isCompact={isCompact}
@@ -152,9 +184,23 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     />
   );
 
+  const renderToolbar = (
+    <DataViewToolbar
+      filters={
+        <TagFilter 
+          availableTags={availableTags}
+          selectedTags={selectedTags}
+          onTagsChange={handleTagsChange}
+          placeholder="Filter by tags..."
+        />
+      }
+      pagination={renderPagination(PaginationVariant.top, true, false, false)}
+    />
+  );
+
   const renderList = (
     <React.Fragment>
-      <Table aria-label="rule-list">
+      <Table aria-label="transaction-list">
         <Thead>
           <Tr>
             <Th screenReaderText="Row expansion" />
@@ -254,8 +300,9 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   return (
     <PageSection hasBodyWrapper={false}>
       <DataView>
+        {renderToolbar}
         {renderList}
-        {renderPagination(sortedTransactions, PaginationVariant.bottom, false, false, true)}
+        {renderPagination(PaginationVariant.bottom, false, false, true)}
       </DataView>
     </PageSection>
   );

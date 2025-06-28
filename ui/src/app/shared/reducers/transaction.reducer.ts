@@ -22,10 +22,10 @@ const initialState = {
 
 export const getTransactions = createAsyncThunk(
   'transactions/get',
-  async (params?: { startDate?: string; endDate?: string }) => {
+  async (params?: { startDate?: string; endDate?: string; tags?: string[] }) => {
     let url = transactionApiUrl;
     
-    if (params?.startDate || params?.endDate) {
+    if (params?.startDate || params?.endDate || params?.tags?.length) {
       const searchParams = new URLSearchParams();
       if (params.startDate) {
         const startTimestamp = new Date(params.startDate).getTime().toString();
@@ -34,6 +34,9 @@ export const getTransactions = createAsyncThunk(
       if (params.endDate) {
         const endTimestamp = new Date(params.endDate).getTime().toString();
         searchParams.append('endDate', endTimestamp);
+      }
+      if (params.tags && params.tags.length > 0) {
+        params.tags.forEach(tag => searchParams.append('tags', tag));
       }
       url = `${transactionApiUrl}?${searchParams.toString()}`;
     }

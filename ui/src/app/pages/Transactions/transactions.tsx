@@ -12,6 +12,7 @@ import { TransactionList } from './list';
 import { CubesIcon } from '@patternfly/react-icons';
 import { Content, EmptyState, EmptyStateBody, EmptyStateVariant } from '@patternfly/react-core';
 import { TimePicker } from '@app/shared/components/time-picker';
+import { ITransaction } from '@app/shared/models/transaction';
 
 const Transactions: React.FunctionComponent = () => {
   const dispatch = useAppDispatch();
@@ -19,14 +20,17 @@ const Transactions: React.FunctionComponent = () => {
   const [dateRange, setDateRange] = React.useState<{ startDate: string; endDate: string } | null>(null);
 
   React.useEffect(() => {
-    // Initial load without date filters
+    // Initial load without filters
     dispatch(getTransactions());
-  }, []);
+  }, [dispatch]);
 
   React.useEffect(() => {
-    // Fetch transactions when date range changes
+    // Fetch transactions when date range changes (backend filtering)
     if (dateRange) {
       dispatch(getTransactions(dateRange));
+    } else {
+      // Reset to all transactions if no date range
+      dispatch(getTransactions());
     }
   }, [dateRange, dispatch]);
 
@@ -47,6 +51,7 @@ const Transactions: React.FunctionComponent = () => {
 
   return (
     <PageSection hasBodyWrapper={false}>
+      {/* Date Picker Toolbar */}
       <Toolbar>
         <ToolbarContent>
           <ToolbarGroup>
@@ -56,6 +61,8 @@ const Transactions: React.FunctionComponent = () => {
           </ToolbarGroup>
         </ToolbarContent>
       </Toolbar>
+
+      {/* Transaction List with integrated tag filter */}
       {transactions.transactions.length == 0 ? (
         emptyState
       ) : (
