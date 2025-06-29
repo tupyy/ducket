@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {CubesIcon} from '@patternfly/react-icons';
+import { CubesIcon } from '@patternfly/react-icons';
 import {
   Button,
   Content,
@@ -21,6 +21,7 @@ import { DataView, DataViewToolbar, useDataViewFilters } from '@patternfly/react
 import { DataViewFilters } from '@patternfly/react-data-view/dist/dynamic/DataViewFilters';
 import { DataViewTextFilter } from '@patternfly/react-data-view/dist/dynamic/DataViewTextFilter';
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
+import { useTheme } from '@app/shared/contexts/ThemeContext';
 
 export interface ITagListProps {
   tags: Array<ITag> | [];
@@ -43,6 +44,7 @@ const columns = {
 
 // eslint-disable-next-line prefer-const
 const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagFormCB, deleteTagCB }) => {
+  const { theme } = useTheme();
   const [page, setPage] = React.useState<number | undefined>(1);
   const [perPage, setPerPage] = React.useState<number>(10);
   const { filters, onSetFilters, clearAllFilters } = useDataViewFilters<RepositoryFilters>({
@@ -52,7 +54,7 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
   const filteredRows = React.useMemo(
     () =>
       tags.filter((tag) => !filters.name || tag.value.toLocaleLowerCase().includes(filters.name?.toLocaleLowerCase())),
-    [filters, tags]
+    [filters, tags],
   );
   const [paginatedRows, setPaginatedRows] = React.useState(filteredRows.slice(0, 10));
 
@@ -66,7 +68,7 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
     newPage: number,
     _perPage: number | undefined,
     startIdx: number | undefined,
-    endIdx: number | undefined
+    endIdx: number | undefined,
   ) => {
     setPaginatedRows(filteredRows?.slice(startIdx, endIdx));
     setPage(newPage);
@@ -77,7 +79,7 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
     newPerPage: number,
     newPage: number | undefined,
     startIdx: number | undefined,
-    endIdx: number | undefined
+    endIdx: number | undefined,
   ) => {
     setPaginatedRows(filteredRows.slice(startIdx, endIdx));
     setPage(newPage);
@@ -105,7 +107,12 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
       <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsMd', sm: 'spaceItemsXs' }}>
         {tag.rules.map((rule: IRule, idx: number) => (
           <FlexItem key={`rule-${idx}`}>
-            <Label variant="filled" color="green" href={`/api/rules/${rule.name}`}>
+            <Label
+              variant={theme === 'dark' ? 'outline' : 'filled'}
+              color="green"
+              href={`/api/rules/${rule.name}`}
+              style={theme === 'dark' ? { color: '#3e8635' } : {}}
+            >
               <Content component="p">{rule.name}</Content>
             </Label>
           </FlexItem>

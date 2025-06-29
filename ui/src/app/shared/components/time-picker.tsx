@@ -1,13 +1,13 @@
 import * as React from 'react';
-import { 
-  DatePicker, 
-  Grid, 
-  GridItem, 
-  Dropdown, 
-  DropdownList, 
-  DropdownItem, 
-  MenuToggle, 
-  MenuToggleElement 
+import {
+  DatePicker,
+  Grid,
+  GridItem,
+  Dropdown,
+  DropdownList,
+  DropdownItem,
+  MenuToggle,
+  MenuToggleElement,
 } from '@patternfly/react-core';
 import { calculateDateRange } from '@app/utils/dateUtils';
 
@@ -54,7 +54,7 @@ const TimePicker: React.FC<TimePickerProps> = ({ onDateChange }) => {
 
   const handleStartDateChange = (_event: any, value: string) => {
     setStartDate(value);
-    
+
     // If start date is after end date, update end date to match start date
     if (value && endDate && new Date(value) > new Date(endDate)) {
       setEndDate(value);
@@ -93,7 +93,7 @@ const TimePicker: React.FC<TimePickerProps> = ({ onDateChange }) => {
     <React.Fragment>
       <Grid style={css} hasGutter>
         <GridItem span={1}>
-          <DatePicker 
+          <DatePicker
             key={`start-${startDate}`}
             value={startDate}
             onChange={handleStartDateChange}
@@ -101,7 +101,7 @@ const TimePicker: React.FC<TimePickerProps> = ({ onDateChange }) => {
           />
         </GridItem>
         <GridItem span={1}>
-          <DatePicker 
+          <DatePicker
             value={endDate}
             onChange={handleEndDateChange}
             placeholder="End date"
@@ -124,10 +124,7 @@ const TimePicker: React.FC<TimePickerProps> = ({ onDateChange }) => {
           >
             <DropdownList>
               {timeList.map((item: string, idx: number) => (
-                <DropdownItem 
-                  key={`${idx}`}
-                  onClick={() => handleTimeRangeClick(item)}
-                >
+                <DropdownItem key={`${idx}`} onClick={() => handleTimeRangeClick(item)}>
                   {item}
                 </DropdownItem>
               ))}

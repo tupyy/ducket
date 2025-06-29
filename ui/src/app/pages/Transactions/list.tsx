@@ -18,6 +18,7 @@ import { DataView, DataViewToolbar } from '@patternfly/react-data-view';
 import { ExpandableRowContent, Table, Tbody, Td, Th, Thead, ThProps, Tr } from '@patternfly/react-table';
 import { ITagTransaction, ITransaction } from '@app/shared/models/transaction';
 import { TagFilter } from '@app/shared/components/tag-filter';
+import { useTheme } from '@app/shared/contexts/ThemeContext';
 
 export interface ITransactionListProps {
   transactions: Array<ITransaction> | [];
@@ -32,6 +33,7 @@ const columns = {
 };
 
 const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ transactions }) => {
+  const { theme } = useTheme();
   const [sortedTransactions, setSortedTransactions] = React.useState<Array<ITransaction>>(Array.from(transactions));
   const [activeSortIndex, setActiveSortIndex] = React.useState<number | null>(null);
   const [activeSortDirection, setActiveSortDirection] = React.useState<'asc' | 'desc' | null>(null);
@@ -42,10 +44,6 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   const [selectedTransactionTypes, setSelectedTransactionTypes] = React.useState<string[]>([]);
   const [filteredTransactions, setFilteredTransactions] = React.useState<Array<ITransaction>>([]);
   const [isTransactionTypeSelectOpen, setIsTransactionTypeSelectOpen] = React.useState(false);
-
-  // Date filter state
-  const [startDate, setStartDate] = React.useState<string>('');
-  const [endDate, setEndDate] = React.useState<string>('');
 
   const [expandedTransactions, setExpandedTransactions] = React.useState<string[]>([]);
   const setTransactionExpanded = (t: ITransaction, isExpanding = true) =>
@@ -66,18 +64,14 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
 
     // Filter by tags
     if (selectedTags.length > 0) {
-      filtered = filtered.filter(transaction =>
-        selectedTags.some(selectedTag =>
-          transaction.tags.some(tag => tag.value === selectedTag)
-        )
+      filtered = filtered.filter((transaction) =>
+        selectedTags.some((selectedTag) => transaction.tags.some((tag) => tag.value === selectedTag)),
       );
     }
 
     // Filter by transaction types
     if (selectedTransactionTypes.length > 0) {
-      filtered = filtered.filter(transaction =>
-        selectedTransactionTypes.includes(transaction.kind)
-      );
+      filtered = filtered.filter((transaction) => selectedTransactionTypes.includes(transaction.kind));
     }
 
     setFilteredTransactions(filtered);
@@ -91,8 +85,8 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   // Get available tag values from the actual transactions
   const availableTags = React.useMemo(() => {
     const tagSet = new Set<string>();
-    transactions.forEach(transaction => {
-      transaction.tags.forEach(tag => {
+    transactions.forEach((transaction) => {
+      transaction.tags.forEach((tag) => {
         tagSet.add(tag.value);
       });
     });
@@ -102,7 +96,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   // Get available transaction types
   const availableTransactionTypes = React.useMemo(() => {
     const typeSet = new Set<string>();
-    transactions.forEach(transaction => {
+    transactions.forEach((transaction) => {
       typeSet.add(transaction.kind);
     });
     return Array.from(typeSet).sort();
@@ -119,12 +113,12 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
 
   const handleTransactionTypeSelect = (
     _event: React.MouseEvent<Element, MouseEvent> | undefined,
-    value: string | number | undefined
+    value: string | number | undefined,
   ) => {
     if (typeof value === 'string') {
-      setSelectedTransactionTypes(prev => {
+      setSelectedTransactionTypes((prev) => {
         if (prev.includes(value)) {
-          return prev.filter(type => type !== value);
+          return prev.filter((type) => type !== value);
         } else {
           return [...prev, value];
         }
@@ -133,7 +127,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   };
 
   const handleTransactionTypeRemove = (typeToRemove: string) => {
-    setSelectedTransactionTypes(prev => prev.filter(type => type !== typeToRemove));
+    setSelectedTransactionTypes((prev) => prev.filter((type) => type !== typeToRemove));
   };
 
   const handleClearAllFilters = () => {
@@ -143,15 +137,15 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
 
   const handleTagClick = (tagValue: string) => {
     if (!selectedTags.includes(tagValue)) {
-      setSelectedTags(prev => [...prev, tagValue]);
+      setSelectedTags((prev) => [...prev, tagValue]);
     }
   };
 
   const handleRuleClick = (ruleId: string) => {
     // Find all tags associated with this rule across all transactions
     const tagsForRule = new Set<string>();
-    transactions.forEach(transaction => {
-      transaction.tags.forEach(tag => {
+    transactions.forEach((transaction) => {
+      transaction.tags.forEach((tag) => {
         if (tag.rule === ruleId) {
           tagsForRule.add(tag.value);
         }
@@ -159,9 +153,9 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     });
 
     // Add all tags for this rule to the selected tags (if not already selected)
-    const newTags = Array.from(tagsForRule).filter(tag => !selectedTags.includes(tag));
+    const newTags = Array.from(tagsForRule).filter((tag) => !selectedTags.includes(tag));
     if (newTags.length > 0) {
-      setSelectedTags(prev => [...prev, ...newTags]);
+      setSelectedTags((prev) => [...prev, ...newTags]);
     }
   };
 
@@ -203,21 +197,12 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     columnIndex,
   });
 
-  // Date picker handlers
-  const handleStartDateChange = (value: string) => {
-    setStartDate(value);
-  };
-
-  const handleEndDateChange = (value: string) => {
-    setEndDate(value);
-  };
-
   const handleSetPage = (
     _evt: React.MouseEvent | React.KeyboardEvent | MouseEvent,
     newPage: number,
     _perPage: number | undefined,
     startIdx: number | undefined,
-    endIdx: number | undefined
+    endIdx: number | undefined,
   ) => {
     setPaginatedRows(filteredTransactions?.slice(startIdx, endIdx));
     setPage(newPage);
@@ -228,19 +213,14 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     newPerPage: number,
     newPage: number | undefined,
     startIdx: number | undefined,
-    endIdx: number | undefined
+    endIdx: number | undefined,
   ) => {
     setPaginatedRows(filteredTransactions.slice(startIdx, endIdx));
     setPage(newPage);
     setPerPage(newPerPage);
   };
 
-  const renderPagination = (
-    variant: PaginationVariant,
-    isCompact: boolean,
-    isSticky: boolean,
-    isStatic: boolean
-  ) => (
+  const renderPagination = (variant: PaginationVariant, isCompact: boolean, isSticky: boolean, isStatic: boolean) => (
     <Pagination
       id={`datalist-${variant}-pagination`}
       variant={variant}
@@ -286,8 +266,8 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                           onClick={handleTransactionTypeToggle}
                           isExpanded={isTransactionTypeSelectOpen}
                         >
-                          {selectedTransactionTypes.length > 0 
-                            ? `Transaction Types (${selectedTransactionTypes.length})` 
+                          {selectedTransactionTypes.length > 0
+                            ? `Transaction Types (${selectedTransactionTypes.length})`
                             : 'Filter by transaction type...'}
                         </MenuToggle>
                       )}
@@ -311,11 +291,12 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                       <Flex spaceItems={{ default: 'spaceItemsXs' }} style={{ marginTop: '8px' }}>
                         {selectedTransactionTypes.map((type, index) => (
                           <FlexItem key={index}>
-                            <Label 
-                              variant="filled" 
+                            <Label
+                              variant={theme === 'dark' ? 'outline' : 'filled'}
                               color="orange"
                               onClose={() => handleTransactionTypeRemove(type)}
                               closeBtnAriaLabel={`Remove ${type} filter`}
+                              style={theme === 'dark' ? { color: '#f4c430' } : {}}
                             >
                               {type.charAt(0).toUpperCase() + type.slice(1)}
                             </Label>
@@ -330,11 +311,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
           </FlexItem>
           {(selectedTags.length > 0 || selectedTransactionTypes.length > 0) && (
             <FlexItem>
-              <Button 
-                variant="link" 
-                onClick={handleClearAllFilters}
-                isInline
-              >
+              <Button variant="link" onClick={handleClearAllFilters} isInline>
                 Clear all filters
               </Button>
             </FlexItem>
@@ -406,14 +383,19 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                 <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
                   {t.tags.map((tag: ITagTransaction, idx: number) => (
                     <FlexItem key={`tag-${idx}`}>
-                      <Label 
-                        variant="filled" 
+                      <Label
+                        variant={theme === 'dark' ? 'outline' : 'filled'}
                         color="green"
                         onClick={() => handleTagClick(tag.value)}
-                        style={{ cursor: 'pointer' }}
+                        style={{
+                          cursor: 'pointer',
+                          ...(theme === 'dark' && { color: '#3e8635' }),
+                        }}
                         aria-label={`Filter by ${tag.value} tag`}
                       >
-                        <Content component="p">{tag.value}</Content>
+                        <Content component="p" style={theme === 'dark' ? { color: 'white' } : { color: 'black' }}>
+                          {tag.value}
+                        </Content>
                       </Label>
                     </FlexItem>
                   ))}
@@ -421,13 +403,16 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
               </Td>
               <Td dataLabel="{columns.rules">
                 <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                  {Array.from(new Set(t.tags.map(tag => tag.rule))).map((rule: string, idx: number) => (
+                  {Array.from(new Set(t.tags.map((tag) => tag.rule))).map((rule: string, idx: number) => (
                     <FlexItem key={`rule-${idx}`}>
-                      <Label 
-                        variant="filled" 
+                      <Label
+                        variant={theme === 'dark' ? 'outline' : 'filled'}
                         color="blue"
                         onClick={() => handleRuleClick(rule)}
-                        style={{ cursor: 'pointer' }}
+                        style={{
+                          cursor: 'pointer',
+                          ...(theme === 'dark' && { color: '#73bcf7' }),
+                        }}
                         aria-label={`Filter by all tags associated with ${rule} rule`}
                       >
                         <Content component="p">{rule}</Content>

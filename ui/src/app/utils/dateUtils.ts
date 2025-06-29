@@ -39,4 +39,4 @@ export const calculateDateRange = (timeRange: string) => {
   }
 
   return { startDateValue, endDateValue };
-}; 
+};

@@ -27,7 +27,7 @@ export const getRules = createAsyncThunk(
   async () => {
     return createAxiosDateTransformer().get<IRules>(ruleApiUrl);
   },
-  { serializeError: serializeAxiosError }
+  { serializeError: serializeAxiosError },
 );
 
 export const createRule = createAsyncThunk(
@@ -38,7 +38,7 @@ export const createRule = createAsyncThunk(
     });
     return result;
   },
-  { serializeError: serializeAxiosError }
+  { serializeError: serializeAxiosError },
 );
 
 export const updateRule = createAsyncThunk(
@@ -52,7 +52,7 @@ export const updateRule = createAsyncThunk(
     const result = axios.put<IUpdateRuleForm>(url, newRule).then(() => thunkAPI.dispatch(getRules()));
     return result;
   },
-  { serializeError: serializeAxiosError }
+  { serializeError: serializeAxiosError },
 );
 
 export const deleteRule = createAsyncThunk(
@@ -62,7 +62,7 @@ export const deleteRule = createAsyncThunk(
     const result = axios.delete<void>(url).then(() => thunkAPI.dispatch(getRules()));
     return result;
   },
-  { serializeError: serializeAxiosError }
+  { serializeError: serializeAxiosError },
 );
 
 export const syncRule = createAsyncThunk(
@@ -74,7 +74,7 @@ export const syncRule = createAsyncThunk(
     const result = axios.post<void>(url).then(() => thunkAPI.dispatch(getRules()));
     return result;
   },
-  { serializeError: serializeAxiosError }
+  { serializeError: serializeAxiosError },
 );
 
 export type RuleState = Readonly<typeof initialState>;

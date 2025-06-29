@@ -48,7 +48,7 @@ const FileUpload: React.FunctionComponent = () => {
           if (file.id === fileId) {
             const newProgress = Math.min(file.progress + 10, 100);
             const newStatus = newProgress === 100 ? 'complete' : 'uploading';
-            
+
             if (newProgress === 100) {
               // Check if all uploads are complete
               setTimeout(() => {
@@ -61,11 +61,11 @@ const FileUpload: React.FunctionComponent = () => {
                 });
               }, 100);
             }
-            
+
             return { ...file, progress: newProgress, status: newStatus };
           }
           return file;
-        })
+        }),
       );
 
       if (uploadedFiles.find((f) => f.id === fileId)?.progress === 100) {
@@ -119,9 +119,11 @@ const FileUpload: React.FunctionComponent = () => {
                     onClearClick={() => handleFileRemove(uploadedFile.id)}
                     progressValue={uploadedFile.progress}
                     progressVariant={
-                      uploadedFile.status === 'error' ? 'danger' : 
-                      uploadedFile.status === 'complete' ? 'success' : 
-                      undefined
+                      uploadedFile.status === 'error'
+                        ? 'danger'
+                        : uploadedFile.status === 'complete'
+                          ? 'success'
+                          : undefined
                     }
                   />
                 ))}
@@ -139,4 +141,4 @@ const FileUpload: React.FunctionComponent = () => {
   );
 };
 
-export { FileUpload }; 
+export { FileUpload };

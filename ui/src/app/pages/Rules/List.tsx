@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {CubesIcon} from '@patternfly/react-icons';
+import { CubesIcon } from '@patternfly/react-icons';
 import {
   Button,
   Content,
@@ -20,6 +20,7 @@ import { DataViewFilters } from '@patternfly/react-data-view/dist/dynamic/DataVi
 import { DataViewTextFilter } from '@patternfly/react-data-view/dist/dynamic/DataViewTextFilter';
 import { Table, Tbody, Td, Th, Thead, Tr, ActionsColumn, IAction } from '@patternfly/react-table';
 import { ITag } from '@app/shared/models/tag';
+import { useTheme } from '@app/shared/contexts/ThemeContext';
 
 export interface IRuleListProps {
   rules: Array<IRule> | [];
@@ -44,7 +45,14 @@ const columns = {
 };
 
 // eslint-disable-next-line prefer-const
-const RulesList: React.FunctionComponent<IRuleListProps> = ({ rules, showCreateRuleFormCB, showEditRuleFormCB, onSyncRule, onDeleteRule }) => {
+const RulesList: React.FunctionComponent<IRuleListProps> = ({
+  rules,
+  showCreateRuleFormCB,
+  showEditRuleFormCB,
+  onSyncRule,
+  onDeleteRule,
+}) => {
+  const { theme } = useTheme();
   const [page, setPage] = React.useState<number | undefined>(1);
   const [perPage, setPerPage] = React.useState<number>(10);
   const { filters, onSetFilters, clearAllFilters } = useDataViewFilters<RepositoryFilters>({
@@ -54,9 +62,9 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({ rules, showCreateR
   const filteredRows = React.useMemo(
     () =>
       rules.filter(
-        (rule) => !filters.name || rule.name.toLocaleLowerCase().includes(filters.name?.toLocaleLowerCase())
+        (rule) => !filters.name || rule.name.toLocaleLowerCase().includes(filters.name?.toLocaleLowerCase()),
       ),
-    [filters, rules]
+    [filters, rules],
   );
   const [paginatedRows, setPaginatedRows] = React.useState(filteredRows.slice(0, 10));
 
@@ -70,7 +78,7 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({ rules, showCreateR
     newPage: number,
     _perPage: number | undefined,
     startIdx: number | undefined,
-    endIdx: number | undefined
+    endIdx: number | undefined,
   ) => {
     setPaginatedRows(filteredRows?.slice(startIdx, endIdx));
     setPage(newPage);
@@ -81,7 +89,7 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({ rules, showCreateR
     newPerPage: number,
     newPage: number | undefined,
     startIdx: number | undefined,
-    endIdx: number | undefined
+    endIdx: number | undefined,
   ) => {
     setPaginatedRows(filteredRows.slice(startIdx, endIdx));
     setPage(newPage);
@@ -180,7 +188,12 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({ rules, showCreateR
                 <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
                   {rule.tags.map((tag: ITag, idx: number) => (
                     <FlexItem key={`tag-${idx}`}>
-                      <Label variant="filled" color="green" href={`/api/tags/${tag.value}`}>
+                      <Label
+                        variant={theme === 'dark' ? 'outline' : 'filled'}
+                        color="green"
+                        href={`/api/tags/${tag.value}`}
+                        style={theme === 'dark' ? { color: '#3e8635' } : {}}
+                      >
                         <Content component="p">{tag.value}</Content>
                       </Label>
                     </FlexItem>
@@ -201,14 +214,14 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({ rules, showCreateR
                   items={[
                     {
                       title: 'Sync',
-                      onClick: () => onSyncRule(rule.name)
+                      onClick: () => onSyncRule(rule.name),
                     },
                     {
                       title: 'Edit',
-                      onClick: () => showEditRuleFormCB(rule)
+                      onClick: () => showEditRuleFormCB(rule),
                     },
                     {
-                      isSeparator: true
+                      isSeparator: true,
                     },
                     {
                       title: 'Delete',
@@ -216,8 +229,8 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({ rules, showCreateR
                         if (confirm('Are you sure you want to delete this rule?')) {
                           onDeleteRule(rule.name);
                         }
-                      }
-                    }
+                      },
+                    },
                   ]}
                 />
               </Td>

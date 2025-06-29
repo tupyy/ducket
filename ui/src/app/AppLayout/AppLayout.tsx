@@ -20,7 +20,9 @@ import {
   SkipToContent,
 } from '@patternfly/react-core';
 import { IAppRoute, IAppRouteGroup, routes } from '@app/routes';
-import { BarsIcon, MoonIcon, SunIcon } from '@patternfly/react-icons';
+import { BarsIcon } from '@patternfly/react-icons';
+import { ThemeToggle } from '@app/shared/components/ThemeToggle';
+import { useTheme } from '@app/shared/contexts/ThemeContext';
 
 interface IAppLayout {
   children: React.ReactNode;
@@ -28,28 +30,18 @@ interface IAppLayout {
 
 const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
-  const [isDarkTheme, setIsDarkTheme] = React.useState(() => {
-    // Check localStorage for saved theme preference
-    const savedTheme = localStorage.getItem('theme');
-    return savedTheme === 'dark';
-  });
+  const { theme } = useTheme();
 
   React.useEffect(() => {
     // Apply theme to document html element
-    if (isDarkTheme) {
+    if (theme === 'dark') {
       document.documentElement.classList.add('pf-v6-theme-dark');
       document.documentElement.classList.remove('pf-v6-theme-light');
-      localStorage.setItem('theme', 'dark');
     } else {
       document.documentElement.classList.add('pf-v6-theme-light');
       document.documentElement.classList.remove('pf-v6-theme-dark');
-      localStorage.setItem('theme', 'light');
     }
-  }, [isDarkTheme]);
-
-  const toggleTheme = () => {
-    setIsDarkTheme(!isDarkTheme);
-  };
+  }, [theme]);
 
   const masthead = (
     <Masthead>
@@ -68,12 +60,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
           <ToolbarContent>
             <ToolbarGroup align={{ default: 'alignEnd' }}>
               <ToolbarItem>
-                <Button
-                  variant="plain"
-                  icon={isDarkTheme ? <SunIcon /> : <MoonIcon />}
-                  onClick={toggleTheme}
-                  aria-label={`Switch to ${isDarkTheme ? 'light' : 'dark'} theme`}
-                />
+                <ThemeToggle variant="plain" />
               </ToolbarItem>
             </ToolbarGroup>
           </ToolbarContent>
@@ -86,11 +73,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
 
   const renderNavItem = (route: IAppRoute, index: number) => (
     <NavItem key={`${route.label}-${index}`} id={`${route.label}-${index}`} isActive={route.path === location.pathname}>
-      <NavLink
-        to={route.path}
-      >
-        {route.label}
-      </NavLink>
+      <NavLink to={route.path}>{route.label}</NavLink>
     </NavItem>
   );
 

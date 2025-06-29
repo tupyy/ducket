@@ -25,7 +25,7 @@ export const getTags = createAsyncThunk(
   async () => {
     return createAxiosDateTransformer().get<ITags>(tagApiUrl);
   },
-  { serializeError: serializeAxiosError }
+  { serializeError: serializeAxiosError },
 );
 
 export const createTag = createAsyncThunk(
@@ -36,7 +36,7 @@ export const createTag = createAsyncThunk(
     });
     return result;
   },
-  { serializeError: serializeAxiosError }
+  { serializeError: serializeAxiosError },
 );
 
 export const updateTag = createAsyncThunk(
@@ -50,7 +50,7 @@ export const updateTag = createAsyncThunk(
     thunkAPI.dispatch(getTags());
     return result;
   },
-  { serializeError: serializeAxiosError }
+  { serializeError: serializeAxiosError },
 );
 
 export const deleteTag = createAsyncThunk(
@@ -63,7 +63,7 @@ export const deleteTag = createAsyncThunk(
     });
     return result;
   },
-  { serializeError: serializeAxiosError }
+  { serializeError: serializeAxiosError },
 );
 
 export type TagState = Readonly<typeof initialState>;

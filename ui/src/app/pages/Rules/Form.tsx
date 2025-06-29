@@ -1,9 +1,9 @@
 import { css } from '@emotion/css';
-import { 
-  ActionGroup, 
-  Button, 
-  Form, 
-  FormGroup, 
+import {
+  ActionGroup,
+  Button,
+  Form,
+  FormGroup,
   TextInput,
   MenuToggle,
   MenuToggleElement,
@@ -15,7 +15,7 @@ import {
   TextInputGroupMain,
   TextInputGroupUtilities,
   Flex,
-  FlexItem
+  FlexItem,
 } from '@patternfly/react-core';
 import { TimesIcon } from '@patternfly/react-icons';
 import * as React from 'react';
@@ -54,7 +54,7 @@ const RuleForm: React.FunctionComponent<IRuleForm> = ({ closeFormCB, editingRule
   const [creating, setIsCreating] = React.useState<boolean>(false);
   const [isTagSelectOpen, setIsTagSelectOpen] = React.useState<boolean>(false);
   const [tagInputValue, setTagInputValue] = React.useState<string>('');
-  
+
   const isEditing = !!editingRule;
 
   React.useEffect(() => {
@@ -66,7 +66,7 @@ const RuleForm: React.FunctionComponent<IRuleForm> = ({ closeFormCB, editingRule
       setInputs({
         name: editingRule.name,
         pattern: editingRule.pattern,
-        tags: editingRule.tags.map(tag => tag.value)
+        tags: editingRule.tags.map((tag) => tag.value),
       });
     } else {
       setInputs(initialState);
@@ -84,9 +84,9 @@ const RuleForm: React.FunctionComponent<IRuleForm> = ({ closeFormCB, editingRule
 
   const handleTagSelect = (tag: string) => {
     if (!inputs.tags.includes(tag)) {
-      setInputs((prevState) => ({ 
-        ...prevState, 
-        tags: [...prevState.tags, tag] 
+      setInputs((prevState) => ({
+        ...prevState,
+        tags: [...prevState.tags, tag],
       }));
     }
     setTagInputValue('');
@@ -94,9 +94,9 @@ const RuleForm: React.FunctionComponent<IRuleForm> = ({ closeFormCB, editingRule
   };
 
   const handleTagRemove = (tagToRemove: string) => {
-    setInputs((prevState) => ({ 
-      ...prevState, 
-      tags: prevState.tags.filter(tag => tag !== tagToRemove) 
+    setInputs((prevState) => ({
+      ...prevState,
+      tags: prevState.tags.filter((tag) => tag !== tagToRemove),
     }));
   };
 
@@ -113,7 +113,7 @@ const RuleForm: React.FunctionComponent<IRuleForm> = ({ closeFormCB, editingRule
       const ruleData = {
         name: inputs.name,
         pattern: inputs.pattern,
-        tags: inputs.tags.filter(tag => tag.length > 0)
+        tags: inputs.tags.filter((tag) => tag.length > 0),
       };
 
       if (isEditing) {
@@ -121,7 +121,7 @@ const RuleForm: React.FunctionComponent<IRuleForm> = ({ closeFormCB, editingRule
       } else {
         await dispatch(createRule(ruleData));
       }
-      
+
       closeFormCB();
     } catch (error) {
       console.error('Error submitting rule:', error);
@@ -132,15 +132,12 @@ const RuleForm: React.FunctionComponent<IRuleForm> = ({ closeFormCB, editingRule
 
   // Get available tag options from the store, filtered by input
   const availableTagOptions = tags.tags
-    .map(tag => tag.value)
-    .filter(tag => 
-      !inputs.tags.includes(tag) && 
-      tag.toLowerCase().includes(tagInputValue.toLowerCase())
-    );
+    .map((tag) => tag.value)
+    .filter((tag) => !inputs.tags.includes(tag) && tag.toLowerCase().includes(tagInputValue.toLowerCase()));
 
   const toggle = (toggleRef: React.Ref<MenuToggleElement>) => (
-    <MenuToggle 
-      ref={toggleRef} 
+    <MenuToggle
+      ref={toggleRef}
       onClick={() => setIsTagSelectOpen(!isTagSelectOpen)}
       isExpanded={isTagSelectOpen}
       style={{ width: '100%' }}
@@ -154,11 +151,7 @@ const RuleForm: React.FunctionComponent<IRuleForm> = ({ closeFormCB, editingRule
         />
         {tagInputValue && (
           <TextInputGroupUtilities>
-            <Button
-              variant="plain"
-              onClick={() => setTagInputValue('')}
-              aria-label="Clear input"
-            >
+            <Button variant="plain" onClick={() => setTagInputValue('')} aria-label="Clear input">
               <TimesIcon />
             </Button>
           </TextInputGroupUtilities>
@@ -170,24 +163,24 @@ const RuleForm: React.FunctionComponent<IRuleForm> = ({ closeFormCB, editingRule
   return (
     <Form className={classes.form}>
       <FormGroup label="Name" isRequired fieldId="rule-form-name">
-        <TextInput 
-          isRequired 
-          type="text" 
-          id="rule-form-name" 
+        <TextInput
+          isRequired
+          type="text"
+          id="rule-form-name"
           name="name"
-          value={inputs.name} 
+          value={inputs.name}
           onChange={handleChange}
           isDisabled={isEditing} // Name cannot be changed when editing
         />
       </FormGroup>
       <FormGroup label="Pattern" isRequired fieldId="rule-form-pattern">
-        <TextInput 
-          isRequired 
-          type="text" 
-          id="rule-form-pattern" 
+        <TextInput
+          isRequired
+          type="text"
+          id="rule-form-pattern"
           name="pattern"
-          value={inputs.pattern} 
-          onChange={handleChange} 
+          value={inputs.pattern}
+          onChange={handleChange}
         />
       </FormGroup>
       <FormGroup label="Tags" isRequired fieldId="rule-form-tags">
@@ -203,24 +196,16 @@ const RuleForm: React.FunctionComponent<IRuleForm> = ({ closeFormCB, editingRule
               <DropdownList>
                 {availableTagOptions.length > 0 ? (
                   availableTagOptions.map((tag, index) => (
-                    <DropdownItem 
-                      key={index}
-                      value={tag}
-                      onClick={() => handleTagSelect(tag)}
-                    >
+                    <DropdownItem key={index} value={tag} onClick={() => handleTagSelect(tag)}>
                       {tag}
                     </DropdownItem>
                   ))
                 ) : tagInputValue.trim() ? (
-                  <DropdownItem 
-                    onClick={() => handleTagSelect(tagInputValue.trim())}
-                  >
+                  <DropdownItem onClick={() => handleTagSelect(tagInputValue.trim())}>
                     Create "{tagInputValue.trim()}"
                   </DropdownItem>
                 ) : (
-                  <DropdownItem isDisabled>
-                    No matching tags found
-                  </DropdownItem>
+                  <DropdownItem isDisabled>No matching tags found</DropdownItem>
                 )}
               </DropdownList>
             </Dropdown>
@@ -230,8 +215,8 @@ const RuleForm: React.FunctionComponent<IRuleForm> = ({ closeFormCB, editingRule
               <Flex spaceItems={{ default: 'spaceItemsXs' }} style={{ marginTop: '8px' }}>
                 {inputs.tags.map((tag, index) => (
                   <FlexItem key={index}>
-                    <Label 
-                      variant="filled" 
+                    <Label
+                      variant="filled"
                       color="blue"
                       onClose={() => handleTagRemove(tag)}
                       closeBtnAriaLabel={`Remove ${tag} tag`}
@@ -246,10 +231,10 @@ const RuleForm: React.FunctionComponent<IRuleForm> = ({ closeFormCB, editingRule
         </Flex>
       </FormGroup>
       <ActionGroup>
-        <Button 
-          variant="primary" 
-          isLoading={creating} 
-          onClick={handleSubmit} 
+        <Button
+          variant="primary"
+          isLoading={creating}
+          onClick={handleSubmit}
           isDisabled={!inputs.name || !inputs.pattern}
         >
           {isEditing ? 'Update' : 'Create'}

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { 
+import {
   MenuToggle,
   MenuToggleElement,
   Dropdown,
@@ -11,9 +11,10 @@ import {
   TextInputGroupUtilities,
   Flex,
   FlexItem,
-  Button
+  Button,
 } from '@patternfly/react-core';
 import { TimesIcon } from '@patternfly/react-icons';
+import { useTheme } from '@app/shared/contexts/ThemeContext';
 
 interface TagFilterProps {
   availableTags: string[];
@@ -22,12 +23,13 @@ interface TagFilterProps {
   placeholder?: string;
 }
 
-const TagFilter: React.FC<TagFilterProps> = ({ 
-  availableTags, 
-  selectedTags, 
+const TagFilter: React.FC<TagFilterProps> = ({
+  availableTags,
+  selectedTags,
   onTagsChange,
-  placeholder = "Filter by tags..."
+  placeholder = 'Filter by tags...',
 }) => {
+  const { theme } = useTheme();
   const [isOpen, setIsOpen] = React.useState<boolean>(false);
   const [inputValue, setInputValue] = React.useState<string>('');
 
@@ -44,7 +46,7 @@ const TagFilter: React.FC<TagFilterProps> = ({
   };
 
   const handleTagRemove = (tagToRemove: string) => {
-    onTagsChange(selectedTags.filter(tag => tag !== tagToRemove));
+    onTagsChange(selectedTags.filter((tag) => tag !== tagToRemove));
   };
 
   const handleClearAll = () => {
@@ -53,24 +55,14 @@ const TagFilter: React.FC<TagFilterProps> = ({
   };
 
   // Filter available tags based on input and exclude already selected ones
-  const filteredTags = availableTags.filter(tag => 
-    !selectedTags.includes(tag) && 
-    tag.toLowerCase().includes(inputValue.toLowerCase())
+  const filteredTags = availableTags.filter(
+    (tag) => !selectedTags.includes(tag) && tag.toLowerCase().includes(inputValue.toLowerCase()),
   );
 
   const toggle = (toggleRef: React.Ref<MenuToggleElement>) => (
-    <MenuToggle 
-      ref={toggleRef} 
-      onClick={() => setIsOpen(!isOpen)}
-      isExpanded={isOpen}
-      style={{ width: '300px' }}
-    >
+    <MenuToggle ref={toggleRef} onClick={() => setIsOpen(!isOpen)} isExpanded={isOpen} style={{ width: '300px' }}>
       <TextInputGroup>
-        <TextInputGroupMain
-          value={inputValue}
-          placeholder={placeholder}
-          onChange={handleInputChange}
-        />
+        <TextInputGroupMain value={inputValue} placeholder={placeholder} onChange={handleInputChange} />
         {(inputValue || selectedTags.length > 0) && (
           <TextInputGroupUtilities>
             <Button
@@ -104,18 +96,12 @@ const TagFilter: React.FC<TagFilterProps> = ({
           <DropdownList>
             {filteredTags.length > 0 ? (
               filteredTags.map((tag, index) => (
-                <DropdownItem 
-                  key={index}
-                  value={tag}
-                  onClick={() => handleTagSelect(tag)}
-                >
+                <DropdownItem key={index} value={tag} onClick={() => handleTagSelect(tag)}>
                   {tag}
                 </DropdownItem>
               ))
             ) : (
-              <DropdownItem isDisabled>
-                {inputValue ? 'No matching tags found' : 'No more tags available'}
-              </DropdownItem>
+              <DropdownItem isDisabled>{inputValue ? 'No matching tags found' : 'No more tags available'}</DropdownItem>
             )}
           </DropdownList>
         </Dropdown>
@@ -125,11 +111,12 @@ const TagFilter: React.FC<TagFilterProps> = ({
           <Flex spaceItems={{ default: 'spaceItemsXs' }} style={{ marginTop: '8px' }}>
             {selectedTags.map((tag, index) => (
               <FlexItem key={index}>
-                <Label 
-                  variant="filled" 
+                <Label
+                  variant={theme === 'dark' ? 'outline' : 'filled'}
                   color="blue"
                   onClose={() => handleTagRemove(tag)}
                   closeBtnAriaLabel={`Remove ${tag} filter`}
+                  style={theme === 'dark' ? { color: '#73bcf7' } : {}}
                 >
                   {tag}
                 </Label>
@@ -142,4 +129,4 @@ const TagFilter: React.FC<TagFilterProps> = ({
   );
 };
 
-export { TagFilter }; 
+export { TagFilter };

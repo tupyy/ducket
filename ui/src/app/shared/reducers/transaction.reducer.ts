@@ -24,7 +24,7 @@ export const getTransactions = createAsyncThunk(
   'transactions/get',
   async (params?: { startDate?: string; endDate?: string; tags?: string[] }) => {
     let url = transactionApiUrl;
-    
+
     if (params?.startDate || params?.endDate || params?.tags?.length) {
       const searchParams = new URLSearchParams();
       if (params.startDate) {
@@ -36,14 +36,14 @@ export const getTransactions = createAsyncThunk(
         searchParams.append('endDate', endTimestamp);
       }
       if (params.tags && params.tags.length > 0) {
-        params.tags.forEach(tag => searchParams.append('tags', tag));
+        params.tags.forEach((tag) => searchParams.append('tags', tag));
       }
       url = `${transactionApiUrl}?${searchParams.toString()}`;
     }
-    
+
     return createAxiosDateTransformer().get<ITransactions>(url);
   },
-  { serializeError: serializeAxiosError }
+  { serializeError: serializeAxiosError },
 );
 
 export const createTransaction = createAsyncThunk(
@@ -54,7 +54,7 @@ export const createTransaction = createAsyncThunk(
     });
     return result;
   },
-  { serializeError: serializeAxiosError }
+  { serializeError: serializeAxiosError },
 );
 
 export const updateTransaction = createAsyncThunk(
@@ -71,7 +71,7 @@ export const updateTransaction = createAsyncThunk(
     const result = axios.put<ITransactionForm>(url, newTransaction).then(() => thunkAPI.dispatch(getTransactions()));
     return result;
   },
-  { serializeError: serializeAxiosError }
+  { serializeError: serializeAxiosError },
 );
 
 export const deleteTransaction = createAsyncThunk(
@@ -81,7 +81,7 @@ export const deleteTransaction = createAsyncThunk(
     const result = axios.delete<void>(url).then(() => thunkAPI.dispatch(getTransactions()));
     return result;
   },
-  { serializeError: serializeAxiosError }
+  { serializeError: serializeAxiosError },
 );
 
 export type transactionState = Readonly<typeof initialState>;

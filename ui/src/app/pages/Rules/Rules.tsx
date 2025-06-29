@@ -56,8 +56,8 @@ const Rules: React.FunctionComponent = () => {
       });
     };
     return (
-      <RulesList 
-        rules={sortRules(rules.slice())} 
+      <RulesList
+        rules={sortRules(rules.slice())}
         showCreateRuleFormCB={showCreateForm}
         showEditRuleFormCB={showEditForm}
         onSyncRule={handleSyncRule}
@@ -78,7 +78,7 @@ const Rules: React.FunctionComponent = () => {
 
   return (
     <PageSection hasBodyWrapper={false}>
-      {(isCreateFormActive || isEditFormActive) ? renderForm() : renderList(rules.loading, rules.rules)}
+      {isCreateFormActive || isEditFormActive ? renderForm() : renderList(rules.loading, rules.rules)}
     </PageSection>
   );
 };

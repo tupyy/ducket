@@ -11,7 +11,7 @@ export type CreateTagError = { _tag: 'CreateTagError'; reason: string };
 export class Result<T, E extends ErrorType> {
   protected constructor(
     readonly _tag: 'Success' | 'Failure',
-    protected readonly value: T | E
+    protected readonly value: T | E,
   ) {}
 
   static succeed<T>(data: T): Success<T> {

@@ -10,13 +10,7 @@ const store = configureStore({
     getDefaultMiddleware({
       serializableCheck: {
         // Ignore these field paths in all actions
-        ignoredActionPaths: [
-          'payload.config',
-          'payload.request',
-          'payload.headers',
-          'error',
-          'meta.arg',
-        ],
+        ignoredActionPaths: ['payload.config', 'payload.request', 'payload.headers', 'error', 'meta.arg'],
       },
     }).concat(loggerMiddleware),
 });
@@ -28,11 +22,6 @@ export type AppDispatch = typeof store.dispatch;
 
 export const useAppSelector: TypedUseSelectorHook<IRootState> = useSelector;
 export const useAppDispatch = () => useDispatch<AppDispatch>();
-export type AppThunk<ReturnType = void> = ThunkAction<
-  ReturnType,
-  IRootState,
-  unknown,
-  AnyAction
->;
+export type AppThunk<ReturnType = void> = ThunkAction<ReturnType, IRootState, unknown, AnyAction>;
 
 export default getStore;
