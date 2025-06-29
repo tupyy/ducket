@@ -13,6 +13,8 @@ import { calculateDateRange } from '@app/utils/dateUtils';
 
 interface TimePickerProps {
   onDateChange?: (startDate: string, endDate: string) => void;
+  initialStartDate?: string;
+  initialEndDate?: string;
 }
 
 const timeList = [
@@ -30,7 +32,7 @@ const css: React.CSSProperties = {
   gridTemplateColumns: 'repeat(3, 1fr)',
 };
 
-const TimePicker: React.FC<TimePickerProps> = ({ onDateChange }) => {
+const TimePicker: React.FC<TimePickerProps> = ({ onDateChange, initialStartDate, initialEndDate }) => {
   const getFirstDayOfMonth = () => {
     const today = new Date();
     const year = today.getFullYear();
@@ -42,15 +44,15 @@ const TimePicker: React.FC<TimePickerProps> = ({ onDateChange }) => {
     return new Date().toISOString().split('T')[0];
   };
 
-  const [startDate, setStartDate] = React.useState<string>(getFirstDayOfMonth());
-  const [endDate, setEndDate] = React.useState<string>(getTodayDate());
+  const [startDate, setStartDate] = React.useState<string>(initialStartDate || getFirstDayOfMonth());
+  const [endDate, setEndDate] = React.useState<string>(initialEndDate || getTodayDate());
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
   const [selectedTimeRange, setSelectedTimeRange] = React.useState<string>('Select time range');
 
   React.useEffect(() => {
-    // Trigger callback with default values on mount
+    // Trigger callback with initial values on mount
     onDateChange?.(startDate, endDate);
-  }, []);
+  }, []); // Only run on mount to avoid infinite loops
 
   const handleStartDateChange = (_event: any, value: string) => {
     setStartDate(value);

@@ -9,7 +9,7 @@ import { useAppDispatch, useAppSelector } from '@app/shared/store';
 import { getTransactions } from '@app/shared/reducers/transaction.reducer';
 import { calculateTagReport, calculateTransactionTypeReport } from '@app/shared/reducers/tag-report.reducer';
 import { calculateMonthlyTagReport } from '@app/shared/reducers/monthly-tag-report.reducer';
-import { calculateDateRange } from '@app/utils/dateUtils';
+import { calculateDateRange, getRelativeTimeRange } from '@app/utils/dateUtils';
 
 const Dashboard: React.FunctionComponent = () => {
   const dispatch = useAppDispatch();
@@ -69,7 +69,11 @@ const Dashboard: React.FunctionComponent = () => {
         <GridItem span={12}>
           <Flex justifyContent={{ default: 'justifyContentFlexStart' }}>
             <FlexItem>
-              <TimePicker onDateChange={handleDateChange} />
+              <TimePicker 
+                onDateChange={handleDateChange}
+                initialStartDate={startDate}
+                initialEndDate={endDate}
+              />
             </FlexItem>
           </Flex>
 
@@ -83,17 +87,7 @@ const Dashboard: React.FunctionComponent = () => {
               }}
             >
               <strong>Selected Range:</strong>{' '}
-              {new Date(startDate).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}{' '}
-              to{' '}
-              {new Date(endDate).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}
+              {getRelativeTimeRange(startDate, endDate)}
             </div>
           )}
         </GridItem>

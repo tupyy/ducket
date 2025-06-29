@@ -40,3 +40,38 @@ export const calculateDateRange = (timeRange: string) => {
 
   return { startDateValue, endDateValue };
 };
+
+export const getRelativeTimeRange = (startDate: string, endDate: string): string => {
+  const timeRanges = [
+    'last 24 hours',
+    'last 2 days', 
+    'last 7 days',
+    'last 30 days',
+    'last 90 days',
+    'last 6 months',
+    'last 1 year',
+    'last 2 years'
+  ];
+
+  // Check if the provided dates match any of the predefined ranges
+  for (const range of timeRanges) {
+    const { startDateValue, endDateValue } = calculateDateRange(range);
+    if (startDate === startDateValue && endDate === endDateValue) {
+      return range;
+    }
+  }
+
+  // If no match found, return custom range format
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  
+  return `${start.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })} - ${end.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric', 
+    year: 'numeric',
+  })}`;
+};
