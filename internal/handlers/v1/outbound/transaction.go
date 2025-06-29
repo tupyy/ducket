@@ -14,7 +14,7 @@ const (
 type TransactionTagAssociation struct {
 	Value string `json:"value"`
 	Href  string `json:"href"`
-	Rule  Rule   `json:"rule"`
+	Rule  string `json:"rule"`
 }
 
 type Transaction struct {
@@ -42,7 +42,7 @@ func FromEntity(t entity.Transaction) Transaction {
 		transaction.Tags = append(transaction.Tags, TransactionTagAssociation{
 			Value: tag,
 			Href:  fmt.Sprintf("%s/tags/%s", apiV1, tag),
-			Rule:  NewRule(entity.Rule{Name: ruleID}),
+			Rule:  ruleID,
 		})
 	}
 
