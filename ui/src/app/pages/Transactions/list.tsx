@@ -7,9 +7,6 @@ import {
   PageSection,
   Pagination,
   PaginationVariant,
-  Toolbar,
-  ToolbarContent,
-  ToolbarItem,
 } from '@patternfly/react-core';
 import { DataView, DataViewToolbar } from '@patternfly/react-data-view';
 import { ExpandableRowContent, Table, Tbody, Td, Th, Thead, ThProps, Tr } from '@patternfly/react-table';
@@ -58,15 +55,15 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   // Client-side filtering by tags
   React.useEffect(() => {
     let filtered = sortedTransactions;
-    
+
     if (selectedTags.length > 0) {
-      filtered = sortedTransactions.filter(transaction => 
-        selectedTags.some(selectedTag => 
+      filtered = sortedTransactions.filter(transaction =>
+        selectedTags.some(selectedTag =>
           transaction.tags.some(tag => tag.value === selectedTag)
         )
       );
     }
-    
+
     setFilteredTransactions(filtered);
   }, [sortedTransactions, selectedTags]);
 
@@ -119,7 +116,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
         }
         return (bValue as Date).getTime() - (aValue as Date).getTime();
       });
-      
+
       setFilteredTransactions(sorted);
       setActiveSortIndex(index);
       setActiveSortDirection(direction);
@@ -187,7 +184,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   const renderToolbar = (
     <DataViewToolbar
       filters={
-        <TagFilter 
+        <TagFilter
           availableTags={availableTags}
           selectedTags={selectedTags}
           onTagsChange={handleTagsChange}
@@ -268,10 +265,10 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
               </Td>
               <Td dataLabel="{columns.rules">
                 <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                  {t.tags.map((tag: ITagTransaction, idx: number) => (
+                  {Array.from(new Set(t.tags.map(tag => tag.rule))).map((rule: string, idx: number) => (
                     <FlexItem key={`rule-${idx}`}>
-                      <Label variant="filled" color="blue" href={`/api/rules/${tag.rule}`}>
-                        <Content component="p">{tag.rule}</Content>
+                      <Label variant="filled" color="blue" href={`/api/rules/${rule}`}>
+                        <Content component="p">{rule}</Content>
                       </Label>
                     </FlexItem>
                   ))}

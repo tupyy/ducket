@@ -1,18 +1,17 @@
 import * as React from 'react';
 import { getTransactions } from '@app/shared/reducers/transaction.reducer';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
-import { 
-  PageSection, 
-  Toolbar, 
-  ToolbarContent, 
-  ToolbarItem, 
-  ToolbarGroup 
+import {
+  PageSection,
+  Toolbar,
+  ToolbarContent,
+  ToolbarGroup,
+  ToolbarItem
 } from '@patternfly/react-core';
 import { TransactionList } from './list';
 import { CubesIcon } from '@patternfly/react-icons';
 import { Content, EmptyState, EmptyStateBody, EmptyStateVariant } from '@patternfly/react-core';
 import { TimePicker } from '@app/shared/components/time-picker';
-import { ITransaction } from '@app/shared/models/transaction';
 
 const Transactions: React.FunctionComponent = () => {
   const dispatch = useAppDispatch();
