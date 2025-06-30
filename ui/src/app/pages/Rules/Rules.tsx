@@ -43,7 +43,7 @@ const Rules: React.FunctionComponent = () => {
     dispatch(getRules());
   }, [dispatch]);
 
-  const renderList = (loading: boolean, rules: Array<IRule>) => {
+  const renderList = (loading: boolean, rulesArray: Array<IRule>) => {
     const sortRules = (rules: Array<IRule> | []) => {
       return rules.sort((rule1, rule2) => {
         if (rule1.name < rule2.name) {
@@ -57,11 +57,12 @@ const Rules: React.FunctionComponent = () => {
     };
     return (
       <RulesList
-        rules={sortRules(rules.slice())}
+        rules={sortRules(rulesArray.slice())}
         showCreateRuleFormCB={showCreateForm}
         showEditRuleFormCB={showEditForm}
         onSyncRule={handleSyncRule}
         onDeleteRule={handleDeleteRule}
+        syncing={rules.syncing}
       />
     );
   };

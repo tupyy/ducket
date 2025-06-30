@@ -28,6 +28,7 @@ export interface IRuleListProps {
   showEditRuleFormCB: (rule: IRule) => void;
   onSyncRule: (ruleName: string) => void;
   onDeleteRule: (ruleName: string) => void;
+  syncing?: boolean;
 }
 
 interface RepositoryFilters {
@@ -51,6 +52,7 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({
   showEditRuleFormCB,
   onSyncRule,
   onDeleteRule,
+  syncing = false,
 }) => {
   const { theme } = useTheme();
   const [page, setPage] = React.useState<number | undefined>(1);
@@ -213,8 +215,9 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({
                 <ActionsColumn
                   items={[
                     {
-                      title: 'Sync',
+                      title: syncing ? 'Syncing...' : 'Sync',
                       onClick: () => onSyncRule(rule.name),
+                      isDisabled: syncing,
                     },
                     {
                       title: 'Edit',

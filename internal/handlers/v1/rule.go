@@ -115,4 +115,144 @@ func RulesHandlers(r *gin.RouterGroup) {
 		c.JSON(http.StatusNoContent, gin.H{})
 	})
 
+	r.POST("/rules/apply", func(c *gin.Context) {
+		dt := dtContext.MustFromContext(c)
+
+		ruleApplierService := services.NewRuleApplierService(dt)
+
+		zap.S().Info("Starting rule application to all transactions")
+
+		err := ruleApplierService.ApplyAllRulesToAllTransactions(c.Request.Context())
+		if err != nil {
+			zap.S().Errorw("Failed to apply rules to all transactions", "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"message": "Failed to apply rules to transactions",
+				"success": false,
+			})
+			return
+		}
+
+		zap.S().Info("Successfully applied rules to all transactions")
+
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Successfully applied all rules to all transactions",
+			"success": true,
+		})
+	})
+
+	r.POST("/rules/:id/sync", func(c *gin.Context) {
+		ruleName := c.Param("id")
+
+		if len(ruleName) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "rule name is required"})
+			return
+		}
+
+		if len(ruleName) > 20 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "rule name must have less than 20 chars"})
+			return
+		}
+
+		dt := dtContext.MustFromContext(c)
+
+		// Get the specific rule
+		ruleService := services.NewRuleService(dt)
+		rule, err := ruleService.GetRule(c.Request.Context(), ruleName)
+		if err != nil {
+			zap.S().Errorw("Failed to get rule", "name", ruleName, "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Failed to get rule",
+				"success": false,
+			})
+			return
+		}
+
+		if rule == nil {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error":   "Rule not found",
+				"success": false,
+			})
+			return
+		}
+
+		// Get all transactions
+		transactionService := services.NewTransactionService(dt)
+		transactions, err := transactionService.GetTransactions(c.Request.Context(), &services.TransactionFilter{})
+		if err != nil {
+			zap.S().Errorw("Failed to get transactions", "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Failed to get transactions",
+				"success": false,
+			})
+			return
+		}
+
+		zap.S().Infow("Starting rule application to all transactions",
+			"rule", ruleName,
+			"total_transactions", len(transactions),
+		)
+
+		// Apply the specific rule to all transactions
+		ruleApplierService := services.NewRuleApplierService(dt)
+		matchCount := 0
+
+		for _, transaction := range transactions {
+			// Check if this rule matches the transaction
+			matched, err := ruleApplierService.MatchesRule(transaction.RawContent, rule.Pattern)
+			if err != nil {
+				zap.S().Warnw("Failed to check rule pattern",
+					"rule", ruleName,
+					"pattern", rule.Pattern,
+					"error", err,
+				)
+				continue
+			}
+
+			if matched {
+				// Apply all tags from this rule to the transaction
+				updatedTransaction := transaction
+				if updatedTransaction.Tags == nil {
+					updatedTransaction.Tags = make(map[string]string)
+				}
+
+				for _, tag := range rule.Tags {
+					updatedTransaction.Tags[tag] = rule.Name
+				}
+
+				// Update the transaction in the database
+				_, err = transactionService.CreateOrUpdate(c.Request.Context(), updatedTransaction)
+				if err != nil {
+					zap.S().Errorw("Failed to update transaction with rule",
+						"transaction_id", transaction.ID,
+						"rule", ruleName,
+						"error", err,
+					)
+					continue
+				}
+
+				matchCount++
+				zap.S().Debugw("Applied rule to transaction",
+					"rule", ruleName,
+					"transaction_id", transaction.ID,
+					"transaction_content", transaction.RawContent,
+					"tags", rule.Tags,
+				)
+			}
+		}
+
+		zap.S().Infow("Successfully applied rule to transactions",
+			"rule", ruleName,
+			"matches_found", matchCount,
+			"total_transactions", len(transactions),
+		)
+
+		c.JSON(http.StatusOK, gin.H{
+			"message":            "Successfully applied rule to all transactions",
+			"success":            true,
+			"rule":               ruleName,
+			"matches_found":      matchCount,
+			"total_transactions": len(transactions),
+		})
+	})
+
 }
