@@ -21,15 +21,15 @@ type ExcelReader struct{}
 // Read parses an Excel file from the provided io.Reader and extracts transaction data.
 // It looks for a sheet named "Sheet0" and starts reading transactions after finding
 // a row that begins with "date". Returns a slice of Transaction entities.
-func (e *ExcelReader) Read(r io.Reader) ([]*entity.Transaction, error) {
+func (e *ExcelReader) Read(r io.Reader) ([]entity.Transaction, error) {
 	f, err := excel.OpenReader(r, excel.Options{})
 	if err != nil {
-		return []*entity.Transaction{}, err
+		return []entity.Transaction{}, err
 	}
 
 	rows, err := f.GetRows("Sheet0")
 	startRead := false
-	transactions := make([]*entity.Transaction, 0, len(rows))
+	transactions := make([]entity.Transaction, 0, len(rows))
 	for _, row := range rows {
 		if len(row) > 0 && strings.ToLower(row[0]) == "date" {
 			startRead = true
@@ -40,7 +40,7 @@ func (e *ExcelReader) Read(r io.Reader) ([]*entity.Transaction, error) {
 				zap.S().Error(err)
 				continue
 			}
-			transactions = append(transactions, t)
+			transactions = append(transactions, *t)
 		}
 	}
 
