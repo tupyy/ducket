@@ -26,6 +26,7 @@ export interface ITransactionListProps {
 
 const columns = {
   date: 'Date',
+  account: 'Account',
   kind: 'Type',
   amount: 'Amount',
   tags: 'Tags',
@@ -44,6 +45,11 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   const [selectedTransactionTypes, setSelectedTransactionTypes] = React.useState<string[]>([]);
   const [filteredTransactions, setFilteredTransactions] = React.useState<Array<ITransaction>>([]);
   const [isTransactionTypeSelectOpen, setIsTransactionTypeSelectOpen] = React.useState(false);
+
+  // Helper function to get transaction kind label color
+  const getTransactionKindColor = (kind: string): 'red' | 'blue' => {
+    return kind.toLowerCase() === 'debit' ? 'red' : 'blue';
+  };
 
   const [expandedTransactions, setExpandedTransactions] = React.useState<string[]>([]);
   const setTransactionExpanded = (t: ITransaction, isExpanding = true) =>
@@ -335,6 +341,11 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
             </Th>
             <Th>
               <Content component="p">
+                <strong>{columns.account}</strong>
+              </Content>
+            </Th>
+            <Th>
+              <Content component="p">
                 <strong>{columns.kind}</strong>
               </Content>
             </Th>
@@ -378,7 +389,15 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                   day: 'numeric',
                 })}
               </Td>
-              <Td dataLabel="{columns.kind}">{t.kind}</Td>
+              <Td dataLabel={columns.account}>{t.account}</Td>
+              <Td dataLabel="{columns.kind}">
+                <Label
+                  variant={theme === 'dark' ? 'outline' : 'filled'}
+                  color={getTransactionKindColor(t.kind)}
+                >
+                  {t.kind.charAt(0).toUpperCase() + t.kind.slice(1)}
+                </Label>
+              </Td>
               <Td dataLabel="{columns.tags}">
                 <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
                   {t.tags.map((tag: ITagTransaction, idx: number) => (
@@ -431,7 +450,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
               </Td>
             </Tr>
             <Tr isExpanded={isTransactionExpanded(t)}>
-              <Td noPadding={false} colSpan={5}>
+              <Td noPadding={false} colSpan={6}>
                 <ExpandableRowContent>{t.description}</ExpandableRowContent>
               </Td>
             </Tr>

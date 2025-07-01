@@ -9,6 +9,7 @@ export interface ITransaction {
   kind: string;
   date: Date;
   amount: number;
+  account: string;
   description: string;
   tags: ITagTransaction[];
 }
