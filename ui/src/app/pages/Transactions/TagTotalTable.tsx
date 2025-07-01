@@ -50,7 +50,7 @@ const TagTotalTable: React.FunctionComponent<TagTotalTableProps> = ({ transactio
   }
 
   return (
-    <Card style={{ height: '400px' }}>
+    <Card style={{ height: '100%' }}>
       <CardBody>
         <Title headingLevel="h3" size="lg" style={{ marginBottom: '1rem' }}>
           Total Amounts by Tag
