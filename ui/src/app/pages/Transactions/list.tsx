@@ -43,8 +43,10 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   const [paginatedRows, setPaginatedRows] = React.useState(sortedTransactions.slice(0, 10));
   const [selectedTags, setSelectedTags] = React.useState<string[]>([]);
   const [selectedTransactionTypes, setSelectedTransactionTypes] = React.useState<string[]>([]);
+  const [selectedAccounts, setSelectedAccounts] = React.useState<string[]>([]);
   const [filteredTransactions, setFilteredTransactions] = React.useState<Array<ITransaction>>([]);
   const [isTransactionTypeSelectOpen, setIsTransactionTypeSelectOpen] = React.useState(false);
+  const [isAccountSelectOpen, setIsAccountSelectOpen] = React.useState(false);
 
   // Helper function to get transaction kind label color
   const getTransactionKindColor = (kind: string): 'red' | 'blue' => {
@@ -64,7 +66,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     setSortedTransactions(Array.from(transactions));
   }, [transactions]);
 
-  // Client-side filtering by tags and transaction types
+  // Client-side filtering by tags, transaction types, and accounts
   React.useEffect(() => {
     let filtered = sortedTransactions;
 
@@ -80,8 +82,13 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
       filtered = filtered.filter((transaction) => selectedTransactionTypes.includes(transaction.kind));
     }
 
+    // Filter by accounts
+    if (selectedAccounts.length > 0) {
+      filtered = filtered.filter((transaction) => selectedAccounts.includes(transaction.account));
+    }
+
     setFilteredTransactions(filtered);
-  }, [sortedTransactions, selectedTags, selectedTransactionTypes]);
+  }, [sortedTransactions, selectedTags, selectedTransactionTypes, selectedAccounts]);
 
   React.useEffect(() => {
     setPaginatedRows(filteredTransactions?.slice(0, perPage));
@@ -106,6 +113,17 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
       typeSet.add(transaction.kind);
     });
     return Array.from(typeSet).sort();
+  }, [transactions]);
+
+  // Get available accounts
+  const availableAccounts = React.useMemo(() => {
+    const accountSet = new Set<string>();
+    transactions.forEach((transaction) => {
+      if (transaction.account) {
+        accountSet.add(transaction.account);
+      }
+    });
+    return Array.from(accountSet).sort();
   }, [transactions]);
 
   const handleTagsChange = (tags: string[]) => {
@@ -136,9 +154,33 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     setSelectedTransactionTypes((prev) => prev.filter((type) => type !== typeToRemove));
   };
 
+  const handleAccountToggle = () => {
+    setIsAccountSelectOpen(!isAccountSelectOpen);
+  };
+
+  const handleAccountSelect = (
+    _event: React.MouseEvent<Element, MouseEvent> | undefined,
+    value: string | number | undefined,
+  ) => {
+    if (typeof value === 'string') {
+      setSelectedAccounts((prev) => {
+        if (prev.includes(value)) {
+          return prev.filter((account) => account !== value);
+        } else {
+          return [...prev, value];
+        }
+      });
+    }
+  };
+
+  const handleAccountRemove = (accountToRemove: string) => {
+    setSelectedAccounts((prev) => prev.filter((account) => account !== accountToRemove));
+  };
+
   const handleClearAllFilters = () => {
     setSelectedTags([]);
     setSelectedTransactionTypes([]);
+    setSelectedAccounts([]);
   };
 
   const handleTagClick = (tagValue: string) => {
@@ -175,7 +217,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
       const sorted = [...filteredTransactions].sort((a, b) => {
         let aValue: Date | number = a.date;
         let bValue: Date | number = b.date;
-        if (index == 5) {
+        if (index == 6) {
           aValue = a.amount;
           bValue = b.amount;
         }
@@ -313,9 +355,64 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                   )}
                 </Flex>
               </FlexItem>
+              <FlexItem>
+                <Flex direction={{ default: 'column' }}>
+                  <FlexItem>
+                    <Select
+                      isOpen={isAccountSelectOpen}
+                      selected={selectedAccounts}
+                      onSelect={handleAccountSelect}
+                      onOpenChange={(isOpen) => setIsAccountSelectOpen(isOpen)}
+                      toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+                        <MenuToggle
+                          ref={toggleRef}
+                          onClick={handleAccountToggle}
+                          isExpanded={isAccountSelectOpen}
+                        >
+                          {selectedAccounts.length > 0
+                            ? `Accounts (${selectedAccounts.length})`
+                            : 'Filter by account...'}
+                        </MenuToggle>
+                      )}
+                    >
+                      <SelectList>
+                        {availableAccounts.map((account) => (
+                          <SelectOption
+                            key={account}
+                            value={account}
+                            isSelected={selectedAccounts.includes(account)}
+                            hasCheckbox
+                          >
+                            {account}
+                          </SelectOption>
+                        ))}
+                      </SelectList>
+                    </Select>
+                  </FlexItem>
+                  {selectedAccounts.length > 0 && (
+                    <FlexItem>
+                      <Flex spaceItems={{ default: 'spaceItemsXs' }} style={{ marginTop: '8px' }}>
+                        {selectedAccounts.map((account, index) => (
+                          <FlexItem key={index}>
+                            <Label
+                              variant={theme === 'dark' ? 'outline' : 'filled'}
+                              color="purple"
+                              onClose={() => handleAccountRemove(account)}
+                              closeBtnAriaLabel={`Remove ${account} filter`}
+                              style={theme === 'dark' ? { color: '#b19cd9' } : {}}
+                            >
+                              {account}
+                            </Label>
+                          </FlexItem>
+                        ))}
+                      </Flex>
+                    </FlexItem>
+                  )}
+                </Flex>
+              </FlexItem>
             </Flex>
           </FlexItem>
-          {(selectedTags.length > 0 || selectedTransactionTypes.length > 0) && (
+          {(selectedTags.length > 0 || selectedTransactionTypes.length > 0 || selectedAccounts.length > 0) && (
             <FlexItem>
               <Button variant="link" onClick={handleClearAllFilters} isInline>
                 Clear all filters
@@ -359,7 +456,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                 <strong>{columns.rules}</strong>
               </Content>
             </Th>
-            <Th width={10} sort={getSortParams(5)}>
+            <Th width={10} sort={getSortParams(6)}>
               <Content component="p">
                 <strong>{columns.amount}</strong>
               </Content>
