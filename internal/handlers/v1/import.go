@@ -106,7 +106,7 @@ func ImportHandlers(r *gin.RouterGroup) {
 			"files_count", len(results),
 			"total_processed", summary["total_processed"],
 			"total_created", summary["total_created"],
-			"total_ignored", summary["total_ignored"],
+			"total_updated", summary["total_updated"],
 			"total_errors", summary["total_errors"],
 		)
 
@@ -127,7 +127,7 @@ func calculateSummary(results []services.ImportResult) map[string]int {
 		"total_rows":      0,
 		"total_processed": 0,
 		"total_created":   0,
-		"total_ignored":   0,
+		"total_updated":   0,
 		"total_errors":    0,
 	}
 
@@ -135,7 +135,7 @@ func calculateSummary(results []services.ImportResult) map[string]int {
 		summary["total_rows"] += result.TotalRows
 		summary["total_processed"] += result.ProcessedRows
 		summary["total_created"] += result.CreatedCount
-		summary["total_ignored"] += result.IgnoredCount
+		summary["total_updated"] += result.UpdatedCount
 		summary["total_errors"] += result.ErrorCount
 	}
 

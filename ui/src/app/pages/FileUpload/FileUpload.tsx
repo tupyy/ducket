@@ -144,7 +144,7 @@ const FileUpload: React.FunctionComponent = () => {
                 <li>Total rows: {summary.total_rows}</li>
                 <li>Processed rows: {summary.total_processed}</li>
                 <li>Created transactions: {summary.total_created}</li>
-                <li>Ignored transactions: {summary.total_ignored}</li>
+                <li>Updated transactions: {summary.total_updated}</li>
                 <li>Errors: {summary.total_errors}</li>
               </ul>
             </div>

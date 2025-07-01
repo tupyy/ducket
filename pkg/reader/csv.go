@@ -94,7 +94,7 @@ func parseCSVRow(record []string) (*entity.Transaction, error) {
 		return nil, fmt.Errorf("cannot parse amount %q: %w", sum, err)
 	}
 
-	return entity.NewTransaction(kind, date, floatSum, content), nil
+	return entity.NewTransaction(kind, 0, date, floatSum, content), nil
 }
 
 func parseCSVDate(s string) (time.Time, error) {

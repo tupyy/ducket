@@ -21,6 +21,7 @@ type Transaction struct {
 	Href        string                      `json:"href"`
 	Kind        string                      `json:"kind"`
 	Date        string                      `json:"date"`
+	Account     int64                       `json:"account"`
 	Description string                      `json:"description"`
 	Amount      float32                     `json:"amount"`
 	Tags        []TransactionTagAssociation `json:"tags"`
@@ -34,6 +35,7 @@ func FromEntity(t entity.Transaction) Transaction {
 		Kind:        string(t.Kind),
 		Date:        t.Date.Format(time.RFC3339),
 		Description: t.RawContent,
+		Account:     t.Account,
 		Amount:      t.Amount,
 		Tags:        make([]TransactionTagAssociation, 0, len(t.Tags)),
 	}

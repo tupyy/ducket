@@ -3,6 +3,7 @@ package reader
 import (
 	"fmt"
 	"io"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -16,6 +17,10 @@ const (
 	dateFormat = "02/01/2006"
 )
 
+var (
+	accountRegexp = regexp.MustCompile(`^Compte.*([0-9]{11})`)
+)
+
 type ExcelReader struct{}
 
 // Read parses an Excel file from the provided io.Reader and extracts transaction data.
@@ -27,19 +32,34 @@ func (e *ExcelReader) Read(r io.Reader) ([]entity.Transaction, error) {
 		return []entity.Transaction{}, err
 	}
 
+	accountNumber := int64(0)
 	rows, err := f.GetRows("Sheet0")
-	startRead := false
+	startReadTransactions := false
 	transactions := make([]entity.Transaction, 0, len(rows))
 	for _, row := range rows {
-		if len(row) > 0 && strings.ToLower(row[0]) == "date" {
-			startRead = true
+		if len(row) == 0 {
+			continue
 		}
-		if startRead {
+		if len(row) > 0 && strings.ToLower(row[0]) == "date" {
+			startReadTransactions = true
+		}
+
+		if matched := accountRegexp.MatchString(row[0]); matched {
+			sAccountNumber := accountRegexp.FindStringSubmatch(row[0])
+			if len(sAccountNumber) > 0 {
+				if a, err := strconv.ParseInt(sAccountNumber[1], 10, 64); err == nil {
+					accountNumber = a
+				}
+			}
+		}
+
+		if startReadTransactions {
 			t, err := parseRow(row)
 			if err != nil {
 				zap.S().Error(err)
 				continue
 			}
+			t.Account = accountNumber
 			transactions = append(transactions, *t)
 		}
 	}
@@ -72,7 +92,7 @@ func parseRow(r []string) (*entity.Transaction, error) {
 		return nil, fmt.Errorf("cannot convert sum %q: %w", sum, err)
 	}
 
-	return entity.NewTransaction(kind, date, floatSum, rowContent), nil
+	return entity.NewTransaction(kind, 0, date, floatSum, rowContent), nil
 }
 
 func parseDate(s string) (time.Time, error) {

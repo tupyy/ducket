@@ -20,7 +20,7 @@ export interface IImportSummary {
   total_rows: number;
   total_processed: number;
   total_created: number;
-  total_ignored: number;
+  total_updated: number;
   total_errors: number;
 }
 

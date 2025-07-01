@@ -25,7 +25,7 @@ type ImportResult struct {
 	TotalRows     int      `json:"total_rows"`
 	ProcessedRows int      `json:"processed_rows"`
 	CreatedCount  int      `json:"created_count"`
-	IgnoredCount  int      `json:"ignored_count"`
+	UpdatedCount  int      `json:"ignored_count"`
 	ErrorCount    int      `json:"error_count"`
 	Errors        []string `json:"errors,omitempty"`
 }
@@ -88,11 +88,6 @@ func (s *ImportService) importSingleFile(ctx context.Context, file FileUpload) I
 			continue
 		}
 
-		if existingTransaction != nil {
-			result.IgnoredCount++
-			continue
-		}
-
 		// Create or update transaction (now with applied rule tags)
 		_, err = transactionService.CreateOrUpdate(ctx, transaction)
 		if err != nil {
@@ -101,7 +96,11 @@ func (s *ImportService) importSingleFile(ctx context.Context, file FileUpload) I
 			continue
 		}
 
-		result.CreatedCount++
+		if existingTransaction != nil {
+			result.UpdatedCount++
+		} else {
+			result.CreatedCount++
+		}
 
 		zap.S().Debugw("Processed transaction with rules",
 			"hash", transaction.Hash,
@@ -117,7 +116,7 @@ func (s *ImportService) importSingleFile(ctx context.Context, file FileUpload) I
 		"total_rows", result.TotalRows,
 		"processed_rows", result.ProcessedRows,
 		"created_count", result.CreatedCount,
-		"ignored_count", result.IgnoredCount,
+		"ignored_count", result.UpdatedCount,
 		"error_count", result.ErrorCount,
 	)
 

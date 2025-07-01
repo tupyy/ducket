@@ -17,6 +17,7 @@ type TransactionForm struct {
 	Date    string            `form:"date" json:"date" binding:"required"`
 	Content string            `form:"content" json:"content" binding:"required"`
 	Amount  float32           `form:"amount" json:"amount" binding:"required"`
+	Account int64             `form:"account" json:"account" binding:"required"`
 	Tags    map[string]string `form:"tags" json:"tags" binding:"required"`
 }
 
@@ -26,7 +27,7 @@ func (t TransactionForm) Entity() (entity.Transaction, error) {
 	if err != nil {
 		return entity.Transaction{}, fmt.Errorf("unable to parse transaction date: %w", err)
 	}
-	te := entity.NewTransaction(entity.TransactionKind(t.Kind), date, t.Amount, t.Content)
+	te := entity.NewTransaction(entity.TransactionKind(t.Kind), t.Account, date, t.Amount, t.Content)
 	te.Tags = t.Tags
 
 	return *te, nil
