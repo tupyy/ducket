@@ -14,6 +14,7 @@ const (
 	colTransactionType    = "kind"
 	colTransactionContent = "content"
 	colTransactionAmount  = "amount"
+	colTransactionAccount = "account"
 	colTransactionID      = "transaction_id"
 	colTagID              = "tag_id"
 	colRuleName           = "name"
@@ -22,7 +23,6 @@ const (
 	colTag                = "tag"
 	colRuleID             = "rule_id"
 	colCreatedAt          = "created_at"
-	colAmount             = "amount"
 	colHash               = "hash"
 
 	errUnableToWriteTag          = "unable to write tag: %w"
@@ -56,6 +56,7 @@ var (
 	insertTransaction = psql.Insert(transactionTable).
 				Columns(
 			colDate,
+			colTransactionAccount,
 			colHash,
 			colTransactionType,
 			colTransactionContent,
@@ -63,7 +64,7 @@ var (
 		)
 
 	insertTransactionTag  = psql.Insert(transactionsTagsTable).Columns(colTransactionID, colTagID)
-	selectTransactionStmp = psql.Select(colID, colDate, colTransactionType, colTransactionContent, colAmount, colTagID, colRuleID, colHash).
+	selectTransactionStmp = psql.Select(colID, colDate, colTransactionAccount, colTransactionType, colTransactionContent, colTransactionAmount, colTagID, colRuleID, colHash).
 				From(transactionTable).
 				LeftJoin("transactions_tags ON transactions_tags.transaction_id = transactions.id")
 

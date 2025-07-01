@@ -180,6 +180,7 @@ func (w *writerTx) WriteTransaction(ctx context.Context, transaction entity.Tran
 		// insert transaction
 		sql, args, err = insertTransaction.Values(
 			transaction.Date,
+			transaction.Account,
 			transaction.Hash,
 			transaction.Kind,
 			transaction.RawContent,
@@ -203,9 +204,10 @@ func (w *writerTx) WriteTransaction(ctx context.Context, transaction entity.Tran
 	case true:
 		sql, args, err = psql.Update(transactionTable).
 			Set(colDate, transaction.Date).
+			Set(colTransactionAccount, transaction.Account).
 			Set(colHash, transaction.Hash).
 			Set(colTransactionContent, transaction.RawContent).
-			Set(colAmount, transaction.Amount).
+			Set(colTransactionAmount, transaction.Amount).
 			Set(colTransactionType, transaction.Kind).
 			Where(sq.Eq{colID: transactionID}).
 			ToSql()

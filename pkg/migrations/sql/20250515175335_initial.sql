@@ -9,6 +9,7 @@ CREATE TABLE rules (
 CREATE TABLE transactions (
     id SERIAL PRIMARY KEY,
     hash VARCHAR(100) NOT NULL,
+    account SMALLINT NOT NULL,
     date TIMESTAMP NOT NULL,
     kind VARCHAR(30) NOT NULL,
     content TEXT NOT NULL,

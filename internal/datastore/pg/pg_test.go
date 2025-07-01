@@ -21,7 +21,7 @@ var (
 	psql                 = sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 	insertRule           = psql.Insert("rules").Columns("id", "pattern")
 	insertTagStmt        = psql.Insert("tags").Columns("value")
-	insertTransaction    = psql.Insert("transactions").Columns("id", "date", "kind", "content", "amount", "hash")
+	insertTransaction    = psql.Insert("transactions").Columns("id", "date", "account", "kind", "content", "amount", "hash")
 	insertTransactionTag = psql.Insert("transactions_tags").Columns("transaction_id", "tag_id", "rule_id")
 )
 
@@ -341,8 +341,8 @@ var _ = Describe("query", Ordered, func() {
 
 		It("query successfully transactions -- no tags", func() {
 			sql, args, err := insertTransaction.
-				Values(1, time.Now(), "credit", "transaction", "1.1", "hash1").
-				Values(2, time.Now(), "debit", "transaction", "2.1", "hash2").
+				Values(1, time.Now(), 1001, "credit", "transaction", "1.1", "hash1").
+				Values(2, time.Now(), 1002, "debit", "transaction", "2.1", "hash2").
 				ToSql()
 
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
@@ -378,8 +378,8 @@ var _ = Describe("query", Ordered, func() {
 			Expect(err).To(BeNil())
 
 			sql, args, err = insertTransaction.
-				Values(1, time.Now(), "credit", "transaction", "1.1", "hash1").
-				Values(2, time.Now(), "debit", "transaction", "2.1", "hash2").
+				Values(1, time.Now(), 1001, "credit", "transaction", "1.1", "hash1").
+				Values(2, time.Now(), 1002, "debit", "transaction", "2.1", "hash2").
 				ToSql()
 
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
@@ -418,8 +418,8 @@ var _ = Describe("query", Ordered, func() {
 		It("query successfully transactions -- with start filter", func() {
 			now := time.Now()
 			sql, args, err := insertTransaction.
-				Values(1, time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC), "credit", "transaction", "1.1", "hash1").
-				Values(2, time.Date(now.Year(), 2, 1, 0, 0, 0, 0, time.UTC), "debit", "transaction", "2.1", "hash2").
+				Values(1, time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC), 1001, "credit", "transaction", "1.1", "hash1").
+				Values(2, time.Date(now.Year(), 2, 1, 0, 0, 0, 0, time.UTC), 1002, "debit", "transaction", "2.1", "hash2").
 				ToSql()
 
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
@@ -436,8 +436,8 @@ var _ = Describe("query", Ordered, func() {
 		It("query successfully transactions -- with end filter", func() {
 			now := time.Now()
 			sql, args, err := insertTransaction.
-				Values(1, time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC), "credit", "transaction", "1.1", "hash1").
-				Values(2, time.Date(now.Year(), 2, 1, 0, 0, 0, 0, time.UTC), "debit", "transaction", "2.1", "hash2").
+				Values(1, time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC), 1001, "credit", "transaction", "1.1", "hash1").
+				Values(2, time.Date(now.Year(), 2, 1, 0, 0, 0, 0, time.UTC), 1001, "debit", "transaction", "2.1", "hash2").
 				ToSql()
 
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
@@ -454,9 +454,9 @@ var _ = Describe("query", Ordered, func() {
 		It("query successfully transactions -- with before and after filter", func() {
 			now := time.Now()
 			sql, args, err := insertTransaction.
-				Values(1, time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC), "credit", "transaction", "1.1", "hash1").
-				Values(2, time.Date(now.Year(), 2, 1, 0, 0, 0, 0, time.UTC), "debit", "transaction", "2.1", "hash2").
-				Values(3, time.Date(now.Year(), 3, 1, 0, 0, 0, 0, time.UTC), "debit", "transaction", "2.1", "hash3").
+				Values(1, time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC), 1001, "credit", "transaction", "1.1", "hash1").
+				Values(2, time.Date(now.Year(), 2, 1, 0, 0, 0, 0, time.UTC), 1002, "debit", "transaction", "2.1", "hash2").
+				Values(3, time.Date(now.Year(), 3, 1, 0, 0, 0, 0, time.UTC), 1003, "debit", "transaction", "2.1", "hash3").
 				ToSql()
 
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
@@ -472,8 +472,8 @@ var _ = Describe("query", Ordered, func() {
 
 		It("query successfully transactions -- with offset", func() {
 			sql, args, err := insertTransaction.
-				Values(1, time.Now(), "credit", "transaction", "1.1", "hash1").
-				Values(2, time.Now(), "debit", "transaction", "2.1", "hash2").
+				Values(1, time.Now(), 1001, "credit", "transaction", "1.1", "hash1").
+				Values(2, time.Now(), 1002, "debit", "transaction", "2.1", "hash2").
 				ToSql()
 
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
@@ -486,8 +486,8 @@ var _ = Describe("query", Ordered, func() {
 
 		It("query successfully transactions -- with limit", func() {
 			sql, args, err := insertTransaction.
-				Values(1, time.Now(), "credit", "transaction", "1.1", "hash1").
-				Values(2, time.Now(), "debit", "transaction", "2.1", "hash2").
+				Values(1, time.Now(), 1001, "credit", "transaction", "1.1", "hash1").
+				Values(2, time.Now(), 1001, "debit", "transaction", "2.1", "hash2").
 				ToSql()
 
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
@@ -499,7 +499,7 @@ var _ = Describe("query", Ordered, func() {
 		})
 
 		It("write transaction successfully -- without tags", func() {
-			t := entity.NewTransaction(entity.CreditTransaction, time.Now(), 1.1, "content")
+			t := entity.NewTransaction(entity.CreditTransaction, 1001, time.Now(), 1.1, "content")
 
 			err := dt.WriteTx(context.TODO(), func(ctx context.Context, w pg.Writer) error {
 				_, err := w.WriteTransaction(ctx, *t)
@@ -536,7 +536,7 @@ var _ = Describe("query", Ordered, func() {
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
 			Expect(err).To(BeNil())
 
-			t := entity.NewTransaction(entity.CreditTransaction, time.Now(), 1.1, "content")
+			t := entity.NewTransaction(entity.CreditTransaction, 1001, time.Now(), 1.1, "content")
 			t.Tags["tag1"] = "rule1"
 
 			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w pg.Writer) error {
@@ -575,7 +575,7 @@ var _ = Describe("query", Ordered, func() {
 			Expect(err).To(BeNil())
 
 			sql, args, err = insertTransaction.
-				Values(1, time.Now(), "credit", "transaction", "1.1", "hash1").
+				Values(1, time.Now(), 1001, "credit", "transaction", "1.1", "hash1").
 				ToSql()
 			Expect(err).To(BeNil())
 
@@ -591,7 +591,7 @@ var _ = Describe("query", Ordered, func() {
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
 			Expect(err).To(BeNil())
 
-			t := entity.NewTransaction(entity.DebitTransaction, time.Now(), 2, "content")
+			t := entity.NewTransaction(entity.DebitTransaction, 1001, time.Now(), 2, "content")
 			t.ID = 1 // fix ID
 
 			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w pg.Writer) error {
@@ -616,13 +616,13 @@ var _ = Describe("query", Ordered, func() {
 
 		It("update successfully transactions -- remove tags", func() {
 			sql, args, err := insertTransaction.
-				Values(1, time.Now(), "credit", "transaction", "1.1", "hash1").
+				Values(1, time.Now(), 1001, "credit", "transaction", "1.1", "hash1").
 				ToSql()
 
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
 			Expect(err).To(BeNil())
 
-			t := entity.NewTransaction(entity.DebitTransaction, time.Now(), 2, "content")
+			t := entity.NewTransaction(entity.DebitTransaction, 1001, time.Now(), 2, "content")
 			t.ID = 1 // fix ID
 
 			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w pg.Writer) error {
@@ -632,20 +632,17 @@ var _ = Describe("query", Ordered, func() {
 			Expect(err).To(BeNil())
 
 			content := ""
+			account := 0
 			kind := ""
 			hash := ""
-			sql, args, _ = psql.Select("content", "kind", "hash").From("transactions").Where(sq.Eq{"id": 1}).ToSql()
-			rows, err := pgPool.Query(context.TODO(), sql, args...)
+			sql, args, _ = psql.Select("content", "kind", "hash", "account").From("transactions").Where(sq.Eq{"id": 1}).ToSql()
+			err = pgPool.QueryRow(context.TODO(), sql, args...).Scan(&content, &kind, &hash, &account)
 			Expect(err).To(BeNil())
-			defer rows.Close()
 
-			if rows.Next() {
-				err = rows.Scan(&content, &kind, &hash)
-				Expect(err).To(BeNil())
-				Expect(content).To(Equal("content"))
-				Expect(kind).NotTo(Equal("hash1"))
-				Expect(kind).To(Equal("debit"))
-			}
+			Expect(account).To(Equal(1001))
+			Expect(content).To(Equal("content"))
+			Expect(kind).NotTo(Equal("hash1"))
+			Expect(kind).To(Equal("debit"))
 
 		})
 
@@ -696,8 +693,8 @@ var _ = Describe("query", Ordered, func() {
 			Expect(err).To(BeNil())
 
 			sql, args, err = insertTransaction.
-				Values("1", time.Now(), "credit", "transaction", "1.1", "hash1").
-				Values("2", time.Now(), "debit", "transaction", "2.1", "hash2").
+				Values("1", time.Now(), 1001, "credit", "transaction", "1.1", "hash1").
+				Values("2", time.Now(), 1001, "debit", "transaction", "2.1", "hash2").
 				ToSql()
 
 			_, err = pgPool.Exec(context.TODO(), sql, args...)

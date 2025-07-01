@@ -54,7 +54,7 @@ func NewPostgresDatastore(ctx context.Context, url string, options ...Option) (*
 
 // QueryTransactions retrieves transactions from the database based on the provided query filters.
 func (d *Datastore) QueryTransactions(ctx context.Context, filterFn ...QueryFilter) ([]entity.Transaction, error) {
-	query := psql.Select(colID, colDate, colTransactionType, colTransactionContent, colAmount, colTagID, colRuleID, colHash).
+	query := psql.Select(colID, colDate, colTransactionAccount, colTransactionType, colTransactionContent, colTransactionAmount, colTagID, colRuleID, colHash).
 		From(transactionTable).
 		LeftJoin("transactions_tags ON transactions_tags.transaction_id = transactions.id")
 

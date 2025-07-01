@@ -27,6 +27,7 @@ func (tt Transactions) ToEntity() []entity.Transaction {
 			transaction.ID = vv.ID
 			transaction.Date = vv.Date
 			transaction.RawContent = vv.Content
+			transaction.Account = vv.Account
 			transaction.Amount = vv.Amount
 			transaction.Hash = vv.Hash
 			transaction.Kind = entity.TransactionKind(vv.Kind)
@@ -44,6 +45,7 @@ type Transaction struct {
 	ID      int64
 	Kind    string
 	Date    time.Time
+	Account int64 `db:"account"`
 	Content string
 	Amount  float32
 	Hash    string
