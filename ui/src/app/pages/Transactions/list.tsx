@@ -36,8 +36,8 @@ const columns = {
 const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ transactions }) => {
   const { theme } = useTheme();
   const [sortedTransactions, setSortedTransactions] = React.useState<Array<ITransaction>>(Array.from(transactions));
-  const [activeSortIndex, setActiveSortIndex] = React.useState<number | null>(null);
-  const [activeSortDirection, setActiveSortDirection] = React.useState<'asc' | 'desc' | null>(null);
+  const [activeSortIndex, setActiveSortIndex] = React.useState<number | null>(1);
+  const [activeSortDirection, setActiveSortDirection] = React.useState<'asc' | 'desc' | null>('desc');
   const [page, setPage] = React.useState<number | undefined>(1);
   const [perPage, setPerPage] = React.useState<number>(10);
   const [paginatedRows, setPaginatedRows] = React.useState(sortedTransactions.slice(0, 10));
@@ -61,10 +61,23 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     });
   const isTransactionExpanded = (t: ITransaction) => expandedTransactions.includes(t.href);
 
-  // Filter transactions based on date range
+  // Sort transactions by initial sort state when component loads
   React.useEffect(() => {
-    setSortedTransactions(Array.from(transactions));
-  }, [transactions]);
+    const initialSorted = [...transactions].sort((a, b) => {
+      if (activeSortIndex === 1) { // Date column
+        const aValue = a.date.getTime();
+        const bValue = b.date.getTime();
+        
+        if (activeSortDirection === 'desc') {
+          return bValue - aValue;
+        }
+        return aValue - bValue;
+      }
+      return 0; // No sorting for other columns initially
+    });
+    
+    setSortedTransactions(initialSorted);
+  }, [transactions, activeSortIndex, activeSortDirection]);
 
   // Client-side filtering by tags, transaction types, and accounts
   React.useEffect(() => {
@@ -210,11 +223,23 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     }
   };
 
+  const handleTransactionTypeClick = (transactionType: string) => {
+    if (!selectedTransactionTypes.includes(transactionType)) {
+      setSelectedTransactionTypes((prev) => [...prev, transactionType]);
+    }
+  };
+
+  const handleAccountClick = (accountNumber: number) => {
+    if (!selectedAccounts.includes(accountNumber)) {
+      setSelectedAccounts((prev) => [...prev, accountNumber]);
+    }
+  };
+
   const getSortParams = (columnIndex: number): ThProps['sort'] => ({
     sortBy: {
       index: activeSortIndex || undefined,
       direction: activeSortDirection || undefined,
-      defaultDirection: 'asc',
+      defaultDirection: columnIndex === 1 ? 'desc' : 'asc', // Date column (index 1) defaults to desc
     },
     onSort: (_event, index, direction) => {
       const sorted = [...filteredTransactions].sort((a, b) => {
@@ -489,11 +514,29 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                   day: 'numeric',
                 })}
               </Td>
-              <Td dataLabel={columns.account}>{t.account}</Td>
+              <Td dataLabel={columns.account}>
+                <Label
+                  variant={theme === 'dark' ? 'outline' : 'filled'}
+                  color="purple"
+                  onClick={() => handleAccountClick(t.account)}
+                  style={{
+                    cursor: 'pointer',
+                    ...(theme === 'dark' && { color: '#b19cd9' }),
+                  }}
+                  aria-label={`Filter by account ${t.account}`}
+                >
+                  {t.account}
+                </Label>
+              </Td>
               <Td dataLabel="{columns.kind}">
                 <Label
                   variant={theme === 'dark' ? 'outline' : 'filled'}
                   color={getTransactionKindColor(t.kind)}
+                  onClick={() => handleTransactionTypeClick(t.kind)}
+                  style={{
+                    cursor: 'pointer',
+                  }}
+                  aria-label={`Filter by ${t.kind} transactions`}
                 >
                   {t.kind.charAt(0).toUpperCase() + t.kind.slice(1)}
                 </Label>
