@@ -19,6 +19,7 @@ import { ExpandableRowContent, Table, Tbody, Td, Th, Thead, ThProps, Tr } from '
 import { ITagTransaction, ITransaction } from '@app/shared/models/transaction';
 import { TagFilter } from '@app/shared/components/tag-filter';
 import { useTheme } from '@app/shared/contexts/ThemeContext';
+import { getAccountColor, getAccountDarkColor } from '@app/utils/colorUtils';
 
 export interface ITransactionListProps {
   transactions: Array<ITransaction> | [];
@@ -424,10 +425,10 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                           <FlexItem key={index}>
                             <Label
                               variant={theme === 'dark' ? 'outline' : 'filled'}
-                              color="purple"
+                              color={getAccountColor(account)}
                               onClose={() => handleAccountRemove(account)}
                               closeBtnAriaLabel={`Remove ${account} filter`}
-                              style={theme === 'dark' ? { color: '#b19cd9' } : {}}
+                              style={theme === 'dark' ? { color: getAccountDarkColor(account) } : {}}
                             >
                               {account.toString()}
                             </Label>
@@ -517,11 +518,11 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
               <Td dataLabel={columns.account}>
                 <Label
                   variant={theme === 'dark' ? 'outline' : 'filled'}
-                  color="purple"
+                  color={getAccountColor(t.account)}
                   onClick={() => handleAccountClick(t.account)}
                   style={{
                     cursor: 'pointer',
-                    ...(theme === 'dark' && { color: '#b19cd9' }),
+                    ...(theme === 'dark' && { color: getAccountDarkColor(t.account) }),
                   }}
                   aria-label={`Filter by account ${t.account}`}
                 >
