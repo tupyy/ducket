@@ -6,25 +6,23 @@ import { TransactionList } from './list';
 import { CubesIcon } from '@patternfly/react-icons';
 import { Content, EmptyState, EmptyStateBody, EmptyStateVariant } from '@patternfly/react-core';
 import { TimePicker } from '@app/shared/components/time-picker';
+import { calculateDateRange } from '@app/utils/dateUtils';
 
 const Transactions: React.FunctionComponent = () => {
   const dispatch = useAppDispatch();
   const transactions = useAppSelector((state) => state.transactions);
-  const [dateRange, setDateRange] = React.useState<{ startDate: string; endDate: string } | null>(null);
-
-  React.useEffect(() => {
-    // Initial load without filters
-    dispatch(getTransactions());
-  }, [dispatch]);
+  
+  // Initialize with last 30 days default date range
+  const defaultDateRange = React.useMemo(() => calculateDateRange('last 30 days'), []);
+  const [dateRange, setDateRange] = React.useState<{ startDate: string; endDate: string }>({
+    startDate: defaultDateRange.startDateValue,
+    endDate: defaultDateRange.endDateValue
+  });
 
   React.useEffect(() => {
     // Fetch transactions when date range changes (backend filtering)
-    if (dateRange) {
-      dispatch(getTransactions(dateRange));
-    } else {
-      // Reset to all transactions if no date range
-      dispatch(getTransactions());
-    }
+    // This includes initial load with default date range (last 30 days)
+    dispatch(getTransactions(dateRange));
   }, [dateRange, dispatch]);
 
   const handleDateChange = (startDate: string, endDate: string) => {
@@ -49,7 +47,12 @@ const Transactions: React.FunctionComponent = () => {
         <ToolbarContent>
           <ToolbarGroup>
             <ToolbarItem>
-              <TimePicker onDateChange={handleDateChange} />
+              <TimePicker 
+                onDateChange={handleDateChange} 
+                initialStartDate={dateRange.startDate}
+                initialEndDate={dateRange.endDate}
+                initialTimeRange="last 30 days"
+              />
             </ToolbarItem>
           </ToolbarGroup>
         </ToolbarContent>

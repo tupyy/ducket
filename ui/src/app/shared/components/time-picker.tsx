@@ -9,12 +9,13 @@ import {
   MenuToggle,
   MenuToggleElement,
 } from '@patternfly/react-core';
-import { calculateDateRange } from '@app/utils/dateUtils';
+import { calculateDateRange, getRelativeTimeRange } from '@app/utils/dateUtils';
 
 interface TimePickerProps {
   onDateChange?: (startDate: string, endDate: string) => void;
   initialStartDate?: string;
   initialEndDate?: string;
+  initialTimeRange?: string;
 }
 
 const timeList = [
@@ -32,7 +33,7 @@ const css: React.CSSProperties = {
   gridTemplateColumns: 'repeat(3, 1fr)',
 };
 
-const TimePicker: React.FC<TimePickerProps> = ({ onDateChange, initialStartDate, initialEndDate }) => {
+const TimePicker: React.FC<TimePickerProps> = ({ onDateChange, initialStartDate, initialEndDate, initialTimeRange }) => {
   const getFirstDayOfMonth = () => {
     const today = new Date();
     const year = today.getFullYear();
@@ -47,7 +48,31 @@ const TimePicker: React.FC<TimePickerProps> = ({ onDateChange, initialStartDate,
   const [startDate, setStartDate] = React.useState<string>(initialStartDate || getFirstDayOfMonth());
   const [endDate, setEndDate] = React.useState<string>(initialEndDate || getTodayDate());
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
-  const [selectedTimeRange, setSelectedTimeRange] = React.useState<string>('Select time range');
+  
+  // Initialize selectedTimeRange based on initial dates or provided range
+  const getInitialTimeRange = () => {
+    if (initialTimeRange) {
+      return initialTimeRange;
+    }
+    if (initialStartDate && initialEndDate) {
+      const detectedRange = getRelativeTimeRange(initialStartDate, initialEndDate);
+      // Check if it matches one of our predefined ranges
+      return timeList.includes(detectedRange) ? detectedRange : 'Custom range';
+    }
+    return 'Select time range';
+  };
+
+  // Helper function to update time range display based on current dates
+  const updateTimeRangeDisplay = (start: string, end: string) => {
+    const detectedRange = getRelativeTimeRange(start, end);
+    if (timeList.includes(detectedRange)) {
+      setSelectedTimeRange(detectedRange);
+    } else {
+      setSelectedTimeRange('Custom range');
+    }
+  };
+  
+  const [selectedTimeRange, setSelectedTimeRange] = React.useState<string>(getInitialTimeRange());
 
   React.useEffect(() => {
     // Trigger callback with initial values on mount
@@ -60,14 +85,17 @@ const TimePicker: React.FC<TimePickerProps> = ({ onDateChange, initialStartDate,
     // If start date is after end date, update end date to match start date
     if (value && endDate && new Date(value) > new Date(endDate)) {
       setEndDate(value);
+      updateTimeRangeDisplay(value, value);
       onDateChange?.(value, value);
     } else {
+      updateTimeRangeDisplay(value, endDate);
       onDateChange?.(value, endDate);
     }
   };
 
   const handleEndDateChange = (_event: any, value: string) => {
     setEndDate(value);
+    updateTimeRangeDisplay(startDate, value);
     onDateChange?.(startDate, value);
   };
 
