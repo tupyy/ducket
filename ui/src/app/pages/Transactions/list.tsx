@@ -20,6 +20,11 @@ import { ITagTransaction, ITransaction } from '@app/shared/models/transaction';
 import { TagFilter } from '@app/shared/components/tag-filter';
 import { useTheme } from '@app/shared/contexts/ThemeContext';
 import { getAccountColor, getAccountDarkColor } from '@app/utils/colorUtils';
+import { useAppDispatch, useAppSelector } from '@app/shared/store';
+import {
+  setSourceTransactions,
+  applyFilters,
+} from '@app/shared/reducers/transaction-filter.reducer';
 
 export interface ITransactionListProps {
   transactions: Array<ITransaction> | [];
@@ -36,80 +41,26 @@ const columns = {
 
 const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ transactions }) => {
   const { theme } = useTheme();
+  const dispatch = useAppDispatch();
+  
+  // Get initial transactions from transactions reducer and filtered results from filter reducer
+  const { filteredTransactions } = useAppSelector((state) => state.transactionFilter);
+
+  // Local state for filters, UI, sorting, pagination, and expanded rows
+  const [selectedTags, setSelectedTags] = React.useState<string[]>([]);
+  const [selectedTransactionTypes, setSelectedTransactionTypes] = React.useState<string[]>([]);
+  const [selectedAccounts, setSelectedAccounts] = React.useState<number[]>([]);
+  const [isTransactionTypeSelectOpen, setIsTransactionTypeSelectOpen] = React.useState(false);
+  const [isAccountSelectOpen, setIsAccountSelectOpen] = React.useState(false);
   const [sortedTransactions, setSortedTransactions] = React.useState<Array<ITransaction>>(Array.from(transactions));
   const [activeSortIndex, setActiveSortIndex] = React.useState<number | null>(1);
   const [activeSortDirection, setActiveSortDirection] = React.useState<'asc' | 'desc' | null>('desc');
   const [page, setPage] = React.useState<number | undefined>(1);
   const [perPage, setPerPage] = React.useState<number>(10);
-  const [paginatedRows, setPaginatedRows] = React.useState(sortedTransactions.slice(0, 10));
-  const [selectedTags, setSelectedTags] = React.useState<string[]>([]);
-  const [selectedTransactionTypes, setSelectedTransactionTypes] = React.useState<string[]>([]);
-  const [selectedAccounts, setSelectedAccounts] = React.useState<number[]>([]);
-  const [filteredTransactions, setFilteredTransactions] = React.useState<Array<ITransaction>>([]);
-  const [isTransactionTypeSelectOpen, setIsTransactionTypeSelectOpen] = React.useState(false);
-  const [isAccountSelectOpen, setIsAccountSelectOpen] = React.useState(false);
-
-  // Helper function to get transaction kind label color
-  const getTransactionKindColor = (kind: string): 'red' | 'blue' => {
-    return kind.toLowerCase() === 'debit' ? 'red' : 'blue';
-  };
-
+  const [paginatedRows, setPaginatedRows] = React.useState(filteredTransactions.slice(0, 10));
   const [expandedTransactions, setExpandedTransactions] = React.useState<string[]>([]);
-  const setTransactionExpanded = (t: ITransaction, isExpanding = true) =>
-    setExpandedTransactions((prevExpanded) => {
-      const otherExpandedRepoNames = prevExpanded.filter((tt) => tt !== t.href);
-      return isExpanding ? [...otherExpandedRepoNames, t.href] : otherExpandedRepoNames;
-    });
-  const isTransactionExpanded = (t: ITransaction) => expandedTransactions.includes(t.href);
 
-  // Sort transactions by initial sort state when component loads
-  React.useEffect(() => {
-    const initialSorted = [...transactions].sort((a, b) => {
-      if (activeSortIndex === 1) { // Date column
-        const aValue = a.date.getTime();
-        const bValue = b.date.getTime();
-        
-        if (activeSortDirection === 'desc') {
-          return bValue - aValue;
-        }
-        return aValue - bValue;
-      }
-      return 0; // No sorting for other columns initially
-    });
-    
-    setSortedTransactions(initialSorted);
-  }, [transactions, activeSortIndex, activeSortDirection]);
-
-  // Client-side filtering by tags, transaction types, and accounts
-  React.useEffect(() => {
-    let filtered = sortedTransactions;
-
-    // Filter by tags
-    if (selectedTags.length > 0) {
-      filtered = filtered.filter((transaction) =>
-        selectedTags.some((selectedTag) => transaction.tags.some((tag) => tag.value === selectedTag)),
-      );
-    }
-
-    // Filter by transaction types
-    if (selectedTransactionTypes.length > 0) {
-      filtered = filtered.filter((transaction) => selectedTransactionTypes.includes(transaction.kind));
-    }
-
-    // Filter by accounts
-    if (selectedAccounts.length > 0) {
-      filtered = filtered.filter((transaction) => selectedAccounts.includes(transaction.account));
-    }
-
-    setFilteredTransactions(filtered);
-  }, [sortedTransactions, selectedTags, selectedTransactionTypes, selectedAccounts]);
-
-  React.useEffect(() => {
-    setPaginatedRows(filteredTransactions?.slice(0, perPage));
-    setPage(1);
-  }, [filteredTransactions, perPage]);
-
-  // Get available tag values from the actual transactions
+  // Get available options from transactions
   const availableTags = React.useMemo(() => {
     const tagSet = new Set<string>();
     transactions.forEach((transaction) => {
@@ -120,7 +71,6 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     return Array.from(tagSet).sort();
   }, [transactions]);
 
-  // Get available transaction types
   const availableTransactionTypes = React.useMemo(() => {
     const typeSet = new Set<string>();
     transactions.forEach((transaction) => {
@@ -129,7 +79,6 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     return Array.from(typeSet).sort();
   }, [transactions]);
 
-  // Get available accounts
   const availableAccounts = React.useMemo(() => {
     const accountSet = new Set<number>();
     transactions.forEach((transaction) => {
@@ -139,6 +88,85 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     });
     return Array.from(accountSet).sort((a, b) => a - b);
   }, [transactions]);
+
+  // Helper function to get transaction kind label color
+  const getTransactionKindColor = (kind: string): 'red' | 'blue' => {
+    return kind.toLowerCase() === 'debit' ? 'red' : 'blue';
+  };
+
+  const setTransactionExpanded = (t: ITransaction, isExpanding = true) =>
+    setExpandedTransactions((prevExpanded) => {
+      const otherExpandedRepoNames = prevExpanded.filter((tt) => tt !== t.href);
+      return isExpanding ? [...otherExpandedRepoNames, t.href] : otherExpandedRepoNames;
+    });
+  const isTransactionExpanded = (t: ITransaction) => expandedTransactions.includes(t.href);
+
+  // Initialize source transactions when transactions change
+  React.useEffect(() => {
+    dispatch(setSourceTransactions(transactions));
+  }, [transactions, dispatch]);
+
+  // Apply filters whenever filter selections change
+  React.useEffect(() => {
+    dispatch(applyFilters({
+      selectedTags,
+      selectedTransactionTypes,
+      selectedAccounts,
+    }));
+  }, [selectedTags, selectedTransactionTypes, selectedAccounts, dispatch]);
+
+  // Sort filtered transactions when filtered transactions or sort parameters change
+  React.useEffect(() => {
+    const sortTransactions = (
+      transactionsToSort: ITransaction[],
+      sortIndex: number | null,
+      sortDirection: 'asc' | 'desc' | null
+    ): ITransaction[] => {
+      if (sortIndex === null || sortDirection === null) {
+        return [...transactionsToSort];
+      }
+
+      return [...transactionsToSort].sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+
+        switch (sortIndex) {
+          case 1: // Date
+            aValue = a.date.getTime();
+            bValue = b.date.getTime();
+            break;
+          case 2: // Account
+            aValue = a.account;
+            bValue = b.account;
+            break;
+          case 3: // Type
+            aValue = a.kind;
+            bValue = b.kind;
+            break;
+          case 6: // Amount
+            aValue = a.amount;
+            bValue = b.amount;
+            break;
+          default:
+            return 0;
+        }
+
+        if (sortDirection === 'desc') {
+          return bValue < aValue ? -1 : bValue > aValue ? 1 : 0;
+        }
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      });
+    };
+
+    const sorted = sortTransactions(filteredTransactions, activeSortIndex, activeSortDirection);
+    setSortedTransactions(sorted);
+  }, [filteredTransactions, activeSortIndex, activeSortDirection]);
+
+  // Update pagination when sorted transactions change
+  React.useEffect(() => {
+    setPaginatedRows(sortedTransactions?.slice(0, perPage));
+    setPage(1);
+  }, [sortedTransactions, perPage]);
 
   const handleTagsChange = (tags: string[]) => {
     console.log('Selected tags changed:', tags);
@@ -201,75 +229,57 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   };
 
   const handleTagClick = (tagValue: string) => {
-    if (!selectedTags.includes(tagValue)) {
-      setSelectedTags((prev) => [...prev, tagValue]);
-    }
+    const newSelectedTags = selectedTags.includes(tagValue)
+      ? selectedTags.filter((tag) => tag !== tagValue)
+      : [...selectedTags, tagValue];
+    setSelectedTags(newSelectedTags);
   };
 
   const handleRuleClick = (ruleId: string) => {
-    // Find all tags associated with this rule across all transactions
-    const tagsForRule = new Set<string>();
+    // Find all tags associated with this rule
+    const ruleTags = new Set<string>();
     transactions.forEach((transaction) => {
       transaction.tags.forEach((tag) => {
         if (tag.rule === ruleId) {
-          tagsForRule.add(tag.value);
+          ruleTags.add(tag.value);
         }
       });
     });
 
-    // Add all tags for this rule to the selected tags (if not already selected)
-    const newTags = Array.from(tagsForRule).filter((tag) => !selectedTags.includes(tag));
-    if (newTags.length > 0) {
-      setSelectedTags((prev) => [...prev, ...newTags]);
-    }
+    const ruleTagsArray = Array.from(ruleTags);
+    const newSelectedTags = Array.from(new Set([...selectedTags, ...ruleTagsArray]));
+    setSelectedTags(newSelectedTags);
   };
 
   const handleTransactionTypeClick = (transactionType: string) => {
-    if (!selectedTransactionTypes.includes(transactionType)) {
-      setSelectedTransactionTypes((prev) => [...prev, transactionType]);
-    }
+    setSelectedTransactionTypes((prev) => {
+      if (prev.includes(transactionType)) {
+        return prev.filter((type) => type !== transactionType);
+      } else {
+        return [...prev, transactionType];
+      }
+    });
   };
 
   const handleAccountClick = (accountNumber: number) => {
-    if (!selectedAccounts.includes(accountNumber)) {
-      setSelectedAccounts((prev) => [...prev, accountNumber]);
-    }
+    setSelectedAccounts((prev) => {
+      if (prev.includes(accountNumber)) {
+        return prev.filter((account) => account !== accountNumber);
+      } else {
+        return [...prev, accountNumber];
+      }
+    });
   };
 
   const getSortParams = (columnIndex: number): ThProps['sort'] => ({
     sortBy: {
-      index: activeSortIndex || undefined,
-      direction: activeSortDirection || undefined,
-      defaultDirection: columnIndex === 1 ? 'desc' : 'asc', // Date column (index 1) defaults to desc
+      index: activeSortIndex!,
+      direction: activeSortDirection!,
+      defaultDirection: 'asc',
     },
     onSort: (_event, index, direction) => {
-      const sorted = [...filteredTransactions].sort((a, b) => {
-        let aValue: Date | number = a.date;
-        let bValue: Date | number = b.date;
-        if (index == 6) {
-          aValue = a.amount;
-          bValue = b.amount;
-        }
-
-        if (typeof aValue === 'number') {
-          // Numeric sort
-          if (direction === 'asc') {
-            return (aValue as number) - (bValue as number);
-          }
-          return (bValue as number) - (aValue as number);
-        }
-        // date sort
-        if (direction === 'asc') {
-          return (aValue as Date).getTime() - (bValue as Date).getTime();
-        }
-        return (bValue as Date).getTime() - (aValue as Date).getTime();
-      });
-
-      setFilteredTransactions(sorted);
       setActiveSortIndex(index);
       setActiveSortDirection(direction);
-      setPaginatedRows(sorted.slice(0, perPage));
-      setPage(1);
     },
     columnIndex,
   });
@@ -281,7 +291,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     startIdx: number | undefined,
     endIdx: number | undefined,
   ) => {
-    setPaginatedRows(filteredTransactions?.slice(startIdx, endIdx));
+    setPaginatedRows(sortedTransactions?.slice(startIdx, endIdx));
     setPage(newPage);
   };
 
@@ -292,7 +302,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     startIdx: number | undefined,
     endIdx: number | undefined,
   ) => {
-    setPaginatedRows(filteredTransactions.slice(startIdx, endIdx));
+    setPaginatedRows(sortedTransactions?.slice(startIdx, endIdx));
     setPage(newPage);
     setPerPage(newPerPage);
   };
@@ -301,7 +311,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     <Pagination
       id={`datalist-${variant}-pagination`}
       variant={variant}
-      itemCount={filteredTransactions.length}
+      itemCount={sortedTransactions.length}
       page={page}
       perPage={perPage}
       isCompact={isCompact}

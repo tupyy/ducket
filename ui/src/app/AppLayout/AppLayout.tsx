@@ -24,6 +24,15 @@ import { BarsIcon } from '@patternfly/react-icons';
 import { ThemeToggle } from '@app/shared/components/ThemeToggle';
 import { useTheme } from '@app/shared/contexts/ThemeContext';
 
+// Create a context for page styling
+const PageStyleContext = React.createContext<{
+  pageBackgroundColor: string;
+}>({
+  pageBackgroundColor: 'var(--pf-v6-global--BackgroundColor--100)',
+});
+
+export const usePageStyle = () => React.useContext(PageStyleContext);
+
 interface IAppLayout {
   children: React.ReactNode;
 }
@@ -42,6 +51,9 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
       document.documentElement.classList.remove('pf-v6-theme-dark');
     }
   }, [theme]);
+
+  // Define the page background color to pass to children
+  const pageBackgroundColor = 'var(--pf-v6-global--BackgroundColor--200)';
 
   const masthead = (
     <Masthead>
@@ -119,14 +131,16 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
     </SkipToContent>
   );
   return (
-    <Page
-      mainContainerId={pageId}
-      masthead={masthead}
-      sidebar={sidebarOpen && Sidebar}
-      skipToContent={PageSkipToContent}
-    >
-      {children}
-    </Page>
+    <PageStyleContext.Provider value={{ pageBackgroundColor }}>
+      <Page
+        mainContainerId={pageId}
+        masthead={masthead}
+        sidebar={sidebarOpen && Sidebar}
+        skipToContent={PageSkipToContent}
+      >
+        {children}
+      </Page>
+    </PageStyleContext.Provider>
   );
 };
 

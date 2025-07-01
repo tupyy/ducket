@@ -1,16 +1,19 @@
 import * as React from 'react';
 import { getTransactions } from '@app/shared/reducers/transaction.reducer';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
-import { PageSection, Toolbar, ToolbarContent, ToolbarGroup, ToolbarItem } from '@patternfly/react-core';
+import { PageSection, Toolbar, ToolbarContent, ToolbarGroup, ToolbarItem, Card, CardBody } from '@patternfly/react-core';
 import { TransactionList } from './list';
+import { TagTotalTable } from './TagTotalTable';
 import { CubesIcon } from '@patternfly/react-icons';
 import { Content, EmptyState, EmptyStateBody, EmptyStateVariant } from '@patternfly/react-core';
 import { TimePicker } from '@app/shared/components/time-picker';
 import { calculateDateRange } from '@app/utils/dateUtils';
+import { usePageStyle } from '@app/AppLayout/AppLayout';
 
 const Transactions: React.FunctionComponent = () => {
   const dispatch = useAppDispatch();
   const transactions = useAppSelector((state) => state.transactions);
+  const { pageBackgroundColor } = usePageStyle();
   
   // Initialize with last 30 days default date range
   const defaultDateRange = React.useMemo(() => calculateDateRange('last 30 days'), []);
@@ -41,29 +44,39 @@ const Transactions: React.FunctionComponent = () => {
   );
 
   return (
-    <PageSection hasBodyWrapper={false}>
-      {/* Date Picker Toolbar */}
-      <Toolbar>
-        <ToolbarContent>
-          <ToolbarGroup>
-            <ToolbarItem>
-              <TimePicker 
-                onDateChange={handleDateChange} 
-                initialStartDate={dateRange.startDate}
-                initialEndDate={dateRange.endDate}
-                initialTimeRange="last 30 days"
-              />
-            </ToolbarItem>
-          </ToolbarGroup>
-        </ToolbarContent>
-      </Toolbar>
+    <PageSection hasBodyWrapper={false} style={{ backgroundColor: pageBackgroundColor }}>
+      {/* Tag Totals Table */}
+      <TagTotalTable startDate={dateRange.startDate} endDate={dateRange.endDate} />
 
-      {/* Transaction List with integrated tag filter */}
-      {transactions.transactions.length == 0 ? (
-        emptyState
-      ) : (
-        <TransactionList transactions={transactions.transactions} />
-      )}
+      {/* Main Content Card */}
+      <div style={{ padding: '1rem' }}>
+        <Card>
+          <CardBody>
+            {/* Date Picker Toolbar */}
+            <Toolbar>
+              <ToolbarContent>
+                <ToolbarGroup>
+                  <ToolbarItem>
+                    <TimePicker 
+                      onDateChange={handleDateChange} 
+                      initialStartDate={dateRange.startDate}
+                      initialEndDate={dateRange.endDate}
+                      initialTimeRange="last 30 days"
+                    />
+                  </ToolbarItem>
+                </ToolbarGroup>
+              </ToolbarContent>
+            </Toolbar>
+
+            {/* Transaction List with integrated tag filter */}
+            {transactions.transactions.length == 0 ? (
+              emptyState
+            ) : (
+              <TransactionList transactions={transactions.transactions} />
+            )}
+          </CardBody>
+        </Card>
+      </div>
     </PageSection>
   );
 };
