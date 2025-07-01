@@ -5,8 +5,7 @@ import {
   CardBody,
 } from '@patternfly/react-core';
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table';
-import { useAppSelector, useAppDispatch } from '@app/shared/store';
-import { setSourceTransactions } from '@app/shared/reducers/transaction-filter.reducer';
+import { ITransaction } from '@app/shared/models/transaction';
 
 interface TagTotal {
   tag: string;
@@ -15,27 +14,17 @@ interface TagTotal {
 }
 
 interface TagTotalTableProps {
+  transactions: ITransaction[];
   startDate?: string;
   endDate?: string;
 }
 
-const TagTotalTable: React.FunctionComponent<TagTotalTableProps> = ({ startDate, endDate }) => {
-  const dispatch = useAppDispatch();
-  const { filteredTransactions, sourceTransactions } = useAppSelector((state) => state.transactionFilter);
-  const { transactions } = useAppSelector((state) => state.transactions);
-
-  // Initialize filter reducer if it's empty but we have transactions
-  React.useEffect(() => {
-    if (sourceTransactions.length === 0 && transactions.length > 0) {
-      dispatch(setSourceTransactions(transactions));
-    }
-  }, [sourceTransactions.length, transactions.length, transactions, dispatch]);
-
+const TagTotalTable: React.FunctionComponent<TagTotalTableProps> = ({ transactions, startDate, endDate }) => {
   // Compute totals by tag
   const tagTotals = React.useMemo(() => {
     const tagMap = new Map<string, { totalAmount: number; transactionCount: number }>();
 
-    filteredTransactions.forEach((transaction) => {
+    transactions.forEach((transaction) => {
       transaction.tags.forEach((tag) => {
         const existing = tagMap.get(tag.value) || { totalAmount: 0, transactionCount: 0 };
         tagMap.set(tag.value, {
@@ -53,10 +42,10 @@ const TagTotalTable: React.FunctionComponent<TagTotalTableProps> = ({ startDate,
         transactionCount: data.transactionCount,
       }))
       .sort((a, b) => Math.abs(b.totalAmount) - Math.abs(a.totalAmount));
-  }, [filteredTransactions]);
+  }, [transactions]);
 
   // Don't render if no transactions
-  if (filteredTransactions.length === 0) {
+  if (transactions.length === 0) {
     return null;
   }
 

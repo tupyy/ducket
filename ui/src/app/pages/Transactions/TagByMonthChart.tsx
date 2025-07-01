@@ -9,10 +9,11 @@ import {
   ChartLegend,
   ChartVoronoiContainer,
 } from '@patternfly/react-charts/victory';
-import { useAppSelector } from '@app/shared/store';
+import { ITransaction } from '@app/shared/models/transaction';
 import { useTheme } from '@app/shared/contexts/ThemeContext';
 
 interface TagByMonthChartProps {
+  transactions: ITransaction[];
   startDate?: string;
   endDate?: string;
   title?: string;
@@ -25,12 +26,12 @@ interface MonthlyTagData {
 }
 
 const TagByMonthChart: React.FC<TagByMonthChartProps> = ({
+  transactions,
   startDate,
   endDate,
   title = 'Tag Totals by Month',
 }) => {
   const { theme } = useTheme();
-  const { filteredTransactions } = useAppSelector((state) => state.transactionFilter);
 
   // Validate date range spans multiple months
   const dateRangeError = React.useMemo(() => {
@@ -59,7 +60,7 @@ const TagByMonthChart: React.FC<TagByMonthChartProps> = ({
 
   // Process data to get monthly totals by tag
   const monthlyData = React.useMemo(() => {
-    if (dateRangeError || filteredTransactions.length === 0) {
+    if (dateRangeError || transactions.length === 0) {
       return [];
     }
 
@@ -67,7 +68,7 @@ const TagByMonthChart: React.FC<TagByMonthChartProps> = ({
     const end = new Date(endDate!);
 
     // Filter transactions within date range
-    const transactionsInRange = filteredTransactions.filter((transaction) => {
+    const transactionsInRange = transactions.filter((transaction) => {
       const transactionDate = new Date(transaction.date);
       return transactionDate >= start && transactionDate <= end;
     });
@@ -105,7 +106,7 @@ const TagByMonthChart: React.FC<TagByMonthChartProps> = ({
       };
       return parseMonth(a.month) - parseMonth(b.month);
     });
-  }, [filteredTransactions, startDate, endDate, dateRangeError]);
+  }, [transactions, startDate, endDate, dateRangeError]);
 
   // Get unique tags and months for chart organization
   const uniqueTags = React.useMemo(() => {

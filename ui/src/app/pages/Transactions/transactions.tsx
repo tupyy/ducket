@@ -14,6 +14,7 @@ import { usePageStyle } from '@app/AppLayout/AppLayout';
 const Transactions: React.FunctionComponent = () => {
   const dispatch = useAppDispatch();
   const transactions = useAppSelector((state) => state.transactions);
+  const { filteredTransactions } = useAppSelector((state) => state.transactionFilter);
   const { pageBackgroundColor } = usePageStyle();
   
   // Initialize with last 30 days default date range
@@ -51,13 +52,18 @@ const Transactions: React.FunctionComponent = () => {
         <Grid hasGutter>
           <GridItem span={6}>
             <TagByMonthChart 
+              transactions={filteredTransactions}
               startDate={dateRange.startDate} 
               endDate={dateRange.endDate} 
               title="Tag Totals by Month"
             />
           </GridItem>
           <GridItem span={6}>
-            <TagTotalTable startDate={dateRange.startDate} endDate={dateRange.endDate} />
+            <TagTotalTable 
+              transactions={filteredTransactions}
+              startDate={dateRange.startDate} 
+              endDate={dateRange.endDate} 
+            />
           </GridItem>
         </Grid>
       </div>
