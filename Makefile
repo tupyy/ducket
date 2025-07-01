@@ -95,6 +95,9 @@ build.local:
 run:
 	$(BUILD_DIR)/$(NAME) serve | $(COLORIZE)
 
+run.front:
+	cd ui && npm run start:dev
+
 DB_HOST=localhost
 DB_PORT=5432
 ROOT_USER=postgres

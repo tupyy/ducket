@@ -1,16 +1,12 @@
 import * as React from 'react';
 import {
-  PageSection,
   Title,
   Card,
   CardBody,
-  Grid,
-  GridItem,
 } from '@patternfly/react-core';
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table';
 import { useAppSelector, useAppDispatch } from '@app/shared/store';
 import { setSourceTransactions } from '@app/shared/reducers/transaction-filter.reducer';
-import { TagByMonthChart } from './TagByMonthChart';
 
 interface TagTotal {
   tag: string;
@@ -65,66 +61,48 @@ const TagTotalTable: React.FunctionComponent<TagTotalTableProps> = ({ startDate,
   }
 
   return (
-    <PageSection padding={{ default: 'noPadding' }}>
-      <div style={{ padding: '1rem' }}>
-        <Grid hasGutter>
-          {/* Bar Chart on the left */}
-          <GridItem span={7}>
-            <TagByMonthChart 
-              startDate={startDate} 
-              endDate={endDate} 
-              title="Tag Totals by Month"
-            />
-          </GridItem>
-
-          {/* Table on the right */}
-          <GridItem span={5}>
-            <Card style={{ height: '400px' }}>
-              <CardBody>
-                <Title headingLevel="h3" size="lg" style={{ marginBottom: '1rem' }}>
-                  Total Amounts by Tag
-                </Title>
-                
-                <div style={{ height: '320px', overflowY: 'auto' }}>
-                  <Table aria-label="Tag totals table" variant="compact">
-                    <Thead>
-                      <Tr>
-                        <Th width={40}>Tag</Th>
-                        <Th width={30}>Total Amount</Th>
-                        <Th width={30}>Transaction Count</Th>
-                      </Tr>
-                    </Thead>
-                    <Tbody>
-                      {tagTotals.map((tagTotal) => (
-                        <Tr key={tagTotal.tag}>
-                          <Td>{tagTotal.tag}</Td>
-                          <Td>
-                            <span
-                              style={{
-                                color: tagTotal.totalAmount >= 0 ? '#3e8635' : '#c9190b',
-                                fontWeight: 'bold',
-                              }}
-                            >
-                              {tagTotal.totalAmount.toLocaleString('fr-FR', {
-                                style: 'currency',
-                                currency: 'EUR',
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}
-                            </span>
-                          </Td>
-                          <Td>{tagTotal.transactionCount}</Td>
-                        </Tr>
-                      ))}
-                    </Tbody>
-                  </Table>
-                </div>
-              </CardBody>
-            </Card>
-          </GridItem>
-        </Grid>
-      </div>
-    </PageSection>
+    <Card style={{ height: '400px' }}>
+      <CardBody>
+        <Title headingLevel="h3" size="lg" style={{ marginBottom: '1rem' }}>
+          Total Amounts by Tag
+        </Title>
+        
+        <div style={{ height: '320px', overflowY: 'auto' }}>
+          <Table aria-label="Tag totals table" variant="compact">
+            <Thead>
+              <Tr>
+                <Th width={40}>Tag</Th>
+                <Th width={30}>Total Amount</Th>
+                <Th width={30}>Transaction Count</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {tagTotals.map((tagTotal) => (
+                <Tr key={tagTotal.tag}>
+                  <Td>{tagTotal.tag}</Td>
+                  <Td>
+                    <span
+                      style={{
+                        color: tagTotal.totalAmount >= 0 ? '#3e8635' : '#c9190b',
+                        fontWeight: 'bold',
+                      }}
+                    >
+                      {tagTotal.totalAmount.toLocaleString('fr-FR', {
+                        style: 'currency',
+                        currency: 'EUR',
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </span>
+                  </Td>
+                  <Td>{tagTotal.transactionCount}</Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        </div>
+      </CardBody>
+    </Card>
   );
 };
 

@@ -1,9 +1,10 @@
 import * as React from 'react';
 import { getTransactions } from '@app/shared/reducers/transaction.reducer';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
-import { PageSection, Toolbar, ToolbarContent, ToolbarGroup, ToolbarItem, Card, CardBody } from '@patternfly/react-core';
+import { PageSection, Toolbar, ToolbarContent, ToolbarGroup, ToolbarItem, Card, CardBody, Grid, GridItem } from '@patternfly/react-core';
 import { TransactionList } from './list';
 import { TagTotalTable } from './TagTotalTable';
+import { TagByMonthChart } from './TagByMonthChart';
 import { CubesIcon } from '@patternfly/react-icons';
 import { Content, EmptyState, EmptyStateBody, EmptyStateVariant } from '@patternfly/react-core';
 import { TimePicker } from '@app/shared/components/time-picker';
@@ -44,9 +45,22 @@ const Transactions: React.FunctionComponent = () => {
   );
 
   return (
-    <PageSection hasBodyWrapper={false} style={{ backgroundColor: pageBackgroundColor }}>
-      {/* Tag Totals Table */}
-      <TagTotalTable startDate={dateRange.startDate} endDate={dateRange.endDate} />
+    <PageSection hasBodyWrapper={false} style={{ backgroundColor: 'transparent' }}>
+      {/* Tag Analytics Section */}
+      <div style={{ padding: '1rem' }}>
+        <Grid hasGutter>
+          <GridItem span={6}>
+            <TagByMonthChart 
+              startDate={dateRange.startDate} 
+              endDate={dateRange.endDate} 
+              title="Tag Totals by Month"
+            />
+          </GridItem>
+          <GridItem span={6}>
+            <TagTotalTable startDate={dateRange.startDate} endDate={dateRange.endDate} />
+          </GridItem>
+        </Grid>
+      </div>
 
       {/* Main Content Card */}
       <div style={{ padding: '1rem' }}>
