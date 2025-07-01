@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { ITagReport, ITransactionTypeReport } from '@app/shared/models/tag';
+import { ITagReport, ITransactionTypeReport, IAccountTransactionTypeReport } from '@app/shared/models/tag';
 import { ITransaction } from '@app/shared/models/transaction';
 import { serializeAxiosError } from './reducer.utils';
 
@@ -8,6 +8,7 @@ const initialState = {
   errorMessage: '',
   tagReportData: [] as Array<ITagReport>,
   transactionTypeData: [] as Array<ITransactionTypeReport>,
+  accountTransactionTypeData: [] as Array<IAccountTransactionTypeReport>,
 };
 
 export const calculateTagReport = createAsyncThunk(
@@ -71,6 +72,43 @@ export const calculateTransactionTypeReport = createAsyncThunk(
   { serializeError: serializeAxiosError },
 );
 
+export const calculateAccountTransactionTypeReport = createAsyncThunk(
+  'tagReport/calculateAccountTransactionType',
+  async (transactions: ITransaction[]) => {
+    const accountData: { [key: number]: { debit: number; credit: number } } = {};
+
+    transactions.forEach((transaction: ITransaction) => {
+      const account = transaction.account;
+      if (!accountData[account]) {
+        accountData[account] = { debit: 0, credit: 0 };
+      }
+
+      if (transaction.kind === 'debit') {
+        accountData[account].debit += transaction.amount;
+      } else if (transaction.kind === 'credit') {
+        accountData[account].credit += transaction.amount;
+      }
+    });
+
+    const result: IAccountTransactionTypeReport[] = [];
+    Object.entries(accountData).forEach(([account, amounts]) => {
+      const accountNumber = parseInt(account, 10);
+      if (amounts.debit > 0) {
+        result.push({ account: accountNumber, type: 'debit', amount: amounts.debit });
+      }
+      if (amounts.credit > 0) {
+        result.push({ account: accountNumber, type: 'credit', amount: amounts.credit });
+      }
+    });
+
+    // Sort by account number for consistent display
+    result.sort((a, b) => a.account - b.account || a.type.localeCompare(b.type));
+
+    return result;
+  },
+  { serializeError: serializeAxiosError },
+);
+
 export type TagReportState = Readonly<typeof initialState>;
 
 export const TagReportSlice = createSlice({
@@ -83,6 +121,7 @@ export const TagReportSlice = createSlice({
     clearData(state) {
       state.tagReportData = [];
       state.transactionTypeData = [];
+      state.accountTransactionTypeData = [];
       state.errorMessage = '';
     },
   },
@@ -113,6 +152,19 @@ export const TagReportSlice = createSlice({
         state.loading = false;
         state.errorMessage = '';
         state.transactionTypeData = action.payload;
+      })
+      .addCase(calculateAccountTransactionTypeReport.pending, (state) => {
+        state.loading = true;
+        state.errorMessage = '';
+      })
+      .addCase(calculateAccountTransactionTypeReport.rejected, (state, action) => {
+        state.loading = false;
+        state.errorMessage = action.error.message || 'Failed to calculate account transaction type report';
+      })
+      .addCase(calculateAccountTransactionTypeReport.fulfilled, (state, action) => {
+        state.loading = false;
+        state.errorMessage = '';
+        state.accountTransactionTypeData = action.payload;
       });
   },
 });

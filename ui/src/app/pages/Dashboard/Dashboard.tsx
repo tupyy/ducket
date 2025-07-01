@@ -2,19 +2,19 @@ import * as React from 'react';
 import {Card, PageSection, Title, CardBody, Grid, GridItem, Flex, FlexItem } from '@patternfly/react-core';
 import { TimePicker } from '@app/shared/components/time-picker';
 import { TagAmountsChart } from '@app/shared/components/TagAmountsChart';
-import { TransactionTypeChart } from '@app/shared/components/TransactionTypeChart';
+import { AccountTransactionTypeChart } from '@app/shared/components/AccountTransactionTypeChart';
 import { MonthlyTagChart } from '@app/shared/components/MonthlyTagChart';
 import { TagFilter } from '@app/shared/components/tag-filter';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
 import { getTransactions } from '@app/shared/reducers/transaction.reducer';
-import { calculateTagReport, calculateTransactionTypeReport } from '@app/shared/reducers/tag-report.reducer';
+import { calculateTagReport, calculateAccountTransactionTypeReport } from '@app/shared/reducers/tag-report.reducer';
 import { calculateMonthlyTagReport } from '@app/shared/reducers/monthly-tag-report.reducer';
 import { calculateDateRange, getRelativeTimeRange } from '@app/utils/dateUtils';
 
 const Dashboard: React.FunctionComponent = () => {
   const dispatch = useAppDispatch();
   const { transactions, loading } = useAppSelector((state) => state.transactions);
-  const { tagReportData, transactionTypeData, loading: reportLoading } = useAppSelector((state) => state.tagReport);
+  const { tagReportData, accountTransactionTypeData, loading: reportLoading } = useAppSelector((state) => state.tagReport);
   const { monthlyTagReports, loading: monthlyReportLoading } = useAppSelector((state) => state.monthlyTagReport);
 
   // Initialize with 1 year default date range
@@ -34,7 +34,7 @@ const Dashboard: React.FunctionComponent = () => {
   React.useEffect(() => {
     if (transactions.length > 0) {
       dispatch(calculateTagReport({ transactions, excludeCredits: true }));
-      dispatch(calculateTransactionTypeReport(transactions));
+      dispatch(calculateAccountTransactionTypeReport(transactions));
       dispatch(calculateMonthlyTagReport({ transactions, excludeCredits: true }));
     }
   }, [dispatch, transactions]);
@@ -97,7 +97,7 @@ const Dashboard: React.FunctionComponent = () => {
         </GridItem>
 
         <GridItem span={6}>
-          <TransactionTypeChart data={transactionTypeData} loading={loading || reportLoading} />
+          <AccountTransactionTypeChart data={accountTransactionTypeData} loading={loading || reportLoading} />
         </GridItem>
 
         <GridItem span={12}>

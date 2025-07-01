@@ -32,6 +32,12 @@ export interface ITransactionTypeReport {
   amount: number;
 }
 
+export interface IAccountTransactionTypeReport {
+  account: number;
+  type: 'debit' | 'credit';
+  amount: number;
+}
+
 export interface IMonthlyTagReport {
   tag: string;
   month: number; // 1-12

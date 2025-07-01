@@ -43,7 +43,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   const [paginatedRows, setPaginatedRows] = React.useState(sortedTransactions.slice(0, 10));
   const [selectedTags, setSelectedTags] = React.useState<string[]>([]);
   const [selectedTransactionTypes, setSelectedTransactionTypes] = React.useState<string[]>([]);
-  const [selectedAccounts, setSelectedAccounts] = React.useState<string[]>([]);
+  const [selectedAccounts, setSelectedAccounts] = React.useState<number[]>([]);
   const [filteredTransactions, setFilteredTransactions] = React.useState<Array<ITransaction>>([]);
   const [isTransactionTypeSelectOpen, setIsTransactionTypeSelectOpen] = React.useState(false);
   const [isAccountSelectOpen, setIsAccountSelectOpen] = React.useState(false);
@@ -117,13 +117,13 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
 
   // Get available accounts
   const availableAccounts = React.useMemo(() => {
-    const accountSet = new Set<string>();
+    const accountSet = new Set<number>();
     transactions.forEach((transaction) => {
       if (transaction.account) {
         accountSet.add(transaction.account);
       }
     });
-    return Array.from(accountSet).sort();
+    return Array.from(accountSet).sort((a, b) => a - b);
   }, [transactions]);
 
   const handleTagsChange = (tags: string[]) => {
@@ -163,17 +163,20 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     value: string | number | undefined,
   ) => {
     if (typeof value === 'string') {
-      setSelectedAccounts((prev) => {
-        if (prev.includes(value)) {
-          return prev.filter((account) => account !== value);
-        } else {
-          return [...prev, value];
-        }
-      });
+      const accountNumber = parseInt(value, 10);
+      if (!isNaN(accountNumber)) {
+        setSelectedAccounts((prev) => {
+          if (prev.includes(accountNumber)) {
+            return prev.filter((account) => account !== accountNumber);
+          } else {
+            return [...prev, accountNumber];
+          }
+        });
+      }
     }
   };
 
-  const handleAccountRemove = (accountToRemove: string) => {
+  const handleAccountRemove = (accountToRemove: number) => {
     setSelectedAccounts((prev) => prev.filter((account) => account !== accountToRemove));
   };
 
@@ -379,11 +382,11 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                         {availableAccounts.map((account) => (
                           <SelectOption
                             key={account}
-                            value={account}
+                            value={account.toString()}
                             isSelected={selectedAccounts.includes(account)}
                             hasCheckbox
                           >
-                            {account}
+                            {account.toString()}
                           </SelectOption>
                         ))}
                       </SelectList>
@@ -401,7 +404,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                               closeBtnAriaLabel={`Remove ${account} filter`}
                               style={theme === 'dark' ? { color: '#b19cd9' } : {}}
                             >
-                              {account}
+                              {account.toString()}
                             </Label>
                           </FlexItem>
                         ))}
