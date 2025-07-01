@@ -75,68 +75,66 @@ const AccountTransactionTypeChart: React.FC<AccountTransactionTypeChartProps> = 
                 key={accountData.account} 
                 span={accountChartData.length === 1 ? 12 : accountChartData.length === 2 ? 6 : 4}
               >
-                <Card>
-                  <CardBody>
-                    <Title headingLevel="h4" size="md" style={{ marginBottom: '1rem', textAlign: 'center' }}>
-                      Account {accountData.account}
-                    </Title>
-                    <div
-                      style={{ 
-                        height: '280px', 
-                        width: '100%', 
-                        display: 'flex', 
-                        justifyContent: 'center', 
-                        alignItems: 'center' 
+                <div>
+                  <Title headingLevel="h4" size="md" style={{ marginBottom: '1rem', textAlign: 'center' }}>
+                    Account {accountData.account}
+                  </Title>
+                  <div
+                    style={{ 
+                      height: '280px', 
+                      width: '100%', 
+                      display: 'flex', 
+                      justifyContent: 'center', 
+                      alignItems: 'center' 
+                    }}
+                  >
+                    <ChartPie
+                      ariaTitle={`Debit vs Credit for account ${accountData.account}`}
+                      ariaDesc={`Pie chart showing debit and credit amounts for account ${accountData.account}`}
+                      data={accountData.data}
+                      height={260}
+                      width={300}
+                      legendComponent={
+                        <ChartLegend
+                          data={accountData.data.map(item => ({
+                            name: `${item.x}: ${item.y.toLocaleString('fr-FR', {
+                              style: 'currency',
+                              currency: 'EUR',
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}`
+                          }))}
+                          orientation="vertical"
+                          style={{
+                            labels: {
+                              fill: theme === 'dark' ? '#ffffff' : undefined,
+                              fontSize: 11,
+                            },
+                          }}
+                        />
+                      }
+                      legendOrientation="vertical"
+                      legendPosition="bottom"
+                      padding={{
+                        bottom: 65,
+                        left: 20,
+                        right: 20,
+                        top: 20,
                       }}
-                    >
-                      <ChartPie
-                        ariaTitle={`Debit vs Credit for account ${accountData.account}`}
-                        ariaDesc={`Pie chart showing debit and credit amounts for account ${accountData.account}`}
-                        data={accountData.data}
-                        height={260}
-                        width={300}
-                        legendComponent={
-                          <ChartLegend
-                            data={accountData.data.map(item => ({
-                              name: `${item.x}: ${item.y.toLocaleString('fr-FR', {
-                                style: 'currency',
-                                currency: 'EUR',
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}`
-                            }))}
-                            orientation="vertical"
-                            style={{
-                              labels: {
-                                fill: theme === 'dark' ? '#ffffff' : undefined,
-                                fontSize: 11,
-                              },
-                            }}
-                          />
-                        }
-                        legendOrientation="vertical"
-                        legendPosition="bottom"
-                        padding={{
-                          bottom: 65,
-                          left: 20,
-                          right: 20,
-                          top: 20,
-                        }}
-                        themeColor={ChartThemeColor.multiUnordered}
-                      />
-                    </div>
-                    <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
-                      <strong>
-                        Balance: {accountData.balance.toLocaleString('fr-FR', {
-                          style: 'currency',
-                          currency: 'EUR',
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </strong>
-                    </div>
-                  </CardBody>
-                </Card>
+                      themeColor={ChartThemeColor.multiUnordered}
+                    />
+                  </div>
+                  <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+                    <strong>
+                      Balance: {accountData.balance.toLocaleString('fr-FR', {
+                        style: 'currency',
+                        currency: 'EUR',
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </strong>
+                  </div>
+                </div>
               </GridItem>
             ))}
           </Grid>

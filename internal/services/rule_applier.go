@@ -129,16 +129,18 @@ func (ras *RuleApplierService) ApplyRulesToTransaction(ctx context.Context, tran
 			continue
 		}
 
-		if matched {
-			// Apply all tags from this rule to the transaction
-			for _, tag := range rule.Tags {
-				transaction.Tags[tag] = rule.Name
-				zap.S().Debugw("Applied rule to transaction",
-					"rule", rule.Name,
-					"tag", tag,
-					"transaction_content", transaction.RawContent,
-				)
-			}
+		if !matched {
+			continue
+		}
+
+		// Apply all tags from this rule to the transaction
+		for _, tag := range rule.Tags {
+			transaction.Tags[tag] = rule.Name
+			zap.S().Debugw("Applied rule to transaction",
+				"rule", rule.Name,
+				"tag", tag,
+				"transaction_content", transaction.RawContent,
+			)
 		}
 	}
 

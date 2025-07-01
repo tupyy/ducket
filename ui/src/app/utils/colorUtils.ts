@@ -3,6 +3,9 @@ export const getAccountColor = (account: number): 'purple' | 'teal' | 'green' | 
   const colors: Array<'purple' | 'teal' | 'green' | 'orange' | 'yellow' | 'red'> = [
     'purple', 'teal', 'green', 'orange', 'yellow', 'red'
   ];
+  if (account == 1000) {
+    return 'green';
+  }
   return colors[account % colors.length];
 };
 
@@ -17,4 +20,4 @@ export const getAccountDarkColor = (account: number): string => {
     '#c9190b', // red
   ];
   return darkColors[account % darkColors.length];
-}; 
+};
