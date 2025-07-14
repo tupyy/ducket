@@ -18,8 +18,8 @@ type QueryFilter func(original sq.SelectBuilder) sq.SelectBuilder
 type Writer interface {
 	WriteTransaction(ctx context.Context, transaction entity.Transaction) (int64, error)
 	DeleteTransaction(ctx context.Context, id int64) error
-	WriteTag(ctx context.Context, value string) error
-	DeleteTag(ctx context.Context, value string) error
+	WriteLabel(ctx context.Context, label entity.Label) error
+	DeleteLabel(ctx context.Context, label entity.Label) error
 	WriteRule(ctx context.Context, rule entity.Rule, update bool) error
 	DeleteRule(ctx context.Context, id string) error
 }
@@ -54,9 +54,18 @@ func NewPostgresDatastore(ctx context.Context, url string, options ...Option) (*
 
 // QueryTransactions retrieves transactions from the database based on the provided query filters.
 func (d *Datastore) QueryTransactions(ctx context.Context, filterFn ...QueryFilter) ([]entity.Transaction, error) {
-	query := psql.Select(colID, colDate, colTransactionAccount, colTransactionType, colTransactionContent, colTransactionAmount, colTagID, colRuleID, colHash).
+	query := psql.Select(
+		colID,
+		colDate,
+		colTransactionAccount,
+		colTransactionType,
+		colTransactionContent,
+		colTransactionAmount,
+		"label_id",
+		colRuleID,
+		colHash).
 		From(transactionTable).
-		LeftJoin("transactions_tags ON transactions_tags.transaction_id = transactions.id")
+		LeftJoin("transactions_labels ON transactions_labels.transaction_id = transactions.id")
 
 	for _, fn := range filterFn {
 		query = fn(query)
@@ -122,9 +131,9 @@ func (d *Datastore) QueryRules(ctx context.Context, filter ...QueryFilter) ([]en
 	return ruleRows.ToEntity(), nil
 }
 
-// QueryTags retrieves tags from the database based on the provided query filters.
-func (d *Datastore) QueryTags(ctx context.Context, filter ...QueryFilter) ([]entity.Tag, error) {
-	query := selectTagsStmt
+// QueryLabels retrieves labels from the database based on the provided query filters.
+func (d *Datastore) QueryLabels(ctx context.Context, filter ...QueryFilter) ([]entity.Label, error) {
+	query := selectLabelsStmt
 
 	for _, f := range filter {
 		query = f(query)
@@ -132,40 +141,39 @@ func (d *Datastore) QueryTags(ctx context.Context, filter ...QueryFilter) ([]ent
 
 	sql, args, err := query.ToSql()
 	if err != nil {
-		return []entity.Tag{}, fmt.Errorf(errUnableToReadTag, err)
+		return []entity.Label{}, fmt.Errorf(errUnableToReadLabel, err)
 	}
 
 	rows, err := d.pool.Query(ctx, sql, args...)
 	if err != nil {
-		return []entity.Tag{}, fmt.Errorf(errUnableToReadTag, err)
+		return []entity.Label{}, fmt.Errorf(errUnableToReadLabel, err)
 	}
 
-	tags := make(models.Tags)
+	labels := make(models.Labels)
 	rs := pgxscan.NewRowScanner(rows)
 
 	for rows.Next() {
-		tagRow := models.Tag{}
-		err := rs.Scan(&tagRow)
+		row := models.Label{}
+		err := rs.Scan(&row)
 		if err != nil {
-			return []entity.Tag{}, fmt.Errorf(errUnableToReadTag, err)
+			return []entity.Label{}, fmt.Errorf(errUnableToReadLabel, err)
 		}
-		tags.Add(tagRow)
+		labels.Add(row)
 	}
 
-	return tags.ToEntity(), nil
-
+	return labels.ToEntity(), nil
 }
 
-// CountTransactions returns transaction statistics grouped by tags for reporting purposes.
+// CountTransactions returns transaction statistics grouped by labels for reporting purposes.
 func (d *Datastore) CountTransactions(ctx context.Context) ([]entity.TransactionStat, error) {
-	sql, args, err := countTransactionsPerTagPerRuleStmt.ToSql()
+	sql, args, err := countTransactionsPerLabelPerRuleStmt.ToSql()
 	if err != nil {
-		return []entity.TransactionStat{}, fmt.Errorf(errUnableToReadTag, err)
+		return []entity.TransactionStat{}, fmt.Errorf(errUnableToReadLabel, err)
 	}
 
 	rows, err := d.pool.Query(ctx, sql, args...)
 	if err != nil {
-		return []entity.TransactionStat{}, fmt.Errorf(errUnableToReadTag, err)
+		return []entity.TransactionStat{}, fmt.Errorf(errUnableToReadLabel, err)
 	}
 
 	stats := make([]entity.TransactionStat, 0)
@@ -175,9 +183,9 @@ func (d *Datastore) CountTransactions(ctx context.Context) ([]entity.Transaction
 		row := models.TransactionCountRow{}
 		err := rs.Scan(&row)
 		if err != nil {
-			return []entity.TransactionStat{}, fmt.Errorf(errUnableToReadTag, err)
+			return []entity.TransactionStat{}, fmt.Errorf(errUnableToReadLabel, err)
 		}
-		stats = append(stats, entity.TransactionStat{Tag: row.Value, RuleID: row.RuleID, Count: row.Count})
+		stats = append(stats, entity.TransactionStat{LabelID: row.LabelID, RuleID: row.RuleID, Count: row.Count})
 	}
 
 	return stats, nil

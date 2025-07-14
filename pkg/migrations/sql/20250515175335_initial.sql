@@ -18,22 +18,26 @@ CREATE TABLE transactions (
 
 CREATE UNIQUE INDEX transaction_hash_idx ON transactions (hash);
 
-CREATE TABLE tags (
-    value VARCHAR(100) PRIMARY KEY,
-    created_at TIMESTAMP DEFAULT now()
+CREATE TABLE labels (
+    id SERIAL PRIMARY KEY,
+    key VARCHAR(255),
+    value VARCHAR(100),
+    created_at TIMESTAMP DEFAULT now(),
+    UNIQUE (key, value)
 );
 
-CREATE TABLE rules_tags (
+CREATE TABLE rules_labels (
     rule_id VARCHAR(100) REFERENCES rules(id) ON DELETE CASCADE,
-    tag VARCHAR(100) REFERENCES tags(value) ON DELETE CASCADE,
-    CONSTRAINT rules_tags_pk PRIMARY KEY (rule_id, tag)
+    label_id SERIAL REFERENCES labels(id) ON DELETE CASCADE,
+    CONSTRAINT rules_labels_pk PRIMARY KEY (rule_id, label_id)
 );
 
-CREATE TABLE transactions_tags (
+
+CREATE TABLE transactions_labels (
     transaction_id SERIAL REFERENCES transactions(id) ON DELETE CASCADE,
-    tag_id VARCHAR(100) REFERENCES tags(value) ON DELETE CASCADE,
+    label_id SERIAL  REFERENCES labels(id) ON DELETE CASCADE,
     rule_id VARCHAR(100) REFERENCES rules(id) ON DELETE CASCADE,
-    CONSTRAINT transaction_tag_pk PRIMARY KEY (transaction_id, tag_id, rule_id)
+    CONSTRAINT transaction_tag_pk PRIMARY KEY (transaction_id, label_id, rule_id)
 );
 
 -- +goose StatementEnd
@@ -42,7 +46,7 @@ CREATE TABLE transactions_tags (
 -- +goose StatementBegin
 DROP TABLE tags;
 DROP TABLE rules;
-DROP TABLE rules_tags;
-DROP TABLE transactions_tags;
+DROP TABLE rules_labels;
+DROP TABLE transactions_labels;
 DROP TABLE transactions;
 -- +goose StatementEnd

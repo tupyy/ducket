@@ -88,7 +88,7 @@ func (s *ImportService) importSingleFile(ctx context.Context, file FileUpload) I
 			continue
 		}
 
-		// Create or update transaction (now with applied rule tags)
+		// Create or update transaction (now with applied rule labels)
 		_, err = transactionService.CreateOrUpdate(ctx, transaction)
 		if err != nil {
 			result.Errors = append(result.Errors, fmt.Sprintf("Error saving transaction %s: %v", transaction.Hash, err))
@@ -107,7 +107,7 @@ func (s *ImportService) importSingleFile(ctx context.Context, file FileUpload) I
 			"amount", transaction.Amount,
 			"date", transaction.Date,
 			"content", transaction.RawContent,
-			"tags", transaction.Tags,
+			"labels", transaction.Labels,
 		)
 	}
 

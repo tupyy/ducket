@@ -1,6 +1,6 @@
 # Finante - Personal Financial Management System
 
-A comprehensive personal financial management system built with Go and React, designed to help you track, categorize, and analyze your financial transactions through automated rule-based tagging.
+A comprehensive personal financial management system built with Go and React, designed to help you track, categorize, and analyze your financial transactions through automated rule-based labeling.
 
 ## 🏗️ Architecture Overview
 
@@ -16,17 +16,17 @@ Finante follows a clean architecture pattern with clear separation of concerns:
 ### Backend Components
 
 - **HTTP Server**: Gin-based REST API with middleware for logging, CORS, and database injection
-- **Service Layer**: Business logic for transactions, rules, and tags management
+- **Service Layer**: Business logic for transactions, rules, and labels management
 - **Repository Layer**: Database operations with PostgreSQL using pgx driver
-- **Rule Engine**: Pattern-based transaction categorization system
+- **Rule Engine**: Pattern-based transaction categorization system with key-value labels
 - **File Parser**: Excel file import functionality for bulk transaction loading
 
 ## 🚀 Features
 
 ### Core Functionality
 - **Transaction Management**: Create, read, update, and delete financial transactions
-- **Rule-Based Categorization**: Automatic transaction tagging based on configurable rules
-- **Tag Management**: Organize transactions with custom tags
+- **Rule-Based Categorization**: Automatic transaction labeling based on configurable rules
+- **Label Management**: Organize transactions with structured key-value labels
 - **Excel Import**: Bulk import transactions from Excel spreadsheets
 - **Financial Analytics**: Transaction statistics and summaries
 
@@ -124,10 +124,10 @@ http://localhost:8080/api/v1
 - `PUT /rules/:name` - Update rule
 - `DELETE /rules/:name` - Delete rule
 
-#### Tags
-- `GET /tags` - List all tags with transaction counts
-- `POST /tags` - Create new tag
-- `DELETE /tags/:value` - Delete tag
+#### Labels
+- `GET /labels` - List all labels with transaction counts
+- `POST /labels` - Create new label
+- `DELETE /labels/:id` - Delete label
 
 #### Analytics
 - `GET /summary` - Get transaction statistics and summaries
@@ -142,7 +142,7 @@ http://localhost:8080/api/v1
 curl -X GET http://localhost:8080/api/v1/transactions
 
 # Get transactions with filters
-curl -X GET "http://localhost:8080/api/v1/transactions?start=2024-01-01&end=2024-01-31&tags=food&limit=10&offset=0"
+curl -X GET "http://localhost:8080/api/v1/transactions?start=2024-01-01&end=2024-01-31&labels=category:food&limit=10&offset=0"
 ```
 
 **Response:**
@@ -156,9 +156,14 @@ curl -X GET "http://localhost:8080/api/v1/transactions?start=2024-01-01&end=2024
       "amount": 45.50,
       "content": "grocery store purchase",
       "hash": "abc123def456",
-      "tags": {
-        "food": "grocery-rule",
-      }
+      "labels": [
+        {
+          "key": "category",
+          "value": "food",
+          "href": "/api/v1/labels/1",
+          "rule": "grocery-rule"
+        }
+      ]
     }
   ],
   "total": 1,
@@ -181,10 +186,20 @@ curl -X GET http://localhost:8080/api/v1/transactions/abc123def456
   "amount": 45.50,
   "content": "grocery store purchase",
   "hash": "abc123def456",
-  "tags": {
-    "food": "grocery-rule",
-    "essentials": "grocery-rule"
-  }
+  "labels": [
+    {
+      "key": "category",
+      "value": "food",
+      "href": "/api/v1/labels/1",
+      "rule": "grocery-rule"
+    },
+    {
+      "key": "type",
+      "value": "essential",
+      "href": "/api/v1/labels/2",
+      "rule": "grocery-rule"
+    }
+  ]
 }
 ```
 
@@ -196,7 +211,12 @@ curl -X POST http://localhost:8080/api/v1/transactions \
     "date": "2024-01-15",
     "kind": "debit",
     "amount": 45.50,
-    "content": "grocery store purchase"
+    "content": "grocery store purchase",
+    "account": 1001,
+    "labels": {
+      "category": "food",
+      "type": "essential"
+    }
   }'
 ```
 
@@ -209,7 +229,7 @@ curl -X POST http://localhost:8080/api/v1/transactions \
   "amount": 45.50,
   "content": "grocery store purchase",
   "hash": "abc123def456",
-  "tags": {}
+  "labels": []
 }
 ```
 
@@ -221,7 +241,12 @@ curl -X PUT http://localhost:8080/api/v1/transactions/1 \
     "date": "2024-01-15",
     "kind": "debit",
     "amount": 47.50,
-    "content": "grocery store purchase updated"
+    "content": "grocery store purchase updated",
+    "account": 1001,
+    "labels": {
+      "category": "food",
+      "type": "essential"
+    }
   }'
 ```
 
@@ -251,13 +276,35 @@ curl -X GET http://localhost:8080/api/v1/rules
     {
       "name": "grocery-rule",
       "pattern": "grocery|supermarket|food",
-      "tags": ["food", "essentials"],
+      "labels": [
+        {
+          "key": "category",
+          "value": "food",
+          "href": "/api/v1/labels/1"
+        },
+        {
+          "key": "type",
+          "value": "essential",
+          "href": "/api/v1/labels/2"
+        }
+      ],
       "created_at": "2024-01-01T10:00:00Z"
     },
     {
       "name": "salary-rule",
       "pattern": "salary|wage|payroll",
-      "tags": ["income", "work"],
+      "labels": [
+        {
+          "key": "category",
+          "value": "income",
+          "href": "/api/v1/labels/3"
+        },
+        {
+          "key": "source",
+          "value": "work",
+          "href": "/api/v1/labels/4"
+        }
+      ],
       "created_at": "2024-01-01T10:30:00Z"
     }
   ]
@@ -274,7 +321,18 @@ curl -X GET http://localhost:8080/api/v1/rules/grocery-rule
 {
   "name": "grocery-rule",
   "pattern": "grocery|supermarket|food",
-  "tags": ["food", "essentials"],
+  "labels": [
+    {
+      "key": "category",
+      "value": "food",
+      "href": "/api/v1/labels/1"
+    },
+    {
+      "key": "type",
+      "value": "essential",
+      "href": "/api/v1/labels/2"
+    }
+  ],
   "created_at": "2024-01-01T10:00:00Z"
 }
 ```
@@ -286,7 +344,10 @@ curl -X POST http://localhost:8080/api/v1/rules \
   -d '{
     "name": "grocery-rule",
     "pattern": "grocery|supermarket|food",
-    "tags": ["food", "essentials"]
+    "labels": {
+      "category": "food",
+      "type": "essential"
+    }
   }'
 ```
 
@@ -295,7 +356,18 @@ curl -X POST http://localhost:8080/api/v1/rules \
 {
   "name": "grocery-rule",
   "pattern": "grocery|supermarket|food",
-  "tags": ["food", "essentials"],
+  "labels": [
+    {
+      "key": "category",
+      "value": "food",
+      "href": "/api/v1/labels/1"
+    },
+    {
+      "key": "type",
+      "value": "essential",
+      "href": "/api/v1/labels/2"
+    }
+  ],
   "created_at": "2024-01-15T14:30:00Z"
 }
 ```
@@ -307,7 +379,11 @@ curl -X PUT http://localhost:8080/api/v1/rules/grocery-rule \
   -d '{
     "name": "grocery-rule",
     "pattern": "grocery|supermarket|food|market",
-    "tags": ["food", "essentials", "shopping"]
+    "labels": {
+      "category": "food",
+      "type": "essential",
+      "subcategory": "shopping"
+    }
   }'
 ```
 
@@ -323,11 +399,11 @@ curl -X DELETE http://localhost:8080/api/v1/rules/grocery-rule
 }
 ```
 
-#### Tags
+#### Labels
 
-##### List All Tags
+##### List All Labels
 ```bash
-curl -X GET http://localhost:8080/api/v1/tags
+curl -X GET http://localhost:8080/api/v1/labels
 ```
 
 **Response:**
@@ -335,13 +411,19 @@ curl -X GET http://localhost:8080/api/v1/tags
 {
   "data": [
     {
+      "id": 1,
+      "key": "category",
       "value": "food",
+      "href": "/api/v1/labels/1",
       "rules": ["grocery-rule", "restaurant-rule"],
       "transaction_count": 25,
       "created_at": "2024-01-01T10:00:00Z"
     },
     {
+      "id": 2,
+      "key": "category",
       "value": "transport",
+      "href": "/api/v1/labels/2",
       "rules": ["uber-rule", "gas-rule"],
       "transaction_count": 12,
       "created_at": "2024-01-01T11:00:00Z"
@@ -350,11 +432,12 @@ curl -X GET http://localhost:8080/api/v1/tags
 }
 ```
 
-##### Create Tag
+##### Create Label
 ```bash
-curl -X POST http://localhost:8080/api/v1/tags \
+curl -X POST http://localhost:8080/api/v1/labels \
   -H "Content-Type: application/json" \
   -d '{
+    "key": "category",
     "value": "entertainment"
   }'
 ```
@@ -362,22 +445,25 @@ curl -X POST http://localhost:8080/api/v1/tags \
 **Response:**
 ```json
 {
+  "id": 3,
+  "key": "category",
   "value": "entertainment",
+  "href": "/api/v1/labels/3",
   "rules": [],
   "transaction_count": 0,
   "created_at": "2024-01-15T14:30:00Z"
 }
 ```
 
-##### Delete Tag
+##### Delete Label
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/tags/entertainment
+curl -X DELETE http://localhost:8080/api/v1/labels/3
 ```
 
 **Response:**
 ```json
 {
-  "message": "Tag deleted successfully"
+  "message": "Label deleted successfully"
 }
 ```
 
@@ -395,15 +481,15 @@ curl -X GET http://localhost:8080/api/v1/summary
   "total_amount": 4567.89,
   "from": "2024-01-01T00:00:00Z",
   "to": "2024-01-31T23:59:59Z",
-  "by_tag": [
+  "by_label": [
     {
-      "tag": "food",
+      "label": "category:food",
       "count": 25,
       "total_amount": 1234.56,
       "average_amount": 49.38
     },
     {
-      "tag": "transport",
+      "label": "category:transport",
       "count": 12,
       "total_amount": 567.89,
       "average_amount": 47.32
@@ -564,6 +650,30 @@ The system can import transactions from Excel files with the following format:
 - **Debit**: Debit amount (expense)
 - **Credit**: Credit amount (income)
 
+## 🏷️ Label System
+
+The system uses a structured key-value label system for categorizing transactions:
+
+### Label Structure
+- **Key**: The category type (e.g., "category", "type", "merchant")
+- **Value**: The specific value within that category (e.g., "food", "essential", "grocery")
+
+### Common Label Keys
+- `category`: Primary classification (food, transport, income, etc.)
+- `type`: Secondary classification (essential, luxury, recurring, etc.)
+- `merchant`: Vendor or service provider
+- `location`: Geographic location
+- `project`: For business expense tracking
+
+### Examples
+```json
+{
+  "category": "food",
+  "type": "essential",
+  "merchant": "grocery_store"
+}
+```
+
 ## 🤝 Contributing
 
 1. Fork the repository
@@ -602,3 +712,5 @@ For support and questions:
 - [ ] Enhanced rule engine with ML capabilities
 - [ ] Real-time notifications
 - [ ] Data export in various formats
+- [ ] Label hierarchy and inheritance
+- [ ] Custom label validation rules

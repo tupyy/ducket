@@ -18,7 +18,7 @@ type TransactionForm struct {
 	Content string            `form:"content" json:"content" binding:"required"`
 	Amount  float32           `form:"amount" json:"amount" binding:"required"`
 	Account int64             `form:"account" json:"account" binding:"required"`
-	Tags    map[string]string `form:"tags" json:"tags" binding:"required"`
+	Labels  map[string]string `form:"labels" json:"labels" binding:"required"`
 }
 
 // Entity converts a TransactionForm to an entity.Transaction for business logic processing.
@@ -28,7 +28,10 @@ func (t TransactionForm) Entity() (entity.Transaction, error) {
 		return entity.Transaction{}, fmt.Errorf("unable to parse transaction date: %w", err)
 	}
 	te := entity.NewTransaction(entity.TransactionKind(t.Kind), t.Account, date, t.Amount, t.Content)
-	te.Tags = t.Tags
+	// Note: Labels field in transaction entity is map[int]string (label_id -> rule_id)
+	// The form provides map[string]string (key -> value) which needs to be handled by the service layer
+	// For now, we'll leave Labels empty as it should be populated by rule application
+	te.Labels = make(map[int]string)
 
 	return *te, nil
 }
@@ -47,16 +50,16 @@ func TransactionFormValidation(sl validator.StructLevel) {
 		sl.ReportError(form.Date, "date", "date", "format invalid. shoudl be 02/01/2006", "")
 	}
 
-	if len(form.Tags) == 0 {
-		sl.ReportError(form.Tags, "tags", "tags", "ge 0", "")
+	if len(form.Labels) == 0 {
+		sl.ReportError(form.Labels, "labels", "labels", "ge 0", "")
 	}
 
-	for tag, rule := range form.Tags {
+	for tag, rule := range form.Labels {
 		if len(tag) > 20 {
-			sl.ReportError(form.Tags, "tag", "tag", "lt 20", "")
+			sl.ReportError(form.Labels, "tag", "tag", "lt 20", "")
 		}
 		if len(rule) > 20 {
-			sl.ReportError(form.Tags, "tag", "tag", "rule_id should be less 20 chars", "")
+			sl.ReportError(form.Labels, "tag", "tag", "rule_id should be less 20 chars", "")
 		}
 	}
 }

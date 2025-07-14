@@ -10,7 +10,7 @@ import (
 
 //go:generate go run github.com/ecordell/optgen -output zz_generated.rule_filter.go . RuleFilter
 type RuleFilter struct {
-	Name string `debugmap:"visible"`
+	Id string `debugmap:"visible"`
 }
 
 // QueriesFn returns a slice of query filters based on the rule filter criteria.
@@ -18,7 +18,7 @@ func (rf *RuleFilter) QueriesFn() []pg.QueryFilter {
 	qf := []pg.QueryFilter{}
 
 	qf = append(qf,
-		pg.RuleNameQueryFilter(rf.Name),
+		pg.RuleIDQueryFilter(rf.Id),
 	)
 
 	return qf
@@ -41,7 +41,7 @@ func (r *RuleService) GetRules(ctx context.Context) ([]entity.Rule, error) {
 // GetRule retrieves a single rule by its name.
 // Returns nil if no rule is found with the given name.
 func (r *RuleService) GetRule(ctx context.Context, name string) (*entity.Rule, error) {
-	rules, err := r.dt.QueryRules(ctx, NewRuleFilterWithOptions(WithName(name)).QueriesFn()...)
+	rules, err := r.dt.QueryRules(ctx, NewRuleFilterWithOptions(WithId(name)).QueriesFn()...)
 	if err != nil {
 		return nil, err
 	}
@@ -66,23 +66,23 @@ func (r *RuleService) Create(ctx context.Context, rule entity.Rule) error {
 		return fmt.Errorf("rule %s already exists", rule.Name)
 	}
 
-	tagSrv := NewTagService(r.dt)
-	existingTags, err := tagSrv.GetTags(ctx)
+	labelSrv := NewLabelService(r.dt)
+	existingLabels, err := labelSrv.GetLabels(ctx)
 	if err != nil {
 		return err
 	}
 
 	return r.dt.WriteTx(ctx, func(ctx context.Context, w pg.Writer) error {
-		for _, tag := range rule.Tags {
+		for _, label := range rule.Labels {
 			found := false
-			for _, t := range existingTags {
-				if t.Value == tag {
+			for _, existingLabel := range existingLabels {
+				if label.Equal(existingLabel) {
 					found = true
 					break
 				}
 			}
 			if !found {
-				if err := w.WriteTag(ctx, tag); err != nil {
+				if err := w.WriteLabel(ctx, label); err != nil {
 					return err
 				}
 			}
@@ -101,24 +101,24 @@ func (r *RuleService) UpdateOrCreate(ctx context.Context, rule entity.Rule) (boo
 		return false, err
 	}
 
-	tagSrv := NewTagService(r.dt)
-	existingTags, err := tagSrv.GetTags(ctx)
+	labelSrv := NewLabelService(r.dt)
+	existingLabels, err := labelSrv.GetLabels(ctx)
 	if err != nil {
 		return false, err
 	}
 
 	update := existingRule != nil
 	err = r.dt.WriteTx(ctx, func(ctx context.Context, w pg.Writer) error {
-		for _, tag := range rule.Tags {
+		for _, label := range rule.Labels {
 			found := false
-			for _, t := range existingTags {
-				if t.Value == tag {
+			for _, existingLabel := range existingLabels {
+				if label.Equal(existingLabel) {
 					found = true
 					break
 				}
 			}
 			if !found {
-				if err := w.WriteTag(ctx, tag); err != nil {
+				if err := w.WriteLabel(ctx, label); err != nil {
 					return err
 				}
 			}

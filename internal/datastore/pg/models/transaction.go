@@ -22,7 +22,7 @@ func (tt Transactions) Add(t Transaction) {
 func (tt Transactions) ToEntity() []entity.Transaction {
 	transactions := []entity.Transaction{}
 	for _, v := range tt {
-		transaction := entity.Transaction{Tags: make(map[string]string)}
+		transaction := entity.Transaction{Labels: make(map[int]string)}
 		for _, vv := range v {
 			transaction.ID = vv.ID
 			transaction.Date = vv.Date
@@ -31,8 +31,8 @@ func (tt Transactions) ToEntity() []entity.Transaction {
 			transaction.Amount = vv.Amount
 			transaction.Hash = vv.Hash
 			transaction.Kind = entity.TransactionKind(vv.Kind)
-			if vv.Tag != nil {
-				transaction.Tags[*vv.Tag] = *vv.RuleID
+			if vv.LabelID != nil {
+				transaction.Labels[*vv.LabelID] = *vv.RuleID
 			}
 		}
 		transactions = append(transactions, transaction)
@@ -49,6 +49,6 @@ type Transaction struct {
 	Content string
 	Amount  float32
 	Hash    string
-	Tag     *string `db:"tag_id"`
+	LabelID *int    `db:"label_id"`
 	RuleID  *string `db:"rule_id"`
 }

@@ -30,14 +30,14 @@ func NewRuleFilterWithOptionsAndDefaults(opts ...RuleFilterOption) *RuleFilter {
 // ToOption returns a new RuleFilterOption that sets the values from the passed in RuleFilter
 func (r *RuleFilter) ToOption() RuleFilterOption {
 	return func(to *RuleFilter) {
-		to.Name = r.Name
+		to.Id = r.Id
 	}
 }
 
 // DebugMap returns a map form of RuleFilter for debugging
 func (r RuleFilter) DebugMap() map[string]any {
 	debugMap := map[string]any{}
-	debugMap["Name"] = helpers.DebugValue(r.Name, false)
+	debugMap["Id"] = helpers.DebugValue(r.Id, false)
 	return debugMap
 }
 
@@ -57,9 +57,9 @@ func (r *RuleFilter) WithOptions(opts ...RuleFilterOption) *RuleFilter {
 	return r
 }
 
-// WithName returns an option that can set Name on a RuleFilter
-func WithName(name string) RuleFilterOption {
+// WithId returns an option that can set Id on a RuleFilter
+func WithId(id string) RuleFilterOption {
 	return func(r *RuleFilter) {
-		r.Name = name
+		r.Id = id
 	}
 }

@@ -8,14 +8,21 @@ import (
 )
 
 type RuleForm struct {
-	Name    string   `form:"name" json:"name" binding:"required"`
-	Pattern string   `form:"pattern" json:"pattern" binding:"required"`
-	Tags    []string `form:"tags" json:"tags" binding:"required"`
+	Name    string            `form:"name" json:"name" binding:"required"`
+	Pattern string            `form:"pattern" json:"pattern" binding:"required"`
+	Labels  map[string]string `form:"labels" json:"labels" binding:"required"`
 }
 
 // FormToEntity converts a RuleForm to an entity.Rule for business logic processing.
 func FormToEntity(r RuleForm) entity.Rule {
-	return entity.NewRule(r.Name, r.Pattern, r.Tags...)
+	labels := make([]entity.Label, 0, len(r.Labels))
+	for key, value := range r.Labels {
+		labels = append(labels, entity.Label{
+			Key:   key,
+			Value: value,
+		})
+	}
+	return entity.NewRule(r.Name, r.Pattern, labels...)
 }
 
 // RuleFormValidation provides custom validation logic for RuleForm structures.
@@ -31,20 +38,20 @@ func RuleFormValidation(sl validator.StructLevel) {
 		sl.ReportError(form.Pattern, "pattern", "pattern", "must compile", "")
 	}
 
-	if len(form.Tags) == 0 {
-		sl.ReportError(form.Tags, "tags", "tags", "ge 0", "")
+	if len(form.Labels) == 0 {
+		sl.ReportError(form.Labels, "labels", "labels", "ge 0", "")
 	}
 
-	for _, t := range form.Tags {
-		if len(t) > 20 {
-			sl.ReportError(form.Tags, "tag", "tag", "lt 20", "")
+	for _, l := range form.Labels {
+		if len(l) > 20 {
+			sl.ReportError(form.Labels, "label", "label", "lt 20", "")
 		}
 	}
 }
 
 type UpdateRuleForm struct {
-	Pattern string   `form:"pattern" json:"pattern" binding:"required"`
-	Tags    []string `form:"tags" json:"tags" binding:"required"`
+	Pattern string            `form:"pattern" json:"pattern" binding:"required"`
+	Labels  map[string]string `form:"labels" json:"labels" binding:"required"`
 }
 
 // UpdateRuleFormValidation provides custom validation logic for UpdateRuleForm structures.
@@ -56,13 +63,13 @@ func UpdateRuleFormValidation(sl validator.StructLevel) {
 		sl.ReportError(form.Pattern, "pattern", "pattern", "must compile", "")
 	}
 
-	if len(form.Tags) == 0 {
-		sl.ReportError(form.Tags, "tags", "tags", "ge 0", "")
+	if len(form.Labels) == 0 {
+		sl.ReportError(form.Labels, "labels", "labels", "ge 0", "")
 	}
 
-	for _, t := range form.Tags {
-		if len(t) > 20 {
-			sl.ReportError(form.Tags, "tag", "tag", "lt 20", "")
+	for _, l := range form.Labels {
+		if len(l) > 20 {
+			sl.ReportError(form.Labels, "label", "label", "lt 20", "")
 		}
 	}
 }

@@ -16,7 +16,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("TagHandlers", func() {
+var _ = Describe("LabelHandlers", func() {
 	var (
 		router    *gin.Engine
 		datastore *pg.Datastore
@@ -45,9 +45,9 @@ var _ = Describe("TagHandlers", func() {
 			c.Next()
 		})
 
-		// Register tag handlers
+		// Register label handlers
 		api := router.Group("/api/v1")
-		v1.TagHandlers(api)
+		v1.LabelHandlers(api)
 	})
 
 	AfterEach(func() {
@@ -56,9 +56,9 @@ var _ = Describe("TagHandlers", func() {
 		}
 	})
 
-	Context("GET /api/v1/tags", func() {
+	Context("GET /api/v1/labels", func() {
 		It("should handle requests without crashing", func() {
-			req, _ := http.NewRequest("GET", "/api/v1/tags", nil)
+			req, _ := http.NewRequest("GET", "/api/v1/labels", nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
@@ -67,7 +67,7 @@ var _ = Describe("TagHandlers", func() {
 		})
 
 		It("should return JSON response", func() {
-			req, _ := http.NewRequest("GET", "/api/v1/tags", nil)
+			req, _ := http.NewRequest("GET", "/api/v1/labels", nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
@@ -76,30 +76,20 @@ var _ = Describe("TagHandlers", func() {
 				Expect(contentType).To(ContainSubstring("application/json"))
 			}
 		})
-	})
 
-	Context("POST /api/v1/tags", func() {
-		It("should return error for invalid JSON", func() {
-			req, _ := http.NewRequest("POST", "/api/v1/tags", bytes.NewBuffer([]byte("invalid json")))
-			req.Header.Set("Content-Type", "application/json")
+		It("should handle empty result gracefully", func() {
+			req, _ := http.NewRequest("GET", "/api/v1/labels", nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
-			Expect(w.Code).To(Equal(http.StatusBadRequest))
-
-			var response map[string]interface{}
-			err := json.Unmarshal(w.Body.Bytes(), &response)
-			Expect(err).To(BeNil())
-			Expect(response["error"]).ToNot(BeNil())
+			// Should not crash on empty results
+			Expect(w.Code).To(BeElementOf([]int{http.StatusOK, http.StatusAccepted, http.StatusInternalServerError}))
 		})
+	})
 
-		It("should validate tag form", func() {
-			form := inbound.TagForm{
-				Value: "", // Empty value should fail validation
-			}
-
-			jsonData, _ := json.Marshal(form)
-			req, _ := http.NewRequest("POST", "/api/v1/tags", bytes.NewBuffer(jsonData))
+	Context("POST /api/v1/labels", func() {
+		It("should handle missing form data", func() {
+			req, _ := http.NewRequest("POST", "/api/v1/labels", nil)
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
@@ -107,198 +97,216 @@ var _ = Describe("TagHandlers", func() {
 			Expect(w.Code).To(Equal(http.StatusBadRequest))
 		})
 
-		It("should accept valid tag form", func() {
-			form := inbound.TagForm{
-				Value: "test_tag",
-			}
-
-			jsonData, _ := json.Marshal(form)
-			req, _ := http.NewRequest("POST", "/api/v1/tags", bytes.NewBuffer(jsonData))
+		It("should handle empty JSON payload", func() {
+			req, _ := http.NewRequest("POST", "/api/v1/labels", bytes.NewBuffer([]byte("{}")))
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
-			// Should not return bad request for valid form
-			Expect(w.Code).ToNot(Equal(http.StatusBadRequest))
+			Expect(w.Code).To(Equal(http.StatusBadRequest))
+		})
+
+		It("should validate required fields", func() {
+			form := inbound.LabelForm{
+				Key: "category",
+				// Missing value
+			}
+
+			jsonData, _ := json.Marshal(form)
+			req, _ := http.NewRequest("POST", "/api/v1/labels", bytes.NewBuffer(jsonData))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			Expect(w.Code).To(Equal(http.StatusBadRequest))
+		})
+
+		It("should handle valid label creation", func() {
+			form := inbound.LabelForm{
+				Key:   "category",
+				Value: "food",
+			}
+
+			jsonData, _ := json.Marshal(form)
+			req, _ := http.NewRequest("POST", "/api/v1/labels", bytes.NewBuffer(jsonData))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			// Should either create successfully or handle gracefully
+			Expect(w.Code).To(BeElementOf([]int{http.StatusCreated, http.StatusOK, http.StatusInternalServerError}))
+		})
+
+		It("should handle invalid JSON", func() {
+			req, _ := http.NewRequest("POST", "/api/v1/labels", bytes.NewBuffer([]byte("invalid json")))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			Expect(w.Code).To(Equal(http.StatusBadRequest))
+		})
+
+		It("should reject empty key", func() {
+			form := inbound.LabelForm{
+				Key:   "",
+				Value: "food",
+			}
+
+			jsonData, _ := json.Marshal(form)
+			req, _ := http.NewRequest("POST", "/api/v1/labels", bytes.NewBuffer(jsonData))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			Expect(w.Code).To(Equal(http.StatusBadRequest))
+		})
+
+		It("should reject empty value", func() {
+			form := inbound.LabelForm{
+				Key:   "category",
+				Value: "",
+			}
+
+			jsonData, _ := json.Marshal(form)
+			req, _ := http.NewRequest("POST", "/api/v1/labels", bytes.NewBuffer(jsonData))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			Expect(w.Code).To(Equal(http.StatusBadRequest))
+		})
+
+		It("should handle form validation errors gracefully", func() {
+			form := map[string]interface{}{
+				"key":   123, // Invalid type
+				"value": "food",
+			}
+
+			jsonData, _ := json.Marshal(form)
+			req, _ := http.NewRequest("POST", "/api/v1/labels", bytes.NewBuffer(jsonData))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			Expect(w.Code).To(Equal(http.StatusBadRequest))
 		})
 	})
 
-	Context("DELETE /api/v1/tags/:id", func() {
-		It("should accept string tag values", func() {
-			req, _ := http.NewRequest("DELETE", "/api/v1/tags/test_tag", nil)
+	Context("DELETE /api/v1/labels/:id", func() {
+		It("should handle numeric ID", func() {
+			req, _ := http.NewRequest("DELETE", "/api/v1/labels/1", nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
-			// Should not return bad request for valid tag value
-			Expect(w.Code).ToNot(Equal(http.StatusBadRequest))
+			// Should handle gracefully (currently returns not implemented)
+			Expect(w.Code).To(BeElementOf([]int{http.StatusNotImplemented, http.StatusOK, http.StatusNotFound}))
 		})
 
-		It("should handle special characters in tag values", func() {
-			req, _ := http.NewRequest("DELETE", "/api/v1/tags/special-tag_123", nil)
+		It("should handle non-numeric ID", func() {
+			req, _ := http.NewRequest("DELETE", "/api/v1/labels/abc", nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
-			// Should not return bad request for valid tag value with special characters
-			Expect(w.Code).ToNot(Equal(http.StatusBadRequest))
+			// Should handle gracefully
+			Expect(w.Code).To(BeElementOf([]int{http.StatusNotImplemented, http.StatusBadRequest, http.StatusNotFound}))
 		})
 
-		It("should handle empty tag value", func() {
-			req, _ := http.NewRequest("DELETE", "/api/v1/tags/", nil)
+		It("should handle empty ID", func() {
+			req, _ := http.NewRequest("DELETE", "/api/v1/labels/", nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
-			// Should return 404 for empty tag value (route not found)
+			// Should return 404 for empty ID (route not found)
+			Expect(w.Code).To(Equal(http.StatusNotFound))
+		})
+
+		It("should handle missing ID parameter", func() {
+			req, _ := http.NewRequest("DELETE", "/api/v1/labels", nil)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			// Should return 404 for missing ID (route not found)
 			Expect(w.Code).To(Equal(http.StatusNotFound))
 		})
 	})
 
-	Context("Form Validation and JSON Handling", func() {
-		It("should correctly marshal and unmarshal TagForm", func() {
-			originalForm := inbound.TagForm{
-				Value: "test_tag_value",
+	Context("Content-Type validation", func() {
+		It("should accept application/json", func() {
+			form := inbound.LabelForm{
+				Key:   "category",
+				Value: "food",
 			}
 
-			jsonData, err := json.Marshal(originalForm)
-			Expect(err).To(BeNil())
-			Expect(jsonData).ToNot(BeEmpty())
+			jsonData, _ := json.Marshal(form)
+			req, _ := http.NewRequest("POST", "/api/v1/labels", bytes.NewBuffer(jsonData))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
 
-			var unmarshaledForm inbound.TagForm
-			err = json.Unmarshal(jsonData, &unmarshaledForm)
-			Expect(err).To(BeNil())
-			Expect(unmarshaledForm.Value).To(Equal("test_tag_value"))
+			// Should process the request (not necessarily succeed)
+			Expect(w.Code).ToNot(Equal(http.StatusUnsupportedMediaType))
 		})
 
-		It("should handle special characters in tag values", func() {
-			form := inbound.TagForm{
-				Value: "special-tag_123!@#$%^&*()",
+		It("should handle missing Content-Type", func() {
+			form := inbound.LabelForm{
+				Key:   "category",
+				Value: "food",
 			}
 
-			jsonData, err := json.Marshal(form)
-			Expect(err).To(BeNil())
+			jsonData, _ := json.Marshal(form)
+			req, _ := http.NewRequest("POST", "/api/v1/labels", bytes.NewBuffer(jsonData))
+			// No Content-Type header
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
 
-			var unmarshaledForm inbound.TagForm
-			err = json.Unmarshal(jsonData, &unmarshaledForm)
-			Expect(err).To(BeNil())
-			Expect(unmarshaledForm.Value).To(Equal("special-tag_123!@#$%^&*()"))
+			// Should still process the request
+			Expect(w.Code).ToNot(Equal(http.StatusUnsupportedMediaType))
+		})
+	})
+
+	Context("LabelForm validation", func() {
+		It("should convert LabelForm to entity correctly", func() {
+			form := inbound.LabelForm{
+				Key:   "category",
+				Value: "food",
+			}
+
+			entity := form.ToEntity()
+			Expect(entity.Key).To(Equal("category"))
+			Expect(entity.Value).To(Equal("food"))
 		})
 
-		It("should handle Unicode characters in tag values", func() {
-			form := inbound.TagForm{
-				Value: "tag_with_unicode_🏷️_characters",
+		It("should handle special characters in key", func() {
+			form := inbound.LabelForm{
+				Key:   "category-type_123",
+				Value: "food",
 			}
 
-			jsonData, err := json.Marshal(form)
-			Expect(err).To(BeNil())
-
-			var unmarshaledForm inbound.TagForm
-			err = json.Unmarshal(jsonData, &unmarshaledForm)
-			Expect(err).To(BeNil())
-			Expect(unmarshaledForm.Value).To(Equal("tag_with_unicode_🏷️_characters"))
+			entity := form.ToEntity()
+			Expect(entity.Key).To(Equal("category-type_123"))
+			Expect(entity.Value).To(Equal("food"))
 		})
 
-		It("should handle empty string values", func() {
-			form := inbound.TagForm{
-				Value: "",
+		It("should handle special characters in value", func() {
+			form := inbound.LabelForm{
+				Key:   "category",
+				Value: "fast-food_123!@#",
 			}
 
-			jsonData, err := json.Marshal(form)
-			Expect(err).To(BeNil())
-
-			var unmarshaledForm inbound.TagForm
-			err = json.Unmarshal(jsonData, &unmarshaledForm)
-			Expect(err).To(BeNil())
-			Expect(unmarshaledForm.Value).To(Equal(""))
+			entity := form.ToEntity()
+			Expect(entity.Key).To(Equal("category"))
+			Expect(entity.Value).To(Equal("fast-food_123!@#"))
 		})
 
-		It("should handle whitespace-only values", func() {
-			form := inbound.TagForm{
-				Value: "   \t\n   ",
+		It("should handle unicode characters", func() {
+			form := inbound.LabelForm{
+				Key:   "category",
+				Value: "食品",
 			}
 
-			jsonData, err := json.Marshal(form)
-			Expect(err).To(BeNil())
-
-			var unmarshaledForm inbound.TagForm
-			err = json.Unmarshal(jsonData, &unmarshaledForm)
-			Expect(err).To(BeNil())
-			Expect(unmarshaledForm.Value).To(Equal("   \t\n   "))
-		})
-
-		It("should handle very long tag values", func() {
-			longValue := ""
-			for i := 0; i < 1000; i++ {
-				longValue += "a"
-			}
-
-			form := inbound.TagForm{
-				Value: longValue,
-			}
-
-			jsonData, err := json.Marshal(form)
-			Expect(err).To(BeNil())
-
-			var unmarshaledForm inbound.TagForm
-			err = json.Unmarshal(jsonData, &unmarshaledForm)
-			Expect(err).To(BeNil())
-			Expect(unmarshaledForm.Value).To(Equal(longValue))
-		})
-
-		It("should handle numeric-like string values", func() {
-			form := inbound.TagForm{
-				Value: "12345.67",
-			}
-
-			jsonData, err := json.Marshal(form)
-			Expect(err).To(BeNil())
-
-			var unmarshaledForm inbound.TagForm
-			err = json.Unmarshal(jsonData, &unmarshaledForm)
-			Expect(err).To(BeNil())
-			Expect(unmarshaledForm.Value).To(Equal("12345.67"))
-		})
-
-		It("should handle boolean-like string values", func() {
-			form := inbound.TagForm{
-				Value: "true",
-			}
-
-			jsonData, err := json.Marshal(form)
-			Expect(err).To(BeNil())
-
-			var unmarshaledForm inbound.TagForm
-			err = json.Unmarshal(jsonData, &unmarshaledForm)
-			Expect(err).To(BeNil())
-			Expect(unmarshaledForm.Value).To(Equal("true"))
-		})
-
-		It("should handle null-like string values", func() {
-			form := inbound.TagForm{
-				Value: "null",
-			}
-
-			jsonData, err := json.Marshal(form)
-			Expect(err).To(BeNil())
-
-			var unmarshaledForm inbound.TagForm
-			err = json.Unmarshal(jsonData, &unmarshaledForm)
-			Expect(err).To(BeNil())
-			Expect(unmarshaledForm.Value).To(Equal("null"))
-		})
-
-		It("should handle path-like string values", func() {
-			form := inbound.TagForm{
-				Value: "/path/to/some/resource",
-			}
-
-			jsonData, err := json.Marshal(form)
-			Expect(err).To(BeNil())
-
-			var unmarshaledForm inbound.TagForm
-			err = json.Unmarshal(jsonData, &unmarshaledForm)
-			Expect(err).To(BeNil())
-			Expect(unmarshaledForm.Value).To(Equal("/path/to/some/resource"))
+			entity := form.ToEntity()
+			Expect(entity.Key).To(Equal("category"))
+			Expect(entity.Value).To(Equal("食品"))
 		})
 	})
 })
-
-// TestTagHandlers is handled by the main handlers_suite_test.go

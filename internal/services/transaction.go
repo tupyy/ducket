@@ -16,7 +16,7 @@ const (
 type TransactionFilter struct {
 	Start  *time.Time `debugmap:"visible"`
 	End    *time.Time `debugmap:"visible"`
-	Tags   []string   `debugmap:"visible"`
+	Labels []string   `debugmap:"visible"`
 	Limit  int        `debugmap:"visible"`
 	Offset int        `debugmap:"visible"`
 }

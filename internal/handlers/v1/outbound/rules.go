@@ -12,6 +12,12 @@ type Rules struct {
 	Total int    `json:"total"`
 }
 
+type Label struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+	HRef  string `json:"href"`
+}
+
 // NewRules creates a new Rules response structure from a slice of entity.Rule.
 func NewRules(rules []entity.Rule) Rules {
 	r := Rules{
@@ -26,12 +32,12 @@ func NewRules(rules []entity.Rule) Rules {
 }
 
 type Rule struct {
-	HRef         string `json:"href"`
-	Name         string `json:"name"`
-	Pattern      string `json:"pattern,omitempty"`
-	CreatedAt    string `json:"created_at,omitempty"`
-	Transactions int    `json:"transactions,omitempty"`
-	Tags         []Tag  `json:"tags,omitempty"`
+	HRef         string  `json:"href"`
+	Name         string  `json:"name"`
+	Pattern      string  `json:"pattern,omitempty"`
+	CreatedAt    string  `json:"created_at,omitempty"`
+	Transactions int     `json:"transactions,omitempty"`
+	Labels       []Label `json:"labels,omitempty"`
 }
 
 // NewRule creates a new Rule response structure from an entity.Rule.
@@ -42,10 +48,15 @@ func NewRule(rule entity.Rule) Rule {
 		Pattern:      rule.Pattern,
 		CreatedAt:    rule.CreatedAt.Format(time.RFC3339),
 		Transactions: rule.CountTransactions,
+		Labels:       make([]Label, 0, len(rule.Labels)),
 	}
 
-	for _, t := range rule.Tags {
-		r.Tags = append(r.Tags, Tag{Value: t, HRef: fmt.Sprintf("/api/v1/tags/%s", t)})
+	for _, label := range rule.Labels {
+		r.Labels = append(r.Labels, Label{
+			Key:   label.Key,
+			Value: label.Value,
+			HRef:  fmt.Sprintf("/api/v1/labels/%d", label.ID),
+		})
 	}
 
 	return r

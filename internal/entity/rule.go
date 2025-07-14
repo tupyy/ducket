@@ -2,11 +2,17 @@ package entity
 
 import "time"
 
-type Tag struct {
+type Label struct {
+	ID                int
+	Key               string
 	Value             string
 	CreatedAt         time.Time
 	Rules             []string
 	CountTransactions int
+}
+
+func (l Label) Equal(anotherLabel Label) bool {
+	return l.Key == anotherLabel.Key && l.Value == anotherLabel.Value
 }
 
 type Rule struct {
@@ -14,19 +20,19 @@ type Rule struct {
 	Pattern           string
 	CreatedAt         time.Time
 	CountTransactions int
-	Tags              []string
+	Labels            []Label
 }
 
 // NewRule creates a new Rule entity with the specified name, pattern, and associated tags.
-func NewRule(name, pattern string, tags ...string) Rule {
-	_tags := make([]string, 0, len(tags))
-	for _, tag := range tags {
-		_tags = append(_tags, tag)
+func NewRule(name, pattern string, labels ...Label) Rule {
+	_labels := make([]Label, 0, len(labels))
+	for _, l := range labels {
+		_labels = append(_labels, l)
 	}
 
 	return Rule{
 		Name:    name,
 		Pattern: pattern,
-		Tags:    _tags,
+		Labels:  _labels,
 	}
 }

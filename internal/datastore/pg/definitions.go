@@ -3,11 +3,11 @@ package pg
 import sq "github.com/Masterminds/squirrel"
 
 const (
-	rulesTable            = "rules"
-	tagsTable             = "tags"
-	transactionTable      = "transactions"
-	transactionsTagsTable = "transactions_tags"
-	rulesTagsTable        = "rules_tags"
+	rulesTable              = "rules"
+	labelsTable             = "labels"
+	transactionTable        = "transactions"
+	transactionsLabelsTable = "transactions_labels"
+	rulesLabelsTable        = "rules_labels"
 
 	colID                 = "id"
 	colDate               = "date"
@@ -16,42 +16,57 @@ const (
 	colTransactionAmount  = "amount"
 	colTransactionAccount = "account"
 	colTransactionID      = "transaction_id"
-	colTagID              = "tag_id"
+	colLabelID            = "label_id"
 	colRuleName           = "name"
 	colRulPattern         = "pattern"
-	colValue              = "value"
-	colTag                = "tag"
+	colLabelValue         = "value"
+	colLabelKey           = "key"
 	colRuleID             = "rule_id"
+	colFilterRuleID       = "rules.id"
 	colCreatedAt          = "created_at"
 	colHash               = "hash"
 
-	errUnableToWriteTag          = "unable to write tag: %w"
-	errUnableToDeleteTag         = "unable to delete tag: %w"
-	errUnableToDeleteRule        = "unable to delete rule: %w"
-	errUnableToWriteRule         = "unable to write rule: %w"
+	errUnableToWriteLabel  = "unable to write label: %w"
+	errUnableToDeleteLabel = "unable to delete label: %w"
+	errUnableToReadLabel   = "unable to read label: %w"
+
+	errUnableToReadRule   = "unable to read rule: %w"
+	errUnableToDeleteRule = "unable to delete rule: %w"
+	errUnableToWriteRule  = "unable to write rule: %w"
+
 	errUnableToDeleteTransaction = "unable to delete transaction: %w"
 	errUnableToWriteTransaction  = "unable to write transaction: %w"
-	errUnableToReadRule          = "unable to read rule: %w"
-	errUnableToReadTag           = "unable to read tag: %w"
 )
 
 var (
 	psql = sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
-	selectRulesStmt = psql.Select("rules.*", "b.value").
-			From(rulesTable).
-			LeftJoin("(SELECT * FROM tags JOIN rules_tags as a on a.tag = tags.value) as b ON b.rule_id = rules.id")
+	selectRulesStmt = psql.Select(
+		"rules.id as rule_id",
+		"rules.pattern",
+		"b.id as label_id",
+		"b.key",
+		"b.value").
+		From(rulesTable).
+		LeftJoin("(SELECT * FROM labels JOIN rules_labels as a on a.label_id = labels.id) as b ON b.rule_id = rules.id")
 
-	selectTagsStmt = psql.Select(colValue, colRuleID, colCreatedAt).From(tagsTable).
-			LeftJoin("rules_tags on rules_tags.tag = tags.value")
+	selectLabelsStmt = psql.Select(
+		"labels.id",
+		colLabelKey,
+		colLabelValue,
+		colRuleID,
+		colCreatedAt,
+	).
+		From(labelsTable).
+		LeftJoin("rules_labels on rules_labels.label_id = labels.id")
 
-	selectTransactionTagsStmt = psql.Select("*").From(transactionsTagsTable)
+	selectTransactionLabelsStmt = psql.Select("*").From(transactionsLabelsTable)
 
-	countTransactionsPerTagPerRuleStmt = psql.
-						Select(colValue, "b.rule_id", "COUNT(transaction_id)").
-						FromSelect(selectTagsStmt, "b").
-						InnerJoin("transactions_tags on transactions_tags.tag_id = b.value").
-						GroupBy(colValue, "b.rule_id")
+	countTransactionsPerLabelPerRuleStmt = psql.
+						Select("b.id as label_id", "b.rule_id", "COUNT(transaction_id)").
+						FromSelect(selectLabelsStmt, "b").
+						InnerJoin("transactions_labels on transactions_labels.label_id = b.id").
+						GroupBy("b.id", "b.rule_id")
 
 	insertTransaction = psql.Insert(transactionTable).
 				Columns(
@@ -63,12 +78,12 @@ var (
 			colTransactionAmount,
 		)
 
-	insertTransactionTag  = psql.Insert(transactionsTagsTable).Columns(colTransactionID, colTagID)
-	selectTransactionStmp = psql.Select(colID, colDate, colTransactionAccount, colTransactionType, colTransactionContent, colTransactionAmount, colTagID, colRuleID, colHash).
+	insertTransactionLabel = psql.Insert(transactionsLabelsTable).Columns(colTransactionID, colLabelID)
+	selectTransactionStmp  = psql.Select(colID, colDate, colTransactionAccount, colTransactionType, colTransactionContent, colTransactionAmount, colLabelID, colRuleID, colHash).
 				From(transactionTable).
-				LeftJoin("transactions_tags ON transactions_tags.transaction_id = transactions.id")
+				LeftJoin("transactions_labels ON transactions_labels.transaction_id = transactions.id")
 
-	insertRule = psql.Insert(rulesTable).Columns("id", "pattern")
-	updateRule = psql.Update(rulesTable)
-	insertTag  = psql.Insert("tags").Columns("value")
+	insertRule  = psql.Insert(rulesTable).Columns("id", "pattern")
+	updateRule  = psql.Update(rulesTable)
+	insertLabel = psql.Insert("labels").Columns(colLabelKey, colLabelValue)
 )

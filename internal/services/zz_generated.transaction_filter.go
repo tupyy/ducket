@@ -33,7 +33,7 @@ func (t *TransactionFilter) ToOption() TransactionFilterOption {
 	return func(to *TransactionFilter) {
 		to.Start = t.Start
 		to.End = t.End
-		to.Tags = t.Tags
+		to.Labels = t.Labels
 		to.Limit = t.Limit
 		to.Offset = t.Offset
 	}
@@ -44,7 +44,7 @@ func (t TransactionFilter) DebugMap() map[string]any {
 	debugMap := map[string]any{}
 	debugMap["Start"] = helpers.DebugValue(t.Start, false)
 	debugMap["End"] = helpers.DebugValue(t.End, false)
-	debugMap["Tags"] = helpers.DebugValue(t.Tags, false)
+	debugMap["Labels"] = helpers.DebugValue(t.Labels, false)
 	debugMap["Limit"] = helpers.DebugValue(t.Limit, false)
 	debugMap["Offset"] = helpers.DebugValue(t.Offset, false)
 	return debugMap
@@ -80,17 +80,17 @@ func WithEnd(end *time.Time) TransactionFilterOption {
 	}
 }
 
-// WithTags returns an option that can append Tagss to TransactionFilter.Tags
-func WithTags(tags string) TransactionFilterOption {
+// WithLabels returns an option that can append Labelss to TransactionFilter.Labels
+func WithLabels(labels string) TransactionFilterOption {
 	return func(t *TransactionFilter) {
-		t.Tags = append(t.Tags, tags)
+		t.Labels = append(t.Labels, labels)
 	}
 }
 
-// SetTags returns an option that can set Tags on a TransactionFilter
-func SetTags(tags []string) TransactionFilterOption {
+// SetLabels returns an option that can set Labels on a TransactionFilter
+func SetLabels(labels []string) TransactionFilterOption {
 	return func(t *TransactionFilter) {
-		t.Tags = tags
+		t.Labels = labels
 	}
 }
 

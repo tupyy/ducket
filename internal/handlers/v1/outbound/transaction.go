@@ -11,20 +11,21 @@ const (
 	apiV1 = "/api/v1"
 )
 
-type TransactionTagAssociation struct {
+type TransactionLabelAssociation struct {
+	Key   string `json:"key"`
 	Value string `json:"value"`
 	Href  string `json:"href"`
 	Rule  string `json:"rule"`
 }
 
 type Transaction struct {
-	Href        string                      `json:"href"`
-	Kind        string                      `json:"kind"`
-	Date        string                      `json:"date"`
-	Account     int64                       `json:"account"`
-	Description string                      `json:"description"`
-	Amount      float32                     `json:"amount"`
-	Tags        []TransactionTagAssociation `json:"tags"`
+	Href        string                        `json:"href"`
+	Kind        string                        `json:"kind"`
+	Date        string                        `json:"date"`
+	Account     int64                         `json:"account"`
+	Description string                        `json:"description"`
+	Amount      float32                       `json:"amount"`
+	Labels      []TransactionLabelAssociation `json:"labels"`
 }
 
 // FromEntity converts an entity.Transaction to an outbound Transaction model
@@ -37,13 +38,18 @@ func FromEntity(t entity.Transaction) Transaction {
 		Description: t.RawContent,
 		Account:     t.Account,
 		Amount:      t.Amount,
-		Tags:        make([]TransactionTagAssociation, 0, len(t.Tags)),
+		Labels:      make([]TransactionLabelAssociation, 0, len(t.Labels)),
 	}
 
-	for tag, ruleID := range t.Tags {
-		transaction.Tags = append(transaction.Tags, TransactionTagAssociation{
-			Value: tag,
-			Href:  fmt.Sprintf("%s/tags/%s", apiV1, tag),
+	// TODO: Need to lookup label information by ID to get key-value pairs
+	// The t.Labels is now map[int]string where key is label_id and value is rule_id
+	// This requires service layer access to resolve label IDs to key-value pairs
+	// For now, we'll leave this empty until we can properly implement the lookup
+	for labelID, ruleID := range t.Labels {
+		transaction.Labels = append(transaction.Labels, TransactionLabelAssociation{
+			Key:   fmt.Sprintf("label_%d", labelID), // Placeholder - needs proper lookup
+			Value: fmt.Sprintf("value_%d", labelID), // Placeholder - needs proper lookup
+			Href:  fmt.Sprintf("%s/labels/%d", apiV1, labelID),
 			Rule:  ruleID,
 		})
 	}

@@ -81,7 +81,14 @@ func RulesHandlers(r *gin.RouterGroup) {
 		dt := dtContext.MustFromContext(c)
 		ruleSrv := services.NewRuleService(dt)
 
-		ruleToCreate := entity.NewRule(name, form.Pattern, form.Tags...)
+		labels := make([]entity.Label, 0, len(form.Labels))
+		for key, value := range form.Labels {
+			labels = append(labels, entity.Label{
+				Key:   key,
+				Value: value,
+			})
+		}
+		ruleToCreate := entity.NewRule(name, form.Pattern, labels...)
 		updated, err := ruleSrv.UpdateOrCreate(c.Request.Context(), ruleToCreate)
 		if err != nil {
 			zap.S().Errorw("failed to create rule", "error", err.Error(), "form", form)
@@ -209,14 +216,16 @@ func RulesHandlers(r *gin.RouterGroup) {
 			}
 
 			if matched {
-				// Apply all tags from this rule to the transaction
+				// Apply all labels from this rule to the transaction
 				updatedTransaction := transaction
-				if updatedTransaction.Tags == nil {
-					updatedTransaction.Tags = make(map[string]string)
+				if updatedTransaction.Labels == nil {
+					updatedTransaction.Labels = make(map[int]string)
 				}
 
-				for _, tag := range rule.Tags {
-					updatedTransaction.Tags[tag] = rule.Name
+				for _, label := range rule.Labels {
+					// TODO: Need to resolve label.ID properly
+					// For now, using a placeholder ID since label.ID might not be set
+					updatedTransaction.Labels[label.ID] = rule.Name
 				}
 
 				// Update the transaction in the database
@@ -235,7 +244,7 @@ func RulesHandlers(r *gin.RouterGroup) {
 					"rule", ruleName,
 					"transaction_id", transaction.ID,
 					"transaction_content", transaction.RawContent,
-					"tags", rule.Tags,
+					"labels", rule.Labels,
 				)
 			}
 		}

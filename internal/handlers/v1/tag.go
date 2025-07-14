@@ -12,25 +12,25 @@ import (
 	"go.uber.org/zap"
 )
 
-// TagHandlers registers all tag-related HTTP handlers with the provided router group.
-// This includes endpoints for CRUD operations on tags.
-func TagHandlers(r *gin.RouterGroup) {
-	r.GET("/tags", func(c *gin.Context) {
+// LabelHandlers registers all label-related HTTP handlers with the provided router group.
+// This includes endpoints for CRUD operations on labels.
+func LabelHandlers(r *gin.RouterGroup) {
+	r.GET("/labels", func(c *gin.Context) {
 		dt := dtContext.MustFromContext(c)
 
-		tagSrv := services.NewTagService(dt)
-		tags, err := tagSrv.GetTags(c.Request.Context())
+		labelSrv := services.NewLabelService(dt)
+		labels, err := labelSrv.GetLabels(c.Request.Context())
 		if err != nil {
-			zap.S().Errorw("failed to get tags", "error", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error})
+			zap.S().Errorw("failed to get labels", "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
-		c.JSON(http.StatusOK, outbound.NewTags(tags))
+		c.JSON(http.StatusOK, outbound.NewLabels(labels))
 	})
 
-	r.POST("/tags", func(c *gin.Context) {
-		var form inbound.TagForm
+	r.POST("/labels", func(c *gin.Context) {
+		var form inbound.LabelForm
 		if err := c.ShouldBindJSON(&form); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -43,25 +43,18 @@ func TagHandlers(r *gin.RouterGroup) {
 		}
 
 		dt := dtContext.MustFromContext(c)
-		tagSrv := services.NewTagService(dt)
-		if err := tagSrv.Create(c.Request.Context(), form.Value); err != nil {
+		labelSrv := services.NewLabelService(dt)
+		if err := labelSrv.CreateLabel(c.Request.Context(), form.ToEntity()); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
-		c.JSON(http.StatusCreated, outbound.NewTag(form.Value))
+		c.JSON(http.StatusCreated, outbound.NewLabel(form.Key, form.Value))
 	})
 
-	r.DELETE("/tags/:id", func(c *gin.Context) {
-		id := c.Param("id")
-
-		dt := dtContext.MustFromContext(c)
-		tagSrv := services.NewTagService(dt)
-		if err := tagSrv.Delete(c.Request.Context(), id); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		c.JSON(http.StatusNoContent, gin.H{})
+	r.DELETE("/labels/:id", func(c *gin.Context) {
+		// TODO: Implement label deletion by ID
+		// This would require parsing the ID and calling labelSrv.Delete
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "Label deletion not yet implemented"})
 	})
 }

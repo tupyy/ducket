@@ -17,10 +17,10 @@ const (
 )
 
 var (
-	psql              = sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
-	insertRuleStmt    = psql.Insert("rules").Columns("id", "pattern")
-	insertTagStmt     = psql.Insert("tags").Columns("value")
-	insertRuleTagStmt = psql.Insert("rules_tags").Columns("rule_id", "tag")
+	psql                = sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+	insertRuleStmt      = psql.Insert("rules").Columns("id", "pattern")
+	insertLabelStmt     = psql.Insert("labels").Columns("key", "value")
+	insertRuleLabelStmt = psql.Insert("rules_labels").Columns("rule_id", "label_id")
 )
 
 var _ = Describe("RuleService", Ordered, func() {
@@ -48,13 +48,13 @@ var _ = Describe("RuleService", Ordered, func() {
 		ruleService = services.NewRuleService(datastore)
 
 		// Clean up database
-		_, err = pgPool.Exec(context.TODO(), "DELETE FROM transactions_tags;")
+		_, err = pgPool.Exec(context.TODO(), "DELETE FROM transactions_labels;")
 		Expect(err).To(BeNil())
-		_, err = pgPool.Exec(context.TODO(), "DELETE FROM rules_tags;")
+		_, err = pgPool.Exec(context.TODO(), "DELETE FROM rules_labels;")
 		Expect(err).To(BeNil())
 		_, err = pgPool.Exec(context.TODO(), "DELETE FROM transactions;")
 		Expect(err).To(BeNil())
-		_, err = pgPool.Exec(context.TODO(), "DELETE FROM tags;")
+		_, err = pgPool.Exec(context.TODO(), "DELETE FROM labels;")
 		Expect(err).To(BeNil())
 		_, err = pgPool.Exec(context.TODO(), "DELETE FROM rules;")
 		Expect(err).To(BeNil())
@@ -118,7 +118,9 @@ var _ = Describe("RuleService", Ordered, func() {
 
 	Context("Create", func() {
 		It("should create a new rule successfully", func() {
-			newRule := entity.NewRule("new-rule", "new-pattern", "tag1", "tag2")
+			label1 := entity.Label{Key: "category", Value: "expense"}
+			label2 := entity.Label{Key: "type", Value: "recurring"}
+			newRule := entity.NewRule("new-rule", "new-pattern", label1, label2)
 
 			err := ruleService.Create(context.TODO(), newRule)
 			Expect(err).To(BeNil())
@@ -129,26 +131,53 @@ var _ = Describe("RuleService", Ordered, func() {
 			Expect(rule).ToNot(BeNil())
 			Expect(rule.Name).To(Equal("new-rule"))
 			Expect(rule.Pattern).To(Equal("new-pattern"))
-			Expect(rule.Tags).To(ContainElements("tag1", "tag2"))
+			Expect(rule.Labels).To(HaveLen(2))
+
+			// Check that the labels exist
+			labelValues := make(map[string]string)
+			for _, label := range rule.Labels {
+				labelValues[label.Key] = label.Value
+			}
+			Expect(labelValues).To(HaveKeyWithValue("category", "expense"))
+			Expect(labelValues).To(HaveKeyWithValue("type", "recurring"))
 		})
 
 		It("should fail when rule already exists", func() {
 			// First, create a rule
-			existingRule := entity.NewRule("dup-rule", "pattern")
+			label := entity.Label{Key: "category", Value: "expense"}
+			existingRule := entity.NewRule("dup-rule", "pattern", label)
 			err := ruleService.Create(context.TODO(), existingRule)
 			Expect(err).To(BeNil())
 
 			// Try to create the same rule again
-			duplicateRule := entity.NewRule("dup-rule", "different-pattern")
+			duplicateRule := entity.NewRule("dup-rule", "different-pattern", label)
 			err = ruleService.Create(context.TODO(), duplicateRule)
 			Expect(err).ToNot(BeNil())
 			Expect(err.Error()).To(ContainSubstring("already exists"))
+		})
+
+		It("should create labels if they don't exist", func() {
+			// Create a rule with labels that don't exist yet
+			newLabel := entity.Label{Key: "priority", Value: "high"}
+			newRule := entity.NewRule("with-new-labels", "pattern", newLabel)
+
+			err := ruleService.Create(context.TODO(), newRule)
+			Expect(err).To(BeNil())
+
+			// Verify the rule was created
+			rule, err := ruleService.GetRule(context.TODO(), "with-new-labels")
+			Expect(err).To(BeNil())
+			Expect(rule).ToNot(BeNil())
+			Expect(rule.Labels).To(HaveLen(1))
+			Expect(rule.Labels[0].Key).To(Equal("priority"))
+			Expect(rule.Labels[0].Value).To(Equal("high"))
 		})
 	})
 
 	Context("UpdateOrCreate", func() {
 		It("should create new rule when it doesn't exist", func() {
-			newRule := entity.NewRule("upsert-new", "pattern")
+			label := entity.Label{Key: "status", Value: "active"}
+			newRule := entity.NewRule("upsert-new", "pattern", label)
 
 			updated, err := ruleService.UpdateOrCreate(context.TODO(), newRule)
 			Expect(err).To(BeNil())
@@ -162,12 +191,14 @@ var _ = Describe("RuleService", Ordered, func() {
 
 		It("should update existing rule", func() {
 			// First, create a rule
-			originalRule := entity.NewRule("upd-exist", "original-pattern")
+			originalLabel := entity.Label{Key: "category", Value: "income"}
+			originalRule := entity.NewRule("upd-exist", "original-pattern", originalLabel)
 			err := ruleService.Create(context.TODO(), originalRule)
 			Expect(err).To(BeNil())
 
 			// Update the rule
-			updatedRule := entity.NewRule("upd-exist", "updated-pattern", "new-tag")
+			newLabel := entity.Label{Key: "category", Value: "expense"}
+			updatedRule := entity.NewRule("upd-exist", "updated-pattern", newLabel)
 			updated, err := ruleService.UpdateOrCreate(context.TODO(), updatedRule)
 			Expect(err).To(BeNil())
 			Expect(updated).To(BeTrue()) // Should be true for update
@@ -178,12 +209,35 @@ var _ = Describe("RuleService", Ordered, func() {
 			Expect(rule).ToNot(BeNil())
 			Expect(rule.Pattern).To(Equal("updated-pattern"))
 		})
+
+		It("should handle updating rule with new labels", func() {
+			// First, create a rule
+			originalLabel := entity.Label{Key: "old-key", Value: "old-value"}
+			originalRule := entity.NewRule("upd-with-labels", "pattern", originalLabel)
+			err := ruleService.Create(context.TODO(), originalRule)
+			Expect(err).To(BeNil())
+
+			// Update with new labels
+			newLabel1 := entity.Label{Key: "new-key1", Value: "new-value1"}
+			newLabel2 := entity.Label{Key: "new-key2", Value: "new-value2"}
+			updatedRule := entity.NewRule("upd-with-labels", "updated-pattern", newLabel1, newLabel2)
+			updated, err := ruleService.UpdateOrCreate(context.TODO(), updatedRule)
+			Expect(err).To(BeNil())
+			Expect(updated).To(BeTrue())
+
+			// Verify rule was updated with new labels
+			rule, err := ruleService.GetRule(context.TODO(), "upd-with-labels")
+			Expect(err).To(BeNil())
+			Expect(rule).ToNot(BeNil())
+			Expect(rule.Labels).To(HaveLen(2))
+		})
 	})
 
 	Context("DeleteRule", func() {
 		It("should delete existing rule successfully", func() {
 			// First, create a rule
-			ruleToDelete := entity.NewRule("del-rule", "pattern")
+			label := entity.Label{Key: "temp", Value: "delete-me"}
+			ruleToDelete := entity.NewRule("del-rule", "pattern", label)
 			err := ruleService.Create(context.TODO(), ruleToDelete)
 			Expect(err).To(BeNil())
 
@@ -222,7 +276,7 @@ var _ = Describe("RuleService", Ordered, func() {
 			Expect(err).To(BeNil())
 
 			// Test filter functionality
-			filter := services.NewRuleFilterWithOptions(services.WithName("filter-1"))
+			filter := services.NewRuleFilterWithOptions(services.WithId("filter-1"))
 			queryFilters := filter.QueriesFn()
 			Expect(queryFilters).ToNot(BeEmpty())
 
@@ -233,13 +287,13 @@ var _ = Describe("RuleService", Ordered, func() {
 
 	AfterEach(func() {
 		// Clean up after each test
-		_, err := pgPool.Exec(context.TODO(), "DELETE FROM transactions_tags;")
+		_, err := pgPool.Exec(context.TODO(), "DELETE FROM transactions_labels;")
 		Expect(err).To(BeNil())
-		_, err = pgPool.Exec(context.TODO(), "DELETE FROM rules_tags;")
+		_, err = pgPool.Exec(context.TODO(), "DELETE FROM rules_labels;")
 		Expect(err).To(BeNil())
 		_, err = pgPool.Exec(context.TODO(), "DELETE FROM transactions;")
 		Expect(err).To(BeNil())
-		_, err = pgPool.Exec(context.TODO(), "DELETE FROM tags;")
+		_, err = pgPool.Exec(context.TODO(), "DELETE FROM labels;")
 		Expect(err).To(BeNil())
 		_, err = pgPool.Exec(context.TODO(), "DELETE FROM rules;")
 		Expect(err).To(BeNil())

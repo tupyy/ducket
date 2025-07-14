@@ -1,9 +1,11 @@
 package v1
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
+	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1/outbound"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/services"
 	dtContext "git.tls.tupangiu.ro/cosmin/finante/pkg/context"
@@ -48,24 +50,42 @@ func SummaryHandlers(r *gin.RouterGroup) {
 		}
 
 		total := float32(0)
-		tagAmount := make(map[string]float32)
+		labelAmount := make(map[string]float32)
+
+		// Get label service to lookup label information
+		labelSrv := services.NewLabelService(dt)
+		allLabels, err := labelSrv.GetLabels(c.Request.Context())
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get labels"})
+			return
+		}
+
+		// Create a map for quick label lookup by ID
+		labelMap := make(map[int]entity.Label)
+		for _, label := range allLabels {
+			labelMap[label.ID] = label
+		}
+
 		for _, t := range transactions {
 			total += t.Amount
-			for tag := range t.Tags {
-				amount, ok := tagAmount[tag]
-				if ok {
-					amount += t.Amount
-					tagAmount[tag] = amount
-					continue
+			for labelID := range t.Labels {
+				if label, exists := labelMap[labelID]; exists {
+					labelKey := fmt.Sprintf("%s:%s", label.Key, label.Value)
+					amount, ok := labelAmount[labelKey]
+					if ok {
+						amount += t.Amount
+						labelAmount[labelKey] = amount
+						continue
+					}
+					labelAmount[labelKey] = t.Amount
 				}
-				tagAmount[tag] = t.Amount
 			}
 		}
 
 		summary := outbound.Summary{
 			StartingDate: start.Format("02/01/2006"),
 			EndingDate:   end.Format("02/01/2006"),
-			Items:        tagAmount,
+			Items:        labelAmount,
 			TotalAmmount: total,
 		}
 

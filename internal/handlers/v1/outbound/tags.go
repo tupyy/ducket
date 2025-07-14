@@ -7,55 +7,58 @@ import (
 	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
 )
 
-type Tags struct {
-	Total int   `json:"total"`
-	Tags  []Tag `json:"tags"`
+type Labels struct {
+	Total  int             `json:"total"`
+	Labels []LabelWithMeta `json:"labels"`
 }
 
-type Tag struct {
+type LabelWithMeta struct {
 	HRef         string `json:"href"`
+	Key          string `json:"key"`
 	Value        string `json:"value"`
 	Rules        []Rule `json:"rules,omitempty"`
 	CreatedAt    string `json:"created_at,omitempty"`
 	Transactions int    `json:"transactions,omitempty"`
 }
 
-// NewTag creates a new Tag response structure with the given value and associated rules.
-func NewTag(value string, rules ...entity.Rule) Tag {
-	tag := Tag{
-		HRef:  fmt.Sprintf("/api/v1/tags/%s", value),
+// NewLabel creates a new Label response structure with the given key, value and associated rules.
+func NewLabel(key, value string, rules ...entity.Rule) LabelWithMeta {
+	label := LabelWithMeta{
+		HRef:  fmt.Sprintf("/api/v1/labels/%s/%s", key, value),
+		Key:   key,
 		Value: value,
 		Rules: make([]Rule, 0),
 	}
 
 	for _, rule := range rules {
-		tag.Rules = append(tag.Rules, NewRule(rule))
+		label.Rules = append(label.Rules, NewRule(rule))
 	}
 
-	return tag
+	return label
 }
 
-// NewTags creates a new Tags response structure from a slice of entity.Tag.
-func NewTags(tags []entity.Tag) Tags {
-	mtags := Tags{
-		Tags: make([]Tag, 0),
+// NewLabels creates a new Labels response structure from a slice of entity.Label.
+func NewLabels(labels []entity.Label) Labels {
+	mlabels := Labels{
+		Labels: make([]LabelWithMeta, 0),
 	}
 
-	for _, eTag := range tags {
-		t := Tag{
-			HRef:         fmt.Sprintf("/api/v1/tags/%s", eTag.Value),
-			Value:        eTag.Value,
-			Transactions: eTag.CountTransactions,
-			CreatedAt:    eTag.CreatedAt.Format(time.RFC3339),
+	for _, eLabel := range labels {
+		l := LabelWithMeta{
+			HRef:         fmt.Sprintf("/api/v1/labels/%d", eLabel.ID),
+			Key:          eLabel.Key,
+			Value:        eLabel.Value,
+			Transactions: eLabel.CountTransactions,
+			CreatedAt:    eLabel.CreatedAt.Format(time.RFC3339),
 			Rules:        make([]Rule, 0),
 		}
-		for _, rule := range eTag.Rules {
-			t.Rules = append(t.Rules, Rule{Name: rule, HRef: fmt.Sprintf("/api/v1/rules/%s", rule)})
+		for _, rule := range eLabel.Rules {
+			l.Rules = append(l.Rules, Rule{Name: rule, HRef: fmt.Sprintf("/api/v1/rules/%s", rule)})
 		}
-		mtags.Tags = append(mtags.Tags, t)
+		mlabels.Labels = append(mlabels.Labels, l)
 	}
 
-	mtags.Total = len(mtags.Tags)
+	mlabels.Total = len(mlabels.Labels)
 
-	return mtags
+	return mlabels
 }
