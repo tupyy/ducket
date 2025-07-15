@@ -16,18 +16,18 @@ import {
 import { TimesIcon } from '@patternfly/react-icons';
 import { useTheme } from '@app/shared/contexts/ThemeContext';
 
-interface TagFilterProps {
-  availableTags: string[];
-  selectedTags: string[];
-  onTagsChange: (tags: string[]) => void;
+interface LabelFilterProps {
+  availableLabels: string[];
+  selectedLabels: string[];
+  onLabelsChange: (labels: string[]) => void;
   placeholder?: string;
 }
 
-const TagFilter: React.FC<TagFilterProps> = ({
-  availableTags,
-  selectedTags,
-  onTagsChange,
-  placeholder = 'Filter by tags...',
+const LabelFilter: React.FC<LabelFilterProps> = ({
+  availableLabels,
+  selectedLabels,
+  onLabelsChange,
+  placeholder = 'Filter by labels...',
 }) => {
   const { theme } = useTheme();
   const [isOpen, setIsOpen] = React.useState<boolean>(false);
@@ -37,39 +37,39 @@ const TagFilter: React.FC<TagFilterProps> = ({
     setInputValue(value);
   };
 
-  const handleTagSelect = (tag: string) => {
-    if (!selectedTags.includes(tag)) {
-      onTagsChange([...selectedTags, tag]);
+  const handleLabelSelect = (label: string) => {
+    if (!selectedLabels.includes(label)) {
+      onLabelsChange([...selectedLabels, label]);
     }
     setInputValue('');
     setIsOpen(false);
   };
 
-  const handleTagRemove = (tagToRemove: string) => {
-    onTagsChange(selectedTags.filter((tag) => tag !== tagToRemove));
+  const handleLabelRemove = (labelToRemove: string) => {
+    onLabelsChange(selectedLabels.filter((label) => label !== labelToRemove));
   };
 
   const handleClearAll = () => {
-    onTagsChange([]);
+    onLabelsChange([]);
     setInputValue('');
   };
 
-  // Filter available tags based on input and exclude already selected ones
-  const filteredTags = availableTags.filter(
-    (tag) => !selectedTags.includes(tag) && tag.toLowerCase().includes(inputValue.toLowerCase()),
+  // Filter available labels based on input and exclude already selected ones
+  const filteredLabels = availableLabels.filter(
+    (label) => !selectedLabels.includes(label) && label.toLowerCase().includes(inputValue.toLowerCase()),
   );
 
   const toggle = (toggleRef: React.Ref<MenuToggleElement>) => (
     <MenuToggle ref={toggleRef} onClick={() => setIsOpen(!isOpen)} isExpanded={isOpen} style={{ width: '300px' }}>
       <TextInputGroup>
         <TextInputGroupMain value={inputValue} placeholder={placeholder} onChange={handleInputChange} />
-        {(inputValue || selectedTags.length > 0) && (
+        {(inputValue || selectedLabels.length > 0) && (
           <TextInputGroupUtilities>
             <Button
               variant="plain"
               onClick={() => {
                 setInputValue('');
-                if (selectedTags.length > 0) {
+                if (selectedLabels.length > 0) {
                   handleClearAll();
                 }
               }}
@@ -90,35 +90,35 @@ const TagFilter: React.FC<TagFilterProps> = ({
           isOpen={isOpen}
           onOpenChange={(isOpen: boolean) => setIsOpen(isOpen)}
           toggle={toggle}
-          ouiaId="TagFilterDropdown"
+          ouiaId="LabelFilterDropdown"
           shouldFocusToggleOnSelect
         >
           <DropdownList>
-            {filteredTags.length > 0 ? (
-              filteredTags.map((tag, index) => (
-                <DropdownItem key={index} value={tag} onClick={() => handleTagSelect(tag)}>
-                  {tag}
+            {filteredLabels.length > 0 ? (
+              filteredLabels.map((label, index) => (
+                <DropdownItem key={index} value={label} onClick={() => handleLabelSelect(label)}>
+                  {label}
                 </DropdownItem>
               ))
             ) : (
-              <DropdownItem isDisabled>{inputValue ? 'No matching tags found' : 'No more tags available'}</DropdownItem>
+              <DropdownItem isDisabled>{inputValue ? 'No matching labels found' : 'No more labels available'}</DropdownItem>
             )}
           </DropdownList>
         </Dropdown>
       </FlexItem>
-      {selectedTags.length > 0 && (
+      {selectedLabels.length > 0 && (
         <FlexItem>
           <Flex spaceItems={{ default: 'spaceItemsXs' }} style={{ marginTop: '8px' }}>
-            {selectedTags.map((tag, index) => (
+            {selectedLabels.map((label, index) => (
               <FlexItem key={index}>
                 <Label
                   variant={theme === 'dark' ? 'outline' : 'filled'}
                   color="blue"
-                  onClose={() => handleTagRemove(tag)}
-                  closeBtnAriaLabel={`Remove ${tag} filter`}
+                  onClose={() => handleLabelRemove(label)}
+                  closeBtnAriaLabel={`Remove ${label} filter`}
                   style={theme === 'dark' ? { color: '#73bcf7' } : {}}
                 >
-                  {tag}
+                  {label}
                 </Label>
               </FlexItem>
             ))}
@@ -129,4 +129,4 @@ const TagFilter: React.FC<TagFilterProps> = ({
   );
 };
 
-export { TagFilter };
+export { LabelFilter }; 

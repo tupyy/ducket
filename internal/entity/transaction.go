@@ -13,6 +13,11 @@ const (
 	CreditTransaction TransactionKind = "credit"
 )
 
+type Association struct {
+	RuleID  string
+	LabelID int64
+}
+
 type Transaction struct {
 	ID         int64
 	Kind       TransactionKind
@@ -21,9 +26,7 @@ type Transaction struct {
 	RawContent string
 	Hash       string
 	Amount     float32
-	// Labels holds the tags applied on this transaction
-	// the key is the tag and the value the rule_id which applied the tag
-	Labels map[int]string
+	Labels     map[string]Label
 }
 
 // NewTransaction creates a new Transaction entity with the specified kind, date, amount, and raw content.
@@ -39,13 +42,17 @@ func NewTransaction(kind TransactionKind, account int64, date time.Time, sum flo
 		Hash:       fmt.Sprintf("%x", h.Sum(nil)),
 		Kind:       kind,
 		Amount:     sum,
-		Labels:     make(map[int]string),
+		Labels:     map[string]Label{},
 	}
 }
 
-// Holds how many transactions are associated with this tag and rule
-type TransactionStat struct {
-	LabelID int
+type TransactionAssociation struct {
 	RuleID  string
+	LabelID int
 	Count   int
+}
+
+type TransactionsStat struct {
+	Total        int
+	Associations []TransactionAssociation
 }

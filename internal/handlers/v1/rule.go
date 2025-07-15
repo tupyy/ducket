@@ -219,13 +219,11 @@ func RulesHandlers(r *gin.RouterGroup) {
 				// Apply all labels from this rule to the transaction
 				updatedTransaction := transaction
 				if updatedTransaction.Labels == nil {
-					updatedTransaction.Labels = make(map[int]string)
+					updatedTransaction.Labels = make(map[int]entity.Label)
 				}
 
 				for _, label := range rule.Labels {
-					// TODO: Need to resolve label.ID properly
-					// For now, using a placeholder ID since label.ID might not be set
-					updatedTransaction.Labels[label.ID] = rule.Name
+					updatedTransaction.Labels[label.ID] = label
 				}
 
 				// Update the transaction in the database

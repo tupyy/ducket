@@ -1,33 +1,33 @@
 import * as React from 'react';
 import { Card, CardBody, Title, Spinner } from '@patternfly/react-core';
 import { ChartPie, ChartThemeColor, ChartLegend } from '@patternfly/react-charts/victory';
-import { ITagReport } from '@app/shared/models/tag';
+import { ITagReport } from '@app/shared/models/label';
 import { useTheme } from '@app/shared/contexts/ThemeContext';
 
-interface TagAmountsChartProps {
+interface LabelAmountsChartProps {
   data: ITagReport[];
   loading?: boolean;
   title?: string;
 }
 
-const TagAmountsChart: React.FC<TagAmountsChartProps> = ({
+const LabelAmountsChart: React.FC<LabelAmountsChartProps> = ({
   data,
   loading = false,
-  title = 'Transaction Amounts by Tag',
+  title = 'Transaction Amounts by Label',
 }) => {
   const { theme } = useTheme();
-  // Convert TagReport data to chart format
+  // Convert LabelReport data to chart format
   const chartData = React.useMemo(() => {
     return data
       .map((item) => ({
-        x: item.tag,
+        x: item.tag, // Keep as 'tag' for backward compatibility with existing interfaces
         y: item.amount,
       }))
       .sort((a, b) => b.y - a.y)
-      .slice(0, 10); // Show top 10 tags
+      .slice(0, 10); // Show top 10 labels
   }, [data]);
 
-  // Create legend data from tag amounts
+  // Create legend data from label amounts
   const legendData = React.useMemo(() => {
     return chartData.map((item) => ({
       name: `${item.x}: ${item.y.toLocaleString('fr-FR', {
@@ -55,8 +55,8 @@ const TagAmountsChart: React.FC<TagAmountsChartProps> = ({
             style={{ height: '300px', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
           >
             <ChartPie
-              ariaTitle="Transaction amounts by tag"
-              ariaDesc="Pie chart showing total transaction amounts grouped by tag"
+              ariaTitle="Transaction amounts by label"
+              ariaDesc="Pie chart showing total transaction amounts grouped by label"
               data={chartData}
               height={280}
               legendComponent={
@@ -92,4 +92,4 @@ const TagAmountsChart: React.FC<TagAmountsChartProps> = ({
   );
 };
 
-export { TagAmountsChart };
+export { LabelAmountsChart }; 

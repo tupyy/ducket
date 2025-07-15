@@ -16,61 +16,87 @@ import {
 } from '@patternfly/react-core';
 import { DataView, DataViewToolbar } from '@patternfly/react-data-view';
 import { ExpandableRowContent, Table, Tbody, Td, Th, Thead, ThProps, Tr } from '@patternfly/react-table';
-import { ITagTransaction, ITransaction } from '@app/shared/models/transaction';
-import { TagFilter } from '@app/shared/components/tag-filter';
+import { ILabelTransaction, ITransaction } from '@app/shared/models/transaction';
+import { LabelFilter } from '@app/shared/components/label-filter';
 import { useTheme } from '@app/shared/contexts/ThemeContext';
 import { getAccountColor, getAccountDarkColor } from '@app/utils/colorUtils';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
-import {
-  setSourceTransactions,
-  applyFilters,
-} from '@app/shared/reducers/transaction-filter.reducer';
+import { setSourceTransactions, applyFilters } from '@app/shared/reducers/transaction-filter.reducer';
 
 export interface ITransactionListProps {
   transactions: Array<ITransaction> | [];
 }
 
+// Table column definitions for consistent referencing
 const columns = {
   date: 'Date',
   account: 'Account',
   kind: 'Type',
   amount: 'Amount',
-  tags: 'Tags',
+  labels: 'Labels',
   rules: 'Rules',
 };
 
+/**
+ * TransactionList Component
+ *
+ * This component displays a paginated, filterable, and sortable table of transactions.
+ * Features:
+ * - Filtering by labels, transaction types, and accounts
+ * - Sorting by various columns
+ * - Pagination support
+ * - Expandable rows showing transaction descriptions
+ * - Expand all/collapse all functionality
+ * - Interactive labels and filters for quick filtering
+ */
 const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ transactions }) => {
   const { theme } = useTheme();
   const dispatch = useAppDispatch();
-  
-  // Get initial transactions from transactions reducer and filtered results from filter reducer
+
+  // Get filtered transactions from the filter reducer
   const { filteredTransactions } = useAppSelector((state) => state.transactionFilter);
 
-  // Local state for filters, UI, sorting, pagination, and expanded rows
-  const [selectedTags, setSelectedTags] = React.useState<string[]>([]);
+  // ===============================
+  // STATE MANAGEMENT
+  // ===============================
+
+  // Filter states
+  const [selectedLabels, setSelectedLabels] = React.useState<string[]>([]);
   const [selectedTransactionTypes, setSelectedTransactionTypes] = React.useState<string[]>([]);
   const [selectedAccounts, setSelectedAccounts] = React.useState<number[]>([]);
+
+  // UI states for dropdown controls
   const [isTransactionTypeSelectOpen, setIsTransactionTypeSelectOpen] = React.useState(false);
   const [isAccountSelectOpen, setIsAccountSelectOpen] = React.useState(false);
-  const [sortedTransactions, setSortedTransactions] = React.useState<Array<ITransaction>>(Array.from(transactions));
-  const [activeSortIndex, setActiveSortIndex] = React.useState<number | null>(1);
-  const [activeSortDirection, setActiveSortDirection] = React.useState<'asc' | 'desc' | null>('desc');
+
+  // Pagination states
   const [page, setPage] = React.useState<number | undefined>(1);
   const [perPage, setPerPage] = React.useState<number>(10);
-  const [paginatedRows, setPaginatedRows] = React.useState(filteredTransactions.slice(0, 10));
-  const [expandedTransactions, setExpandedTransactions] = React.useState<string[]>([]);
 
-  // Get available options from transactions
-  const availableTags = React.useMemo(() => {
-    const tagSet = new Set<string>();
+  // Sorting states
+  const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc' | null>(null);
+  const [sortIndex, setSortIndex] = React.useState<number | null>(null);
+
+  // Row expansion states
+  const [expandedTransactions, setExpandedTransactions] = React.useState<string[]>([]);
+  const [allExpanded, setAllExpanded] = React.useState<boolean>(false);
+
+  // ===============================
+  // COMPUTED VALUES
+  // ===============================
+
+  // Calculate available labels from all transactions for filtering
+  const availableLabels = React.useMemo(() => {
+    const labelSet = new Set<string>();
     transactions.forEach((transaction) => {
-      transaction.tags.forEach((tag) => {
-        tagSet.add(tag.value);
+      transaction.labels.forEach((label) => {
+        labelSet.add(`${label.key}=${label.value}`);
       });
     });
-    return Array.from(tagSet).sort();
+    return Array.from(labelSet).sort();
   }, [transactions]);
 
+  // Calculate available transaction types from all transactions
   const availableTransactionTypes = React.useMemo(() => {
     const typeSet = new Set<string>();
     transactions.forEach((transaction) => {
@@ -79,219 +105,320 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     return Array.from(typeSet).sort();
   }, [transactions]);
 
+  // Calculate available accounts from all transactions
   const availableAccounts = React.useMemo(() => {
     const accountSet = new Set<number>();
     transactions.forEach((transaction) => {
-      if (transaction.account) {
-        accountSet.add(transaction.account);
-      }
+      accountSet.add(transaction.account);
     });
-    return Array.from(accountSet).sort((a, b) => a - b);
+    return Array.from(accountSet).sort();
   }, [transactions]);
 
-  // Helper function to get transaction kind label color
+  // ===============================
+  // UTILITY FUNCTIONS
+  // ===============================
+
+  /**
+   * Get color for transaction type labels
+   * @param kind - Transaction type (EXPENSE/INCOME)
+   * @returns Color name for the label
+   */
   const getTransactionKindColor = (kind: string): 'red' | 'blue' => {
-    return kind.toLowerCase() === 'debit' ? 'red' : 'blue';
+    return kind === 'EXPENSE' ? 'red' : 'blue';
   };
 
+  /**
+   * Set transaction expanded state
+   * @param t - Transaction to expand/collapse
+   * @param isExpanding - Whether to expand (true) or collapse (false)
+   */
   const setTransactionExpanded = (t: ITransaction, isExpanding = true) =>
     setExpandedTransactions((prevExpanded) => {
-      const otherExpandedRepoNames = prevExpanded.filter((tt) => tt !== t.href);
-      return isExpanding ? [...otherExpandedRepoNames, t.href] : otherExpandedRepoNames;
+      const transactionIndex = prevExpanded.findIndex((href) => href === t.href);
+      const newExpanded = [...prevExpanded];
+      if (isExpanding && transactionIndex === -1) {
+        newExpanded.push(t.href);
+      } else if (!isExpanding && transactionIndex !== -1) {
+        newExpanded.splice(transactionIndex, 1);
+      }
+      return newExpanded;
     });
+
+  /**
+   * Check if a transaction is currently expanded
+   * @param t - Transaction to check
+   * @returns Whether the transaction is expanded
+   */
   const isTransactionExpanded = (t: ITransaction) => expandedTransactions.includes(t.href);
 
-  // Initialize source transactions when transactions change
-  React.useEffect(() => {
-    dispatch(setSourceTransactions(transactions));
-  }, [transactions, dispatch]);
+  // ===============================
+  // EFFECTS
+  // ===============================
 
   // Apply filters whenever filter selections change
   React.useEffect(() => {
-    dispatch(applyFilters({
-      selectedTags,
-      selectedTransactionTypes,
-      selectedAccounts,
-    }));
-  }, [selectedTags, selectedTransactionTypes, selectedAccounts, dispatch]);
+    // Set source transactions for the filter reducer
+    dispatch(setSourceTransactions(transactions));
 
-  // Sort filtered transactions when filtered transactions or sort parameters change
-  React.useEffect(() => {
-    const sortTransactions = (
-      transactionsToSort: ITransaction[],
-      sortIndex: number | null,
-      sortDirection: 'asc' | 'desc' | null
-    ): ITransaction[] => {
-      if (sortIndex === null || sortDirection === null) {
-        return [...transactionsToSort];
+    // Apply filters
+    dispatch(
+      applyFilters({
+        selectedLabels,
+        selectedTransactionTypes,
+        selectedAccounts,
+      })
+    );
+  }, [selectedLabels, selectedTransactionTypes, selectedAccounts, dispatch]);
+
+  // ===============================
+  // SORTING AND PAGINATION
+  // ===============================
+
+  /**
+   * Sort transactions based on column and direction
+   * @param transactionsToSort - Array of transactions to sort
+   * @param sortIndex - Column index to sort by
+   * @param sortDirection - Sort direction (asc/desc)
+   * @returns Sorted array of transactions
+   */
+  const sortTransactions = (
+    transactionsToSort: ITransaction[],
+    sortIndex: number | null,
+    sortDirection: 'asc' | 'desc' | null
+  ): ITransaction[] => {
+    if (sortIndex === null || sortDirection === null) {
+      return transactionsToSort;
+    }
+
+    return [...transactionsToSort].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortIndex) {
+        case 0: // Date
+          aValue = new Date(a.date);
+          bValue = new Date(b.date);
+          break;
+        case 1: // Account
+          aValue = a.account;
+          bValue = b.account;
+          break;
+        case 2: // Type
+          aValue = a.kind;
+          bValue = b.kind;
+          break;
+        case 3: // Amount
+          aValue = Math.abs(a.amount);
+          bValue = Math.abs(b.amount);
+          break;
+        case 4: // Labels
+          aValue = a.labels.length;
+          bValue = b.labels.length;
+          break;
+        case 5: // Rules (based on unique rules from labels)
+          aValue = Array.from(new Set(a.labels.map((label) => label.rule))).length;
+          bValue = Array.from(new Set(b.labels.map((label) => label.rule))).length;
+          break;
+        default:
+          return 0;
       }
 
-      return [...transactionsToSort].sort((a, b) => {
-        let aValue: any;
-        let bValue: any;
-
-        switch (sortIndex) {
-          case 1: // Date
-            aValue = a.date.getTime();
-            bValue = b.date.getTime();
-            break;
-          case 2: // Account
-            aValue = a.account;
-            bValue = b.account;
-            break;
-          case 3: // Type
-            aValue = a.kind;
-            bValue = b.kind;
-            break;
-          case 6: // Amount
-            aValue = a.amount;
-            bValue = b.amount;
-            break;
-          default:
-            return 0;
-        }
-
-        if (sortDirection === 'desc') {
-          return bValue < aValue ? -1 : bValue > aValue ? 1 : 0;
-        }
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      });
-    };
-
-    const sorted = sortTransactions(filteredTransactions, activeSortIndex, activeSortDirection);
-    setSortedTransactions(sorted);
-  }, [filteredTransactions, activeSortIndex, activeSortDirection]);
-
-  // Update pagination when sorted transactions change
-  React.useEffect(() => {
-    setPaginatedRows(sortedTransactions?.slice(0, perPage));
-    setPage(1);
-  }, [sortedTransactions, perPage]);
-
-  const handleTagsChange = (tags: string[]) => {
-    console.log('Selected tags changed:', tags);
-    setSelectedTags(tags);
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
   };
 
+  // Apply sorting to filtered transactions
+  const sortedTransactions = React.useMemo(() => {
+    return sortTransactions(filteredTransactions, sortIndex, sortDirection);
+  }, [filteredTransactions, sortIndex, sortDirection]);
+
+  // Apply pagination to sorted transactions
+  const paginatedTransactions = React.useMemo(() => {
+    const startIdx = ((page || 1) - 1) * perPage;
+    const endIdx = startIdx + perPage;
+    return sortedTransactions.slice(startIdx, endIdx);
+  }, [sortedTransactions, page, perPage]);
+
+  // ===============================
+  // EXPAND ALL FUNCTIONALITY
+  // ===============================
+
+  // Check if all current page transactions are expanded
+  const areAllCurrentPageExpanded = React.useMemo(() => {
+    return paginatedTransactions.length > 0 && paginatedTransactions.every(t => expandedTransactions.includes(t.href));
+  }, [paginatedTransactions, expandedTransactions]);
+
+  /**
+   * Handle expand all / collapse all functionality
+   * Only affects transactions on the current page
+   */
+  const handleExpandAll = () => {
+    if (areAllCurrentPageExpanded) {
+      // Collapse all current page transactions
+      const currentPageHrefs = paginatedTransactions.map(t => t.href);
+      setExpandedTransactions(prev => prev.filter(href => !currentPageHrefs.includes(href)));
+    } else {
+      // Expand all current page transactions
+      const currentPageHrefs = paginatedTransactions.map(t => t.href);
+      setExpandedTransactions(prev => Array.from(new Set([...prev, ...currentPageHrefs])));
+    }
+  };
+
+  // ===============================
+  // FILTER EVENT HANDLERS
+  // ===============================
+
+  /**
+   * Handle label filter changes
+   * @param labels - Array of selected label strings in key=value format
+   */
+  const handleLabelsChange = (labels: string[]) => {
+    console.log('Selected labels changed:', labels);
+    setSelectedLabels(labels);
+  };
+
+  // Transaction type filter handlers
   const handleTransactionTypeToggle = () => {
     setIsTransactionTypeSelectOpen(!isTransactionTypeSelectOpen);
   };
 
   const handleTransactionTypeSelect = (
     _event: React.MouseEvent<Element, MouseEvent> | undefined,
-    value: string | number | undefined,
+    value: string | number | undefined
   ) => {
-    if (typeof value === 'string') {
-      setSelectedTransactionTypes((prev) => {
-        if (prev.includes(value)) {
-          return prev.filter((type) => type !== value);
-        } else {
-          return [...prev, value];
-        }
-      });
+    const stringValue = String(value);
+    if (selectedTransactionTypes.includes(stringValue)) {
+      setSelectedTransactionTypes(selectedTransactionTypes.filter((type) => type !== stringValue));
+    } else {
+      setSelectedTransactionTypes([...selectedTransactionTypes, stringValue]);
     }
   };
 
   const handleTransactionTypeRemove = (typeToRemove: string) => {
-    setSelectedTransactionTypes((prev) => prev.filter((type) => type !== typeToRemove));
+    setSelectedTransactionTypes(selectedTransactionTypes.filter((type) => type !== typeToRemove));
   };
 
+  // Account filter handlers
   const handleAccountToggle = () => {
     setIsAccountSelectOpen(!isAccountSelectOpen);
   };
 
   const handleAccountSelect = (
     _event: React.MouseEvent<Element, MouseEvent> | undefined,
-    value: string | number | undefined,
+    value: string | number | undefined
   ) => {
-    if (typeof value === 'string') {
-      const accountNumber = parseInt(value, 10);
-      if (!isNaN(accountNumber)) {
-        setSelectedAccounts((prev) => {
-          if (prev.includes(accountNumber)) {
-            return prev.filter((account) => account !== accountNumber);
-          } else {
-            return [...prev, accountNumber];
-          }
-        });
-      }
+    const numberValue = Number(value);
+    if (selectedAccounts.includes(numberValue)) {
+      setSelectedAccounts(selectedAccounts.filter((account) => account !== numberValue));
+    } else {
+      setSelectedAccounts([...selectedAccounts, numberValue]);
     }
   };
 
   const handleAccountRemove = (accountToRemove: number) => {
-    setSelectedAccounts((prev) => prev.filter((account) => account !== accountToRemove));
+    setSelectedAccounts(selectedAccounts.filter((account) => account !== accountToRemove));
   };
 
+  /**
+   * Clear all active filters
+   */
   const handleClearAllFilters = () => {
-    setSelectedTags([]);
+    setSelectedLabels([]);
     setSelectedTransactionTypes([]);
     setSelectedAccounts([]);
   };
 
-  const handleTagClick = (tagValue: string) => {
-    const newSelectedTags = selectedTags.includes(tagValue)
-      ? selectedTags.filter((tag) => tag !== tagValue)
-      : [...selectedTags, tagValue];
-    setSelectedTags(newSelectedTags);
+  // ===============================
+  // INTERACTIVE CLICK HANDLERS
+  // ===============================
+
+  /**
+   * Handle clicking on a label to add/remove it from filters
+   * @param labelValue - Label string in key=value format
+   */
+  const handleLabelClick = (labelValue: string) => {
+    const newSelectedLabels = selectedLabels.includes(labelValue)
+      ? selectedLabels.filter((label) => label !== labelValue)
+      : [...selectedLabels, labelValue];
+    setSelectedLabels(newSelectedLabels);
   };
 
+  /**
+   * Handle clicking on a rule to filter by all labels associated with that rule
+   * @param ruleId - Rule identifier
+   */
   const handleRuleClick = (ruleId: string) => {
-    // Find all tags associated with this rule
-    const ruleTags = new Set<string>();
+    // Find all labels associated with this rule
+    const ruleLabels = new Set<string>();
     transactions.forEach((transaction) => {
-      transaction.tags.forEach((tag) => {
-        if (tag.rule === ruleId) {
-          ruleTags.add(tag.value);
+      transaction.labels.forEach((label) => {
+        if (label.rule === ruleId) {
+          ruleLabels.add(`${label.key}=${label.value}`);
         }
       });
     });
 
-    const ruleTagsArray = Array.from(ruleTags);
-    const newSelectedTags = Array.from(new Set([...selectedTags, ...ruleTagsArray]));
-    setSelectedTags(newSelectedTags);
+    const ruleLabelsArray = Array.from(ruleLabels);
+    const newSelectedLabels = Array.from(new Set([...selectedLabels, ...ruleLabelsArray]));
+    setSelectedLabels(newSelectedLabels);
   };
 
+  /**
+   * Handle clicking on transaction type to add/remove it from filters
+   * @param transactionType - Transaction type string
+   */
   const handleTransactionTypeClick = (transactionType: string) => {
-    setSelectedTransactionTypes((prev) => {
-      if (prev.includes(transactionType)) {
-        return prev.filter((type) => type !== transactionType);
-      } else {
-        return [...prev, transactionType];
-      }
-    });
+    const newSelectedTypes = selectedTransactionTypes.includes(transactionType)
+      ? selectedTransactionTypes.filter((type) => type !== transactionType)
+      : [...selectedTransactionTypes, transactionType];
+    setSelectedTransactionTypes(newSelectedTypes);
   };
 
+  /**
+   * Handle clicking on account to add/remove it from filters
+   * @param accountNumber - Account number
+   */
   const handleAccountClick = (accountNumber: number) => {
-    setSelectedAccounts((prev) => {
-      if (prev.includes(accountNumber)) {
-        return prev.filter((account) => account !== accountNumber);
-      } else {
-        return [...prev, accountNumber];
-      }
-    });
+    const newSelectedAccounts = selectedAccounts.includes(accountNumber)
+      ? selectedAccounts.filter((account) => account !== accountNumber)
+      : [...selectedAccounts, accountNumber];
+    setSelectedAccounts(newSelectedAccounts);
   };
 
+  // ===============================
+  // SORTING HELPERS
+  // ===============================
+
+  /**
+   * Generate sorting parameters for table headers
+   * @param columnIndex - Index of the column
+   * @returns Sort parameters object
+   */
   const getSortParams = (columnIndex: number): ThProps['sort'] => ({
     sortBy: {
-      index: activeSortIndex!,
-      direction: activeSortDirection!,
-      defaultDirection: 'asc',
+      index: sortIndex || undefined,
+      direction: sortDirection || undefined,
     },
     onSort: (_event, index, direction) => {
-      setActiveSortIndex(index);
-      setActiveSortDirection(direction);
+      setSortIndex(index);
+      setSortDirection(direction);
     },
     columnIndex,
   });
+
+  // ===============================
+  // PAGINATION HANDLERS
+  // ===============================
 
   const handleSetPage = (
     _evt: React.MouseEvent | React.KeyboardEvent | MouseEvent,
     newPage: number,
     _perPage: number | undefined,
     startIdx: number | undefined,
-    endIdx: number | undefined,
+    endIdx: number | undefined
   ) => {
-    setPaginatedRows(sortedTransactions?.slice(startIdx, endIdx));
     setPage(newPage);
   };
 
@@ -300,16 +427,27 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     newPerPage: number,
     newPage: number | undefined,
     startIdx: number | undefined,
-    endIdx: number | undefined,
+    endIdx: number | undefined
   ) => {
-    setPaginatedRows(sortedTransactions?.slice(startIdx, endIdx));
-    setPage(newPage);
     setPerPage(newPerPage);
+    setPage(newPage);
   };
 
+  // ===============================
+  // RENDER HELPERS
+  // ===============================
+
+  /**
+   * Render pagination component
+   * @param variant - Pagination variant (top/bottom)
+   * @param isCompact - Whether to use compact layout
+   * @param isSticky - Whether pagination should be sticky
+   * @param isStatic - Whether pagination should be static
+   * @returns Pagination component
+   */
   const renderPagination = (variant: PaginationVariant, isCompact: boolean, isSticky: boolean, isStatic: boolean) => (
     <Pagination
-      id={`datalist-${variant}-pagination`}
+      id={`transaction-table-${variant}-pagination`}
       variant={variant}
       itemCount={sortedTransactions.length}
       page={page}
@@ -325,303 +463,302 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     />
   );
 
+  /**
+   * Render the toolbar with filters and controls
+   */
   const renderToolbar = (
     <DataViewToolbar
-      filters={
-        <Flex direction={{ default: 'column' }} spaceItems={{ default: 'spaceItemsMd' }}>
-          <FlexItem>
-            <Flex spaceItems={{ default: 'spaceItemsMd' }}>
-              <FlexItem>
-                <TagFilter
-                  availableTags={availableTags}
-                  selectedTags={selectedTags}
-                  onTagsChange={handleTagsChange}
-                  placeholder="Filter by tags..."
-                />
-              </FlexItem>
-              <FlexItem>
-                <Flex direction={{ default: 'column' }}>
-                  <FlexItem>
-                    <Select
-                      isOpen={isTransactionTypeSelectOpen}
-                      selected={selectedTransactionTypes}
-                      onSelect={handleTransactionTypeSelect}
-                      onOpenChange={(isOpen) => setIsTransactionTypeSelectOpen(isOpen)}
-                      toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-                        <MenuToggle
-                          ref={toggleRef}
-                          onClick={handleTransactionTypeToggle}
-                          isExpanded={isTransactionTypeSelectOpen}
-                        >
-                          {selectedTransactionTypes.length > 0
-                            ? `Transaction Types (${selectedTransactionTypes.length})`
-                            : 'Filter by transaction type...'}
-                        </MenuToggle>
-                      )}
-                    >
-                      <SelectList>
-                        {availableTransactionTypes.map((type) => (
-                          <SelectOption
-                            key={type}
-                            value={type}
-                            isSelected={selectedTransactionTypes.includes(type)}
-                            hasCheckbox
-                          >
-                            {type.charAt(0).toUpperCase() + type.slice(1)}
-                          </SelectOption>
-                        ))}
-                      </SelectList>
-                    </Select>
-                  </FlexItem>
-                  {selectedTransactionTypes.length > 0 && (
-                    <FlexItem>
-                      <Flex spaceItems={{ default: 'spaceItemsXs' }} style={{ marginTop: '8px' }}>
-                        {selectedTransactionTypes.map((type, index) => (
-                          <FlexItem key={index}>
-                            <Label
-                              variant={theme === 'dark' ? 'outline' : 'filled'}
-                              color="orange"
-                              onClose={() => handleTransactionTypeRemove(type)}
-                              closeBtnAriaLabel={`Remove ${type} filter`}
-                              style={theme === 'dark' ? { color: '#f4c430' } : {}}
-                            >
-                              {type.charAt(0).toUpperCase() + type.slice(1)}
-                            </Label>
-                          </FlexItem>
-                        ))}
-                      </Flex>
-                    </FlexItem>
-                  )}
-                </Flex>
-              </FlexItem>
-              <FlexItem>
-                <Flex direction={{ default: 'column' }}>
-                  <FlexItem>
-                    <Select
-                      isOpen={isAccountSelectOpen}
-                      selected={selectedAccounts}
-                      onSelect={handleAccountSelect}
-                      onOpenChange={(isOpen) => setIsAccountSelectOpen(isOpen)}
-                      toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-                        <MenuToggle
-                          ref={toggleRef}
-                          onClick={handleAccountToggle}
-                          isExpanded={isAccountSelectOpen}
-                        >
-                          {selectedAccounts.length > 0
-                            ? `Accounts (${selectedAccounts.length})`
-                            : 'Filter by account...'}
-                        </MenuToggle>
-                      )}
-                    >
-                      <SelectList>
-                        {availableAccounts.map((account) => (
-                          <SelectOption
-                            key={account}
-                            value={account.toString()}
-                            isSelected={selectedAccounts.includes(account)}
-                            hasCheckbox
-                          >
-                            {account.toString()}
-                          </SelectOption>
-                        ))}
-                      </SelectList>
-                    </Select>
-                  </FlexItem>
-                  {selectedAccounts.length > 0 && (
-                    <FlexItem>
-                      <Flex spaceItems={{ default: 'spaceItemsXs' }} style={{ marginTop: '8px' }}>
-                        {selectedAccounts.map((account, index) => (
-                          <FlexItem key={index}>
-                            <Label
-                              variant={theme === 'dark' ? 'outline' : 'filled'}
-                              color={getAccountColor(account)}
-                              onClose={() => handleAccountRemove(account)}
-                              closeBtnAriaLabel={`Remove ${account} filter`}
-                              style={theme === 'dark' ? { color: getAccountDarkColor(account) } : {}}
-                            >
-                              {account.toString()}
-                            </Label>
-                          </FlexItem>
-                        ))}
-                      </Flex>
-                    </FlexItem>
-                  )}
-                </Flex>
-              </FlexItem>
-            </Flex>
-          </FlexItem>
-          {(selectedTags.length > 0 || selectedTransactionTypes.length > 0 || selectedAccounts.length > 0) && (
-            <FlexItem>
-              <Button variant="link" onClick={handleClearAllFilters} isInline>
-                Clear all filters
-              </Button>
-            </FlexItem>
-          )}
-        </Flex>
-      }
+      clearAllFilters={handleClearAllFilters}
       pagination={renderPagination(PaginationVariant.top, true, false, false)}
+      filters={
+        <React.Fragment>
+          <LabelFilter
+            availableLabels={availableLabels}
+            selectedLabels={selectedLabels}
+            onLabelsChange={handleLabelsChange}
+            placeholder="Filter by labels..."
+          />
+          <Select
+            id="transaction-type-select"
+            isOpen={isTransactionTypeSelectOpen}
+            selected={selectedTransactionTypes}
+            onSelect={handleTransactionTypeSelect}
+            onOpenChange={(isOpen) => setIsTransactionTypeSelectOpen(isOpen)}
+            toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+              <MenuToggle
+                ref={toggleRef}
+                onClick={handleTransactionTypeToggle}
+                isExpanded={isTransactionTypeSelectOpen}
+                style={{ width: '200px' }}
+              >
+                Transaction Type
+              </MenuToggle>
+            )}
+            shouldFocusToggleOnSelect
+          >
+            <SelectList>
+              {availableTransactionTypes.map((type, index) => (
+                <SelectOption key={index} value={type}>
+                  {type}
+                </SelectOption>
+              ))}
+            </SelectList>
+          </Select>
+          <Select
+            id="account-select"
+            isOpen={isAccountSelectOpen}
+            selected={selectedAccounts}
+            onSelect={handleAccountSelect}
+            onOpenChange={(isOpen) => setIsAccountSelectOpen(isOpen)}
+            toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+              <MenuToggle
+                ref={toggleRef}
+                onClick={handleAccountToggle}
+                isExpanded={isAccountSelectOpen}
+                style={{ width: '200px' }}
+              >
+                Account
+              </MenuToggle>
+            )}
+            shouldFocusToggleOnSelect
+          >
+            <SelectList>
+              {availableAccounts.map((account, index) => (
+                <SelectOption key={index} value={account}>
+                  {account}
+                </SelectOption>
+              ))}
+            </SelectList>
+          </Select>
+        </React.Fragment>
+      }
     />
   );
 
+  /**
+   * Render the active filters section
+   */
+  const renderSelectedFilters = () => (
+    <PageSection>
+      <Flex direction={{ default: 'column' }}>
+        {(selectedLabels.length > 0 || selectedTransactionTypes.length > 0 || selectedAccounts.length > 0) && (
+          <FlexItem>
+            <Content>
+              <strong>Active Filters:</strong>
+            </Content>
+          </FlexItem>
+        )}
+
+        {/* Selected Labels */}
+        {selectedLabels.length > 0 && (
+          <FlexItem>
+            <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
+              <FlexItem>
+                <Content>Labels:</Content>
+              </FlexItem>
+              {selectedLabels.map((label, index) => (
+                <FlexItem key={index}>
+                  <Label
+                    variant="filled"
+                    color="blue"
+                    onClose={() => handleLabelClick(label)}
+                    closeBtnAriaLabel={`Remove ${label} filter`}
+                  >
+                    {label}
+                  </Label>
+                </FlexItem>
+              ))}
+            </Flex>
+          </FlexItem>
+        )}
+
+        {/* Selected Transaction Types */}
+        {selectedTransactionTypes.length > 0 && (
+          <FlexItem>
+            <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
+              <FlexItem>
+                <Content>Transaction Types:</Content>
+              </FlexItem>
+              {selectedTransactionTypes.map((type, index) => (
+                <FlexItem key={index}>
+                  <Label
+                    variant="filled"
+                    color="green"
+                    onClose={() => handleTransactionTypeRemove(type)}
+                    closeBtnAriaLabel={`Remove ${type} filter`}
+                  >
+                    {type}
+                  </Label>
+                </FlexItem>
+              ))}
+            </Flex>
+          </FlexItem>
+        )}
+
+        {/* Selected Accounts */}
+        {selectedAccounts.length > 0 && (
+          <FlexItem>
+            <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
+              <FlexItem>
+                <Content>Accounts:</Content>
+              </FlexItem>
+              {selectedAccounts.map((account, index) => (
+                <FlexItem key={index}>
+                  <Label
+                    variant="filled"
+                    color="purple"
+                    onClose={() => handleAccountRemove(account)}
+                    closeBtnAriaLabel={`Remove account ${account} filter`}
+                  >
+                    {account}
+                  </Label>
+                </FlexItem>
+              ))}
+            </Flex>
+          </FlexItem>
+        )}
+      </Flex>
+    </PageSection>
+  );
+
+  /**
+   * Render the main transaction table
+   */
   const renderList = (
     <React.Fragment>
       <Table aria-label="transaction-list">
         <Thead>
           <Tr>
-            <Th screenReaderText="Row expansion" />
+            {/* Expand All Button */}
+            <Th>
+              <Button
+                variant="plain"
+                onClick={handleExpandAll}
+                size="sm"
+                aria-label={areAllCurrentPageExpanded ? 'Collapse all rows' : 'Expand all rows'}
+              >
+                {areAllCurrentPageExpanded ? '▼' : '▶'}
+              </Button>
+            </Th>
+            {/* Sortable Columns */}
+            <Th sort={getSortParams(0)}>
+              <strong>{columns.date}</strong>
+            </Th>
             <Th sort={getSortParams(1)}>
-              <Content component="p">
-                <strong>{columns.date}</strong>
-              </Content>
+              <strong>{columns.account}</strong>
             </Th>
-            <Th>
-              <Content component="p">
-                <strong>{columns.account}</strong>
-              </Content>
+            <Th sort={getSortParams(2)}>
+              <strong>{columns.kind}</strong>
             </Th>
-            <Th>
-              <Content component="p">
-                <strong>{columns.kind}</strong>
-              </Content>
+            <Th sort={getSortParams(4)}>
+              <strong>{columns.labels}</strong>
             </Th>
-            <Th>
-              <Content component="p">
-                <strong>{columns.tags}</strong>
-              </Content>
-            </Th>
-            <Th>
-              <Content component="p">
-                <strong>{columns.rules}</strong>
-              </Content>
-            </Th>
-            <Th width={10} sort={getSortParams(6)}>
-              <Content component="p">
-                <strong>{columns.amount}</strong>
-              </Content>
+            <Th sort={getSortParams(3)}>
+              <strong>{columns.amount}</strong>
             </Th>
           </Tr>
         </Thead>
-        {paginatedRows.map((t: ITransaction, i: number) => (
-          <Tbody key={t.href} isExpanded={isTransactionExpanded(t)}>
-            <Tr>
-              <Td
-                expand={
-                  t.description
-                    ? {
-                        rowIndex: i,
-                        isExpanded: isTransactionExpanded(t),
-                        onToggle: () => setTransactionExpanded(t, !isTransactionExpanded(t)),
-                        expandId: 'composable-expandable-example',
-                      }
-                    : undefined
-                }
-              />
-              <Td dataLabel={columns.date}>
-                {t.date.toLocaleDateString('fr-FR', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
-              </Td>
-              <Td dataLabel={columns.account}>
-                <Label
-                  variant={theme === 'dark' ? 'outline' : 'filled'}
-                  color={getAccountColor(t.account)}
-                  onClick={() => handleAccountClick(t.account)}
-                  style={{
-                    cursor: 'pointer',
-                    ...(theme === 'dark' && { color: getAccountDarkColor(t.account) }),
+        <Tbody>
+          {paginatedTransactions.map((t: ITransaction, rowIndex: number) => (
+            <React.Fragment key={t.href}>
+              {/* Main Transaction Row */}
+              <Tr>
+                {/* Expand/Collapse Button */}
+                <Td
+                  expand={{
+                    rowIndex,
+                    isExpanded: isTransactionExpanded(t),
+                    onToggle: () => setTransactionExpanded(t, !isTransactionExpanded(t)),
                   }}
-                  aria-label={`Filter by account ${t.account}`}
-                >
-                  {t.account}
-                </Label>
-              </Td>
-              <Td dataLabel="{columns.kind}">
-                <Label
-                  variant={theme === 'dark' ? 'outline' : 'filled'}
-                  color={getTransactionKindColor(t.kind)}
-                  onClick={() => handleTransactionTypeClick(t.kind)}
-                  style={{
-                    cursor: 'pointer',
-                  }}
-                  aria-label={`Filter by ${t.kind} transactions`}
-                >
-                  {t.kind.charAt(0).toUpperCase() + t.kind.slice(1)}
-                </Label>
-              </Td>
-              <Td dataLabel="{columns.tags}">
-                <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                  {t.tags.map((tag: ITagTransaction, idx: number) => (
-                    <FlexItem key={`tag-${idx}`}>
-                      <Label
-                        variant={theme === 'dark' ? 'outline' : 'filled'}
-                        color="green"
-                        onClick={() => handleTagClick(tag.value)}
-                        style={{
-                          cursor: 'pointer',
-                          ...(theme === 'dark' && { color: '#3e8635' }),
-                        }}
-                        aria-label={`Filter by ${tag.value} tag`}
-                      >
-                        <Content component="p" style={theme === 'dark' ? { color: 'white' } : { color: 'black' }}>
-                          {tag.value}
-                        </Content>
-                      </Label>
-                    </FlexItem>
-                  ))}
-                </Flex>
-              </Td>
-              <Td dataLabel="{columns.rules">
-                <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                  {Array.from(new Set(t.tags.map((tag) => tag.rule))).map((rule: string, idx: number) => (
-                    <FlexItem key={`rule-${idx}`}>
-                      <Label
-                        variant={theme === 'dark' ? 'outline' : 'filled'}
-                        color="blue"
-                        onClick={() => handleRuleClick(rule)}
-                        style={{
-                          cursor: 'pointer',
-                          ...(theme === 'dark' && { color: '#73bcf7' }),
-                        }}
-                        aria-label={`Filter by all tags associated with ${rule} rule`}
-                      >
-                        <Content component="p">{rule}</Content>
-                      </Label>
-                    </FlexItem>
-                  ))}
-                </Flex>
-              </Td>
-              <Td dataLabel="{columns.amount}">
-                {t.amount.toLocaleString('fr-FR', {
-                  style: 'currency',
-                  currency: 'EUR',
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </Td>
-            </Tr>
-            <Tr isExpanded={isTransactionExpanded(t)}>
-              <Td noPadding={false} colSpan={6}>
-                <ExpandableRowContent>{t.description}</ExpandableRowContent>
-              </Td>
-            </Tr>
-          </Tbody>
-        ))}
+                />
+                {/* Date Column */}
+                <Td dataLabel={columns.date}>
+                  {new Date(t.date).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </Td>
+                {/* Account Column - Clickable label for filtering */}
+                <Td dataLabel={columns.account}>
+                  <Label
+                    variant={theme === 'dark' ? 'outline' : 'filled'}
+                    color="purple"
+                    onClick={() => handleAccountClick(t.account)}
+                    style={{
+                      cursor: 'pointer',
+                      color: theme === 'dark' ? getAccountDarkColor(t.account) : 'black',
+                    }}
+                    aria-label={`Filter by account ${t.account}`}
+                  >
+                    {t.account}
+                  </Label>
+                </Td>
+                {/* Transaction Type Column - Clickable label for filtering */}
+                <Td dataLabel={columns.kind}>
+                  <Label
+                    variant={theme === 'dark' ? 'outline' : 'filled'}
+                    color={getTransactionKindColor(t.kind)}
+                    onClick={() => handleTransactionTypeClick(t.kind)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {t.kind}
+                  </Label>
+                </Td>
+                {/* Labels Column - Clickable labels for filtering */}
+                <Td dataLabel={columns.labels}>
+                  <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                    {t.labels.map((label: ILabelTransaction, idx: number) => (
+                      <FlexItem key={`label-${idx}`}>
+                        <Label
+                          variant={theme === 'dark' ? 'outline' : 'filled'}
+                          color="green"
+                          onClick={() => handleLabelClick(`${label.key}=${label.value}`)}
+                          style={{ cursor: 'pointer' }}
+                          aria-label={`Filter by ${label.key}=${label.value} label`}
+                        >
+                          {label.key}={label.value}
+                        </Label>
+                      </FlexItem>
+                    ))}
+                  </Flex>
+                </Td>
+                {/* Amount Column */}
+                <Td dataLabel={columns.amount}>
+                  <Content>
+                    <strong>{t.amount.toFixed(2)}</strong>
+                  </Content>
+                </Td>
+              </Tr>
+              {/* Expandable Row Content - Shows transaction description */}
+              <Tr isExpanded={isTransactionExpanded(t)}>
+                <Td />
+                <Td colSpan={6}>
+                  <ExpandableRowContent>
+                    <Content>{t.description || 'No description'}</Content>
+                  </ExpandableRowContent>
+                </Td>
+              </Tr>
+            </React.Fragment>
+          ))}
+        </Tbody>
       </Table>
     </React.Fragment>
   );
 
+  // ===============================
+  // MAIN COMPONENT RENDER
+  // ===============================
+
   return (
-    <PageSection hasBodyWrapper={false}>
+    <React.Fragment>
       <DataView>
         {renderToolbar}
+        {renderSelectedFilters()}
         {renderList}
         {renderPagination(PaginationVariant.bottom, false, false, true)}
       </DataView>
-    </PageSection>
+    </React.Fragment>
   );
 };
 

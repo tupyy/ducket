@@ -22,10 +22,10 @@ const initialState = {
 
 export const getTransactions = createAsyncThunk(
   'transactions/get',
-  async (params?: { startDate?: string; endDate?: string; tags?: string[] }) => {
+  async (params?: { startDate?: string; endDate?: string; labels?: string[] }) => {
     let url = transactionApiUrl;
 
-    if (params?.startDate || params?.endDate || params?.tags?.length) {
+    if (params?.startDate || params?.endDate || params?.labels?.length) {
       const searchParams = new URLSearchParams();
       if (params.startDate) {
         const startTimestamp = new Date(params.startDate).getTime().toString();
@@ -35,8 +35,8 @@ export const getTransactions = createAsyncThunk(
         const endTimestamp = new Date(params.endDate).getTime().toString();
         searchParams.append('endDate', endTimestamp);
       }
-      if (params.tags && params.tags.length > 0) {
-        params.tags.forEach((tag) => searchParams.append('tags', tag));
+      if (params.labels && params.labels.length > 0) {
+        params.labels.forEach((label) => searchParams.append('labels', label));
       }
       url = `${transactionApiUrl}?${searchParams.toString()}`;
     }
@@ -48,8 +48,8 @@ export const getTransactions = createAsyncThunk(
 
 export const createTransaction = createAsyncThunk(
   'transactions/create',
-  async (tag: ITransactionForm, thunkAPI) => {
-    const result = axios.post<ITransactionForm>(transactionApiUrl, tag).then(() => {
+  async (transaction: ITransactionForm, thunkAPI) => {
+    const result = axios.post<ITransactionForm>(transactionApiUrl, transaction).then(() => {
       thunkAPI.dispatch(getTransactions());
     });
     return result;
@@ -66,7 +66,7 @@ export const updateTransaction = createAsyncThunk(
       kind: form.kind,
       date: form.date,
       amount: form.amount,
-      tags: form.tags,
+      labels: form.labels,
     };
     const result = axios.put<ITransactionForm>(url, newTransaction).then(() => thunkAPI.dispatch(getTransactions()));
     return result;

@@ -32,8 +32,8 @@ export const getRules = createAsyncThunk(
 
 export const createRule = createAsyncThunk(
   'rules/create',
-  async (tag: IRuleForm, thunkAPI) => {
-    const result = axios.post<IRuleForm>(ruleApiUrl, tag).then(() => {
+  async (rule: IRuleForm, thunkAPI) => {
+    const result = axios.post<IRuleForm>(ruleApiUrl, rule).then(() => {
       thunkAPI.dispatch(getRules());
     });
     return result;
@@ -47,7 +47,7 @@ export const updateRule = createAsyncThunk(
     const url = `${ruleApiUrl}/${rule.name}`;
     const newRule: IUpdateRuleForm = {
       pattern: rule.pattern,
-      tags: rule.tags,
+      labels: rule.labels,
     };
     const result = axios.put<IUpdateRuleForm>(url, newRule).then(() => thunkAPI.dispatch(getRules()));
     return result;

@@ -21,7 +21,7 @@ import { TimesIcon } from '@patternfly/react-icons';
 import * as React from 'react';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
 import { createRule, updateRule } from '@app/shared/reducers/rule.reducer';
-import { getTags } from '@app/shared/reducers/tag.reducer';
+import { getLabels } from '@app/shared/reducers/label.reducer';
 import { IRule } from '@app/shared/models/rule';
 
 export interface IRuleForm {
@@ -38,27 +38,27 @@ const classes = {
 interface IForm {
   name: string;
   pattern: string;
-  tags: string[];
+  labels: string[];
 }
 
 const initialState: IForm = {
   name: '',
   pattern: '',
-  tags: [],
+  labels: [],
 };
 
 const RuleForm: React.FunctionComponent<IRuleForm> = ({ closeFormCB, editingRule }) => {
   const dispatch = useAppDispatch();
-  const tags = useAppSelector((state) => state.tags);
+  const labels = useAppSelector((state) => state.labels);
   const [inputs, setInputs] = React.useState<IForm>(initialState);
   const [creating, setIsCreating] = React.useState<boolean>(false);
-  const [isTagSelectOpen, setIsTagSelectOpen] = React.useState<boolean>(false);
-  const [tagInputValue, setTagInputValue] = React.useState<string>('');
+  const [isLabelSelectOpen, setIsLabelSelectOpen] = React.useState<boolean>(false);
+  const [labelInputValue, setLabelInputValue] = React.useState<string>('');
 
   const isEditing = !!editingRule;
 
   React.useEffect(() => {
-    dispatch(getTags());
+    dispatch(getLabels());
   }, [dispatch]);
 
   React.useEffect(() => {
@@ -66,7 +66,7 @@ const RuleForm: React.FunctionComponent<IRuleForm> = ({ closeFormCB, editingRule
       setInputs({
         name: editingRule.name,
         pattern: editingRule.pattern,
-        tags: editingRule.tags.map((tag) => tag.value),
+        labels: editingRule.labels.map((label) => `${label.key}=${label.value}`),
       });
     } else {
       setInputs(initialState);
@@ -78,32 +78,32 @@ const RuleForm: React.FunctionComponent<IRuleForm> = ({ closeFormCB, editingRule
     setInputs((prevState) => ({ ...prevState, [name]: value }));
   };
 
-  const handleTagInputChange = (_event: React.FormEvent<HTMLInputElement>, value: string) => {
-    setTagInputValue(value);
+  const handleLabelInputChange = (_event: React.FormEvent<HTMLInputElement>, value: string) => {
+    setLabelInputValue(value);
   };
 
-  const handleTagSelect = (tag: string) => {
-    if (!inputs.tags.includes(tag)) {
+  const handleLabelSelect = (label: string) => {
+    if (!inputs.labels.includes(label)) {
       setInputs((prevState) => ({
         ...prevState,
-        tags: [...prevState.tags, tag],
+        labels: [...prevState.labels, label],
       }));
     }
-    setTagInputValue('');
-    setIsTagSelectOpen(false);
+    setLabelInputValue('');
+    setIsLabelSelectOpen(false);
   };
 
-  const handleTagRemove = (tagToRemove: string) => {
+  const handleLabelRemove = (labelToRemove: string) => {
     setInputs((prevState) => ({
       ...prevState,
-      tags: prevState.tags.filter((tag) => tag !== tagToRemove),
+      labels: prevState.labels.filter((label) => label !== labelToRemove),
     }));
   };
 
-  const handleTagInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter' && tagInputValue.trim()) {
+  const handleLabelInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter' && labelInputValue.trim()) {
       event.preventDefault();
-      handleTagSelect(tagInputValue.trim());
+      handleLabelSelect(labelInputValue.trim());
     }
   };
 
@@ -113,7 +113,13 @@ const RuleForm: React.FunctionComponent<IRuleForm> = ({ closeFormCB, editingRule
       const ruleData = {
         name: inputs.name,
         pattern: inputs.pattern,
-        tags: inputs.tags.filter((tag) => tag.length > 0),
+        labels: inputs.labels.filter((label) => label.length > 0).reduce((acc, label) => {
+          const [key, value] = label.split('=');
+          if (key && value) {
+            acc[key] = value;
+          }
+          return acc;
+        }, {} as { [key: string]: string }),
       };
 
       if (isEditing) {
@@ -130,28 +136,28 @@ const RuleForm: React.FunctionComponent<IRuleForm> = ({ closeFormCB, editingRule
     }
   };
 
-  // Get available tag options from the store, filtered by input
-  const availableTagOptions = tags.tags
-    .map((tag) => tag.value)
-    .filter((tag) => !inputs.tags.includes(tag) && tag.toLowerCase().includes(tagInputValue.toLowerCase()));
+  // Get available label options from the store, filtered by input
+  const availableLabelOptions = labels.labels
+    .map((label) => `${label.key}=${label.value}`)
+    .filter((label) => !inputs.labels.includes(label) && label.toLowerCase().includes(labelInputValue.toLowerCase()));
 
   const toggle = (toggleRef: React.Ref<MenuToggleElement>) => (
     <MenuToggle
       ref={toggleRef}
-      onClick={() => setIsTagSelectOpen(!isTagSelectOpen)}
-      isExpanded={isTagSelectOpen}
+      onClick={() => setIsLabelSelectOpen(!isLabelSelectOpen)}
+      isExpanded={isLabelSelectOpen}
       style={{ width: '100%' }}
     >
       <TextInputGroup>
         <TextInputGroupMain
-          value={tagInputValue}
-          placeholder="Type to search or add tags..."
-          onChange={handleTagInputChange}
-          onKeyDown={handleTagInputKeyDown}
+          value={labelInputValue}
+          placeholder="Type to search or add labels (key=value)..."
+          onChange={handleLabelInputChange}
+          onKeyDown={handleLabelInputKeyDown}
         />
-        {tagInputValue && (
+        {labelInputValue && (
           <TextInputGroupUtilities>
-            <Button variant="plain" onClick={() => setTagInputValue('')} aria-label="Clear input">
+            <Button variant="plain" onClick={() => setLabelInputValue('')} aria-label="Clear input">
               <TimesIcon />
             </Button>
           </TextInputGroupUtilities>
@@ -183,45 +189,45 @@ const RuleForm: React.FunctionComponent<IRuleForm> = ({ closeFormCB, editingRule
           onChange={handleChange}
         />
       </FormGroup>
-      <FormGroup label="Tags" isRequired fieldId="rule-form-tags">
+      <FormGroup label="Labels" isRequired fieldId="rule-form-labels">
         <Flex direction={{ default: 'column' }}>
           <FlexItem>
             <Dropdown
-              isOpen={isTagSelectOpen}
-              onOpenChange={(isOpen: boolean) => setIsTagSelectOpen(isOpen)}
+              isOpen={isLabelSelectOpen}
+              onOpenChange={(isOpen: boolean) => setIsLabelSelectOpen(isOpen)}
               toggle={toggle}
-              ouiaId="TagDropdown"
+              ouiaId="LabelDropdown"
               shouldFocusToggleOnSelect
             >
               <DropdownList>
-                {availableTagOptions.length > 0 ? (
-                  availableTagOptions.map((tag, index) => (
-                    <DropdownItem key={index} value={tag} onClick={() => handleTagSelect(tag)}>
-                      {tag}
+                {availableLabelOptions.length > 0 ? (
+                  availableLabelOptions.map((label, index) => (
+                    <DropdownItem key={index} value={label} onClick={() => handleLabelSelect(label)}>
+                      {label}
                     </DropdownItem>
                   ))
-                ) : tagInputValue.trim() ? (
-                  <DropdownItem onClick={() => handleTagSelect(tagInputValue.trim())}>
-                    Create "{tagInputValue.trim()}"
+                ) : labelInputValue.trim() ? (
+                  <DropdownItem onClick={() => handleLabelSelect(labelInputValue.trim())}>
+                    Create "{labelInputValue.trim()}"
                   </DropdownItem>
                 ) : (
-                  <DropdownItem isDisabled>No matching tags found</DropdownItem>
+                  <DropdownItem isDisabled>No matching labels found</DropdownItem>
                 )}
               </DropdownList>
             </Dropdown>
           </FlexItem>
-          {inputs.tags.length > 0 && (
+          {inputs.labels.length > 0 && (
             <FlexItem>
               <Flex spaceItems={{ default: 'spaceItemsXs' }} style={{ marginTop: '8px' }}>
-                {inputs.tags.map((tag, index) => (
+                {inputs.labels.map((label, index) => (
                   <FlexItem key={index}>
                     <Label
                       variant="filled"
                       color="blue"
-                      onClose={() => handleTagRemove(tag)}
-                      closeBtnAriaLabel={`Remove ${tag} tag`}
+                      onClose={() => handleLabelRemove(label)}
+                      closeBtnAriaLabel={`Remove ${label} label`}
                     >
-                      {tag}
+                      {label}
                     </Label>
                   </FlexItem>
                 ))}

@@ -19,7 +19,7 @@ import { DataView, DataViewToolbar, useDataViewFilters } from '@patternfly/react
 import { DataViewFilters } from '@patternfly/react-data-view/dist/dynamic/DataViewFilters';
 import { DataViewTextFilter } from '@patternfly/react-data-view/dist/dynamic/DataViewTextFilter';
 import { Table, Tbody, Td, Th, Thead, Tr, ActionsColumn, IAction } from '@patternfly/react-table';
-import { ITag } from '@app/shared/models/tag';
+import { ILabel } from '@app/shared/models/label';
 import { useTheme } from '@app/shared/contexts/ThemeContext';
 
 export interface IRuleListProps {
@@ -39,7 +39,7 @@ interface RepositoryFilters {
 const columns = {
   name: 'Name',
   pattern: 'Pattern',
-  tags: 'Tags',
+  labels: 'Labels',
   transactions: 'Transactions',
   createdAt: 'Created at',
   action: 'action',
@@ -165,7 +165,7 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({
             </Th>
             <Th>
               <Content component="p">
-                <strong>{columns.tags}</strong>
+                <strong>{columns.labels}</strong>
               </Content>
             </Th>
             <Th width={20}>
@@ -184,25 +184,25 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({
         <Tbody>
           {paginatedRows.map((rule: IRule, i: number) => (
             <Tr key={`row-${i}`}>
-              <Td dataLabel="{columns.name}">{rule.name}</Td>
-              <Td dataLabel="{columns.pattern">/{rule.pattern}/</Td>
-              <Td dataLabel="{columns.tags}">
+              <Td dataLabel={columns.name}>{rule.name}</Td>
+              <Td dataLabel={columns.pattern}>/{rule.pattern}/</Td>
+              <Td dataLabel={columns.labels}>
                 <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                  {rule.tags.map((tag: ITag, idx: number) => (
-                    <FlexItem key={`tag-${idx}`}>
+                  {rule.labels.map((label: ILabel, idx: number) => (
+                    <FlexItem key={`label-${idx}`}>
                       <Label
                         variant={theme === 'dark' ? 'outline' : 'filled'}
                         color="green"
-                        href={`/api/tags/${tag.value}`}
+                        href={`/api/labels/${label.key}/${label.value}`}
                         style={theme === 'dark' ? { color: '#3e8635' } : {}}
                       >
-                        <Content component="p">{tag.value}</Content>
+                        <Content component="p">{label.key}={label.value}</Content>
                       </Label>
                     </FlexItem>
                   ))}
                 </Flex>
               </Td>
-              <Td dataLabel="{columns.transactions">{rule.transactions}</Td>
+              <Td dataLabel={columns.transactions}>{rule.transactions}</Td>
               <Td dataLabel={columns.createdAt}>
                 {rule.created_at.toLocaleDateString('fr-FR', {
                   weekday: 'long',
@@ -246,7 +246,7 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({
 
   return (
     <PageSection hasBodyWrapper={false}>
-      {rules.length == 0 ? (
+      {rules.length === 0 ? (
         emptyState
       ) : (
         <DataView>

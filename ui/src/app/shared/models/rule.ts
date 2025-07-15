@@ -1,4 +1,4 @@
-import { ITag } from '@app/shared/models/tag';
+import { ILabel } from '@app/shared/models/label';
 
 export interface IRule {
   href: string;
@@ -6,7 +6,7 @@ export interface IRule {
   pattern: string;
   created_at: Date;
   transactions: number;
-  tags: ITag[];
+  labels: ILabel[];
 }
 
 export interface IRules {
@@ -16,7 +16,7 @@ export interface IRules {
 
 export interface IUpdateRuleForm {
   pattern: string;
-  tags: Array<string>;
+  labels: { [key: string]: string };
 }
 
 export interface IRuleForm extends IUpdateRuleForm {

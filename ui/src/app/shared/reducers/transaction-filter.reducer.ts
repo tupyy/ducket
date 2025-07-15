@@ -14,16 +14,16 @@ const initialState: ITransactionFilterState = {
 // Helper function for filtering transactions
 const filterTransactions = (
   transactions: ITransaction[],
-  selectedTags: string[],
+  selectedLabels: string[],
   selectedTransactionTypes: string[],
   selectedAccounts: number[]
 ): ITransaction[] => {
   let filtered = transactions;
 
-  // Filter by tags
-  if (selectedTags.length > 0) {
+  // Filter by labels
+  if (selectedLabels.length > 0) {
     filtered = filtered.filter((transaction) =>
-      selectedTags.some((selectedTag) => transaction.tags.some((tag) => tag.value === selectedTag))
+      selectedLabels.some((selectedLabel) => transaction.labels.some((label) => `${label.key}=${label.value}` === selectedLabel))
     );
   }
 
@@ -51,14 +51,14 @@ export const transactionFilterSlice = createSlice({
     },
     
     applyFilters: (state, action: PayloadAction<{
-      selectedTags: string[];
+      selectedLabels: string[];
       selectedTransactionTypes: string[];
       selectedAccounts: number[];
     }>) => {
-      const { selectedTags, selectedTransactionTypes, selectedAccounts } = action.payload;
+      const { selectedLabels, selectedTransactionTypes, selectedAccounts } = action.payload;
       state.filteredTransactions = filterTransactions(
         state.sourceTransactions,
-        selectedTags,
+        selectedLabels,
         selectedTransactionTypes,
         selectedAccounts
       );

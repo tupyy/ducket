@@ -19,6 +19,7 @@ func (r RuleRows) ToEntity() []entity.Rule {
 			rule.CreatedAt = vv.CreatedAt
 			if vv.LabelKey != nil && vv.LabelValue != nil {
 				label := entity.Label{
+					ID:    *vv.LabelID,
 					Key:   *vv.LabelKey,
 					Value: *vv.LabelValue,
 				}

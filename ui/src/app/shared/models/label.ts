@@ -1,7 +1,45 @@
 import { IRule } from '@app/shared/models/rule';
 
+export interface ILabel {
+  href: string;
+  key: string;
+  value: string;
+  created_at: Date;
+  transactions: number;
+  rules: IRule[];
+}
+
+export interface ILabels {
+  total: number;
+  labels: ILabel[];
+}
+
+export interface ILabelForm {
+  key: string;
+  value: string;
+}
+
+export interface ILabelUpdateForm {
+  id: string;
+  key: string;
+  value: string;
+}
+
+// Legacy aliases for backward compatibility during migration
+export interface ITagForm {
+  key: string;
+  value: string;
+}
+
+export interface ITagUpdateForm {
+  id: string;
+  key: string;
+  value: string;
+}
+
 export interface ITag {
   href: string;
+  key: string;
   value: string;
   created_at: Date;
   transactions: number;
@@ -11,15 +49,6 @@ export interface ITag {
 export interface ITags {
   total: number;
   tags: ITag[];
-}
-
-export interface ITagForm {
-  value: string;
-}
-
-export interface ITagUpdateForm {
-  id: string;
-  value: string;
 }
 
 export interface ITagReport {

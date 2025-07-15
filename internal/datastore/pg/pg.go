@@ -54,18 +54,7 @@ func NewPostgresDatastore(ctx context.Context, url string, options ...Option) (*
 
 // QueryTransactions retrieves transactions from the database based on the provided query filters.
 func (d *Datastore) QueryTransactions(ctx context.Context, filterFn ...QueryFilter) ([]entity.Transaction, error) {
-	query := psql.Select(
-		colID,
-		colDate,
-		colTransactionAccount,
-		colTransactionType,
-		colTransactionContent,
-		colTransactionAmount,
-		"label_id",
-		colRuleID,
-		colHash).
-		From(transactionTable).
-		LeftJoin("transactions_labels ON transactions_labels.transaction_id = transactions.id")
+	query := selectTransactionStmp
 
 	for _, fn := range filterFn {
 		query = fn(query)
@@ -165,27 +154,27 @@ func (d *Datastore) QueryLabels(ctx context.Context, filter ...QueryFilter) ([]e
 }
 
 // CountTransactions returns transaction statistics grouped by labels for reporting purposes.
-func (d *Datastore) CountTransactions(ctx context.Context) ([]entity.TransactionStat, error) {
+func (d *Datastore) CountTransactions(ctx context.Context) ([]entity.TransactionsStat, error) {
 	sql, args, err := countTransactionsPerLabelPerRuleStmt.ToSql()
 	if err != nil {
-		return []entity.TransactionStat{}, fmt.Errorf(errUnableToReadLabel, err)
+		return []entity.TransactionsStat{}, fmt.Errorf(errUnableToReadLabel, err)
 	}
 
 	rows, err := d.pool.Query(ctx, sql, args...)
 	if err != nil {
-		return []entity.TransactionStat{}, fmt.Errorf(errUnableToReadLabel, err)
+		return []entity.TransactionsStat{}, fmt.Errorf(errUnableToReadLabel, err)
 	}
 
-	stats := make([]entity.TransactionStat, 0)
+	stats := make([]entity.TransactionsStat, 0)
 	rs := pgxscan.NewRowScanner(rows)
 
 	for rows.Next() {
 		row := models.TransactionCountRow{}
 		err := rs.Scan(&row)
 		if err != nil {
-			return []entity.TransactionStat{}, fmt.Errorf(errUnableToReadLabel, err)
+			return []entity.TransactionsStat{}, fmt.Errorf(errUnableToReadLabel, err)
 		}
-		stats = append(stats, entity.TransactionStat{LabelID: row.LabelID, RuleID: row.RuleID, Count: row.Count})
+		stats = append(stats, entity.TransactionsStat{LabelID: row.LabelID, RuleID: row.RuleID, Count: row.Count})
 	}
 
 	return stats, nil

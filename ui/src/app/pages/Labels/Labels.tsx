@@ -15,7 +15,7 @@ import {
   Pagination,
   PaginationVariant,
 } from '@patternfly/react-core';
-import { ITag } from '@app/shared/models/tag';
+import { ILabel } from '@app/shared/models/label';
 import { IRule } from '@app/shared/models/rule';
 import { DataView, DataViewToolbar, useDataViewFilters } from '@patternfly/react-data-view';
 import { DataViewFilters } from '@patternfly/react-data-view/dist/dynamic/DataViewFilters';
@@ -23,10 +23,10 @@ import { DataViewTextFilter } from '@patternfly/react-data-view/dist/dynamic/Dat
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
 import { useTheme } from '@app/shared/contexts/ThemeContext';
 
-export interface ITagListProps {
-  tags: Array<ITag> | [];
-  showCreateTagFormCB: () => void;
-  deleteTagCB: (name: string) => void;
+export interface ILabelListProps {
+  labels: Array<ILabel> | [];
+  showCreateLabelFormCB: () => void;
+  deleteLabelCB: (id: string) => void;
 }
 
 interface RepositoryFilters {
@@ -43,7 +43,7 @@ const columns = {
 };
 
 // eslint-disable-next-line prefer-const
-const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagFormCB, deleteTagCB }) => {
+const LabelsList: React.FunctionComponent<ILabelListProps> = ({ labels, showCreateLabelFormCB, deleteLabelCB }) => {
   const { theme } = useTheme();
   const [page, setPage] = React.useState<number | undefined>(1);
   const [perPage, setPerPage] = React.useState<number>(10);
@@ -53,8 +53,11 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
 
   const filteredRows = React.useMemo(
     () =>
-      tags.filter((tag) => !filters.name || tag.value.toLocaleLowerCase().includes(filters.name?.toLocaleLowerCase())),
-    [filters, tags],
+      labels.filter((label) => 
+        !filters.name || 
+        `${label.key}=${label.value}`.toLocaleLowerCase().includes(filters.name?.toLocaleLowerCase())
+      ),
+    [filters, labels],
   );
   const [paginatedRows, setPaginatedRows] = React.useState(filteredRows.slice(0, 10));
 
@@ -87,25 +90,25 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
   };
 
   const emptyState = (
-    <EmptyState variant={EmptyStateVariant.full} titleText="No tags" icon={CubesIcon}>
+    <EmptyState variant={EmptyStateVariant.full} titleText="No labels" icon={CubesIcon}>
       <EmptyStateBody>
         <Content>
-          <Content component="p">Please add some tags</Content>
+          <Content component="p">Please add some labels</Content>
         </Content>
       </EmptyStateBody>
       <EmptyStateFooter>
-        <Button variant="primary">Add tag</Button>
+        <Button variant="primary" onClick={showCreateLabelFormCB}>Add label</Button>
       </EmptyStateFooter>
     </EmptyState>
   );
 
-  const renderRuleCell = (tag: ITag) => {
-    if (tag.rules === undefined) {
+  const renderRuleCell = (label: ILabel) => {
+    if (label.rules === undefined) {
       return <span></span>;
     }
     return (
       <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsMd', sm: 'spaceItemsXs' }}>
-        {tag.rules.map((rule: IRule, idx: number) => (
+        {label.rules.map((rule: IRule, idx: number) => (
           <FlexItem key={`rule-${idx}`}>
             <Label
               variant={theme === 'dark' ? 'outline' : 'filled'}
@@ -142,8 +145,8 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
   const renderToolbar = (
     <DataViewToolbar
       bulkSelect={
-        <Button onClick={showCreateTagFormCB} variant="control">
-          Create tag
+        <Button onClick={showCreateLabelFormCB} variant="control">
+          Create label
         </Button>
       }
       clearAllFilters={clearAllFilters}
@@ -157,9 +160,9 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
     />
   );
 
-  const renderTagList = (
+  const renderLabelList = (
     <React.Fragment>
-      <Table aria-label="tag list">
+      <Table aria-label="label list">
         <Thead>
           <Tr>
             <Th>
@@ -186,15 +189,15 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
           </Tr>
         </Thead>
         <Tbody>
-          {paginatedRows.map((tag: ITag, i: number) => (
-            <Tr key={`tag-${i}`}>
+          {paginatedRows.map((label: ILabel, i: number) => (
+            <Tr key={`label-${i}`}>
               <Td dataLabel={columns.name}>
-                <Content component={ContentVariants.p}>{tag.value}</Content>
+                <Content component={ContentVariants.p}>{label.key}={label.value}</Content>
               </Td>
-              <Td dataLabel={columns.rules}>{renderRuleCell(tag)}</Td>
-              <Td dataLabel={columns.transactions}>{tag.transactions}</Td>
+              <Td dataLabel={columns.rules}>{renderRuleCell(label)}</Td>
+              <Td dataLabel={columns.transactions}>{label.transactions}</Td>
               <Td dataLabel={columns.createdAt}>
-                {tag.created_at.toLocaleDateString('fr-FR', {
+                {label.created_at.toLocaleDateString('fr-FR', {
                   weekday: 'long',
                   year: 'numeric',
                   month: 'long',
@@ -207,7 +210,7 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
                   size="sm"
                   onClick={() => {
                     if (confirm('Are you sure?')) {
-                      deleteTagCB(tag.value);
+                      deleteLabelCB(label.href);
                     }
                   }}
                 >
@@ -223,12 +226,12 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
 
   return (
     <PageSection hasBodyWrapper={false}>
-      {tags.length == 0 ? (
+      {labels.length === 0 ? (
         emptyState
       ) : (
         <DataView>
           {renderToolbar}
-          {renderTagList}
+          {renderLabelList}
           {renderPagination(PaginationVariant.bottom, false, false, true)}
         </DataView>
       )}
@@ -236,4 +239,4 @@ const TagsList: React.FunctionComponent<ITagListProps> = ({ tags, showCreateTagF
   );
 };
 
-export { TagsList };
+export { LabelsList };

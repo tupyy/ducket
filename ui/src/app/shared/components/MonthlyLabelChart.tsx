@@ -10,23 +10,23 @@ import {
   ChartVoronoiContainer,
   ChartGroup,
 } from '@patternfly/react-charts/victory';
-import { IMonthlyTagReport } from '@app/shared/models/tag';
+import { IMonthlyTagReport } from '@app/shared/models/label';
 import { useTheme } from '@app/shared/contexts/ThemeContext';
 
-interface MonthlyTagChartProps {
+interface MonthlyLabelChartProps {
   data: IMonthlyTagReport[];
   loading?: boolean;
   title?: string;
-  tagNames?: string[];
+  labelNames?: string[];
   startDate?: string;
   endDate?: string;
 }
 
-const MonthlyTagChart: React.FC<MonthlyTagChartProps> = ({
+const MonthlyLabelChart: React.FC<MonthlyLabelChartProps> = ({
   data,
   loading = false,
-  title = 'Monthly Tag Amounts',
-  tagNames = [],
+  title = 'Monthly Label Amounts',
+  labelNames = [],
   startDate,
   endDate,
 }) => {
@@ -50,7 +50,7 @@ const MonthlyTagChart: React.FC<MonthlyTagChartProps> = ({
   }, [startDate, endDate]);
 
   const chartData = React.useMemo(() => {
-    if (!data || data.length === 0 || tagNames.length === 0) return {};
+    if (!data || data.length === 0 || labelNames.length === 0) return {};
     if (dateRangeError) return {};
 
     // Filter data by date range if provided
@@ -65,12 +65,12 @@ const MonthlyTagChart: React.FC<MonthlyTagChartProps> = ({
       });
     }
 
-    // Group data by tag
-    const tagGroups: { [tagName: string]: Array<{ name: string; x: string; y: number }> } = {};
+    // Group data by label
+    const labelGroups: { [labelName: string]: Array<{ name: string; x: string; y: number }> } = {};
 
-    tagNames.forEach((tagName) => {
-      const tagData = filteredData
-        .filter((item) => item.tag === tagName)
+    labelNames.forEach((labelName) => {
+      const labelData = filteredData
+        .filter((item) => item.tag === labelName) // Keep as 'tag' for backward compatibility
         .sort((a, b) => {
           if (a.year !== b.year) return a.year - b.year;
           return a.month - b.month;
@@ -78,22 +78,22 @@ const MonthlyTagChart: React.FC<MonthlyTagChartProps> = ({
         .map((item) => ({
           x: `${item.year}-${String(item.month).padStart(2, '0')}`,
           y: item.amount,
-          name: tagName,
+          name: labelName,
         }));
 
-      if (tagData.length > 0) {
-        tagGroups[tagName] = tagData;
+      if (labelData.length > 0) {
+        labelGroups[labelName] = labelData;
       }
     });
 
-    return tagGroups;
-  }, [data, tagNames, startDate, endDate, dateRangeError]);
+    return labelGroups;
+  }, [data, labelNames, startDate, endDate, dateRangeError]);
 
   // Calculate the maximum Y value from all chart data for dynamic domain
   const maxYValue = React.useMemo(() => {
     const allValues: number[] = [];
-    Object.values(chartData).forEach((tagData) => {
-      tagData.forEach((point) => {
+    Object.values(chartData).forEach((labelData) => {
+      labelData.forEach((point) => {
         allValues.push(point.y);
       });
     });
@@ -108,8 +108,8 @@ const MonthlyTagChart: React.FC<MonthlyTagChartProps> = ({
   // Extract all unique x values from chartData for x-axis
   const xAxisValues = React.useMemo(() => {
     const allXValues = new Set<string>();
-    Object.values(chartData).forEach((tagData) => {
-      tagData.forEach((point) => {
+    Object.values(chartData).forEach((labelData) => {
+      labelData.forEach((point) => {
         allXValues.add(point.x);
       });
     });
@@ -118,12 +118,12 @@ const MonthlyTagChart: React.FC<MonthlyTagChartProps> = ({
     return Array.from(allXValues).sort();
   }, [chartData]);
 
-  // Create legend data from selected tags
+  // Create legend data from selected labels
   const legendData = React.useMemo(() => {
-    return tagNames.map((tagName) => ({
-      name: tagName,
+    return labelNames.map((labelName) => ({
+      name: labelName,
     }));
-  }, [tagNames]);
+  }, [labelNames]);
 
   if (loading) {
     return (
@@ -184,7 +184,7 @@ const MonthlyTagChart: React.FC<MonthlyTagChartProps> = ({
             width: '100%'
           }}>
         <Chart
-          ariaDesc="Monthly tag amounts chart"
+          ariaDesc="Monthly label amounts chart"
           ariaTitle={title}
           containerComponent={
             <ChartVoronoiContainer 
@@ -202,7 +202,7 @@ const MonthlyTagChart: React.FC<MonthlyTagChartProps> = ({
           legendPosition="right"
           maxDomain={{ y: maxYValue }}
           minDomain={{ y: 0 }}
-          name="monthlyTagChart"
+          name="monthlyLabelChart"
           padding={{
             bottom: 80,
             left: 80,
@@ -241,13 +241,13 @@ const MonthlyTagChart: React.FC<MonthlyTagChartProps> = ({
             })
           } />
          <ChartGroup>
-           {Object.entries(chartData).map(([tagName, tagData]) => (
-             <ChartLine key={tagName} data={tagData} />
+           {Object.entries(chartData).map(([labelName, labelData]) => (
+             <ChartLine key={labelName} data={labelData} />
            ))}
                   </ChartGroup>
        </Chart>
      </div>
-     {tagNames.length > 0 && (
+     {labelNames.length > 0 && (
        <div
          style={{
            textAlign: 'center',
@@ -256,7 +256,7 @@ const MonthlyTagChart: React.FC<MonthlyTagChartProps> = ({
            color: 'var(--pf-v6-global--Color--200)',
          }}
        >
-         Showing amounts for: <strong>{tagNames.join(', ')}</strong>
+         Showing amounts for: <strong>{labelNames.join(', ')}</strong>
        </div>
      )}
      </CardBody>
@@ -264,4 +264,4 @@ const MonthlyTagChart: React.FC<MonthlyTagChartProps> = ({
   );
 };
 
-export { MonthlyTagChart };
+export { MonthlyLabelChart }; 

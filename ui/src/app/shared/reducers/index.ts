@@ -1,19 +1,19 @@
 import { ReducersMapObject } from '@reduxjs/toolkit';
-import tags from '@app/shared/reducers/tag.reducer';
+import labels from '@app/shared/reducers/label.reducer';
 import rules from '@app/shared/reducers/rule.reducer';
 import transactions from '@app/shared/reducers/transaction.reducer';
 import transactionFilter from '@app/shared/reducers/transaction-filter.reducer';
-import tagReport from '@app/shared/reducers/tag-report.reducer';
-import monthlyTagReport from '@app/shared/reducers/monthly-tag-report.reducer';
+import labelReport from '@app/shared/reducers/label-report.reducer';
+import monthlyLabelReport from '@app/shared/reducers/monthly-label-report.reducer';
 import importReducer from '@app/shared/reducers/import.reducer';
 
 const rootReducer: ReducersMapObject = {
-  tags,
+  labels,
   rules,
   transactions,
   transactionFilter,
-  tagReport,
-  monthlyTagReport,
+  labelReport,
+  monthlyLabelReport,
   import: importReducer,
 };
 

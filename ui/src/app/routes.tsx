@@ -3,7 +3,7 @@ import { Route, Routes } from 'react-router-dom';
 import { Dashboard } from '@app/pages/Dashboard/Dashboard';
 import { NotFound } from '@app/pages/NotFound/NotFound';
 import { Rules } from '@app/pages/Rules/Rules';
-import { TagsPage } from './pages/Tags/Page';
+import { LabelsPage } from './pages/Labels/Page';
 import { Transactions } from './pages/Transactions/transactions';
 import { FileUpload } from './pages/FileUpload/FileUpload';
 
@@ -53,11 +53,11 @@ const routes: AppRouteConfig[] = [
     ],
   },
   {
-    element: <TagsPage />,
+    element: <LabelsPage />,
     exact: true,
-    label: 'Tags',
+    label: 'Labels',
     path: '/tags',
-    title: 'Finance | Tags Page',
+    title: 'Finance | Labels Page',
   },
   {
     element: <Rules />,

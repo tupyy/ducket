@@ -2,19 +2,15 @@ import * as React from 'react';
 import { getTransactions } from '@app/shared/reducers/transaction.reducer';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
 import {
+  Card,
+  CardBody,
   PageSection,
   Toolbar,
   ToolbarContent,
   ToolbarGroup,
   ToolbarItem,
-  Card,
-  CardBody,
-  Grid,
-  GridItem,
 } from '@patternfly/react-core';
 import { TransactionList } from './list';
-import { TagTotalTable } from './TagTotalTable';
-import { TagByMonthChart } from './TagByMonthChart';
 import { CubesIcon } from '@patternfly/react-icons';
 import { Content, EmptyState, EmptyStateBody, EmptyStateVariant } from '@patternfly/react-core';
 import { TimePicker } from '@app/shared/components/time-picker';
@@ -23,7 +19,6 @@ import { calculateDateRange } from '@app/utils/dateUtils';
 const Transactions: React.FunctionComponent = () => {
   const dispatch = useAppDispatch();
   const transactions = useAppSelector((state) => state.transactions);
-  const { filteredTransactions } = useAppSelector((state) => state.transactionFilter);
 
   // Initialize with last 30 days default date range
   const defaultDateRange = React.useMemo(() => calculateDateRange('last 30 days'), []);
@@ -55,27 +50,6 @@ const Transactions: React.FunctionComponent = () => {
 
   return (
     <PageSection hasBodyWrapper={false} style={{ backgroundColor: 'transparent' }}>
-      {/* Tag Analytics Section */}
-      <div style={{ padding: '1rem' }}>
-        <Grid hasGutter>
-          <GridItem span={6}>
-            <TagByMonthChart
-              transactions={filteredTransactions}
-              startDate={dateRange.startDate}
-              endDate={dateRange.endDate}
-              title="Tag Totals by Month"
-            />
-          </GridItem>
-          <GridItem span={6}>
-            <TagTotalTable
-              transactions={filteredTransactions}
-              startDate={dateRange.startDate}
-              endDate={dateRange.endDate}
-            />
-          </GridItem>
-        </Grid>
-      </div>
-
       {/* Main Content Card */}
       <div style={{ padding: '1rem' }}>
         <Card>
@@ -96,8 +70,8 @@ const Transactions: React.FunctionComponent = () => {
               </ToolbarContent>
             </Toolbar>
 
-            {/* Transaction List with integrated tag filter */}
-            {transactions.transactions.length == 0 ? (
+            {/* Transaction List with integrated label filter */}
+            {transactions.transactions.length === 0 ? (
               emptyState
             ) : (
               <TransactionList transactions={transactions.transactions} />

@@ -1,5 +1,6 @@
-export interface ITagTransaction {
+export interface ILabelTransaction {
   href: string;
+  key: string;
   value: string;
   rule: string;
 }
@@ -11,7 +12,7 @@ export interface ITransaction {
   amount: number;
   account: number;
   description: string;
-  tags: ITagTransaction[];
+  labels: ILabelTransaction[];
 }
 
 export interface ITransactions {
@@ -24,7 +25,7 @@ export interface ITransactionForm {
   date: string;
   content: string;
   amount: number;
-  tags: Map<string, string>;
+  labels: Map<string, string>;
 }
 
 export interface ITransactionUpdateForm {
@@ -33,5 +34,5 @@ export interface ITransactionUpdateForm {
   date: string;
   content: string;
   amount: number;
-  tags: Map<string, string>;
+  labels: Map<string, string>;
 }

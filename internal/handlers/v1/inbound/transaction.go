@@ -28,10 +28,7 @@ func (t TransactionForm) Entity() (entity.Transaction, error) {
 		return entity.Transaction{}, fmt.Errorf("unable to parse transaction date: %w", err)
 	}
 	te := entity.NewTransaction(entity.TransactionKind(t.Kind), t.Account, date, t.Amount, t.Content)
-	// Note: Labels field in transaction entity is map[int]string (label_id -> rule_id)
-	// The form provides map[string]string (key -> value) which needs to be handled by the service layer
-	// For now, we'll leave Labels empty as it should be populated by rule application
-	te.Labels = make(map[int]string)
+	te.Labels = make(map[int]entity.Label)
 
 	return *te, nil
 }

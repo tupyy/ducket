@@ -65,7 +65,7 @@ func (ras *RuleApplierService) ApplyAllRulesToAllTransactions(ctx context.Contex
 		updatedTransaction := transaction
 
 		// Clear existing labels to reapply all rules
-		updatedTransaction.Labels = make(map[int]string)
+		updatedTransaction.Labels = make(map[int]entity.Label)
 
 		for ruleName, regex := range compiledRules {
 			rule := ruleMap[ruleName]
@@ -73,7 +73,7 @@ func (ras *RuleApplierService) ApplyAllRulesToAllTransactions(ctx context.Contex
 			if regex.MatchString(transaction.RawContent) {
 				// Apply all labels from this rule to the transaction
 				for _, label := range rule.Labels {
-					updatedTransaction.Labels[label.ID] = rule.Name
+					updatedTransaction.Labels[label.ID] = entity.Label{}
 					zap.S().Debugw("Applied rule to transaction",
 						"rule", rule.Name,
 						"label_key", label.Key,
@@ -137,7 +137,7 @@ func (ras *RuleApplierService) ApplyRulesToTransaction(ctx context.Context, tran
 
 		// Apply all labels from this rule to the transaction
 		for _, label := range rule.Labels {
-			transaction.Labels[label.ID] = rule.Name
+			transaction.Labels[label.ID] = entity.Label{}
 			zap.S().Debugw("Applied rule to transaction",
 				"rule", rule.Name,
 				"label_key", label.Key,
@@ -187,7 +187,7 @@ func (ras *RuleApplierService) ApplyRulesToTransactions(ctx context.Context, tra
 			if regex.MatchString(transactions[i].RawContent) {
 				// Apply all labels from this rule to the transaction
 				for _, label := range rule.Labels {
-					transactions[i].Labels[label.ID] = rule.Name
+					transactions[i].Labels[label.ID] = entity.Label{}
 					zap.S().Debugw("Applied rule to transaction",
 						"rule", rule.Name,
 						"label_key", label.Key,

@@ -1,21 +1,21 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { ITagReport, ITransactionTypeReport, IAccountTransactionTypeReport } from '@app/shared/models/tag';
+import { ITagReport, ITransactionTypeReport, IAccountTransactionTypeReport } from '@app/shared/models/label';
 import { ITransaction } from '@app/shared/models/transaction';
 import { serializeAxiosError } from './reducer.utils';
 
 const initialState = {
   loading: false,
   errorMessage: '',
-  tagReportData: [] as Array<ITagReport>,
+  labelReportData: [] as Array<ITagReport>,
   transactionTypeData: [] as Array<ITransactionTypeReport>,
   accountTransactionTypeData: [] as Array<IAccountTransactionTypeReport>,
 };
 
-export const calculateTagReport = createAsyncThunk(
-  'tagReport/calculate',
+export const calculateLabelReport = createAsyncThunk(
+  'labelReport/calculate',
   async (params: { transactions: ITransaction[]; excludeCredits?: boolean }) => {
     const { transactions, excludeCredits = false } = params;
-    const tagAmounts: { [key: string]: number } = {};
+    const labelAmounts: { [key: string]: number } = {};
 
     transactions.forEach((transaction: ITransaction) => {
       // Skip credit transactions if excludeCredits is true
@@ -23,28 +23,29 @@ export const calculateTagReport = createAsyncThunk(
         return;
       }
 
-      transaction.tags.forEach((tag) => {
-        const tagValue = tag.value;
-        if (!tagAmounts[tagValue]) {
-          tagAmounts[tagValue] = 0;
+      transaction.labels.forEach((label) => {
+        // Create a combined label identifier with key:value format
+        const labelKey = `${label.key}:${label.value}`;
+        if (!labelAmounts[labelKey]) {
+          labelAmounts[labelKey] = 0;
         }
-        tagAmounts[tagValue] += Math.abs(transaction.amount);
+        labelAmounts[labelKey] += Math.abs(transaction.amount);
       });
     });
 
-    // Convert to TagReport format
-    const tagReportData: ITagReport[] = Object.entries(tagAmounts).map(([tag, amount]) => ({
-      tag,
+    // Convert to LabelReport format
+    const labelReportData: ITagReport[] = Object.entries(labelAmounts).map(([label, amount]) => ({
+      tag: label, // Keep as 'tag' for backward compatibility with existing interfaces
       amount,
     }));
 
-    return tagReportData;
+    return labelReportData;
   },
   { serializeError: serializeAxiosError },
 );
 
 export const calculateTransactionTypeReport = createAsyncThunk(
-  'tagReport/calculateTransactionType',
+  'labelReport/calculateTransactionType',
   async (transactions: ITransaction[]) => {
     const debitData = { amount: 0, count: 0 };
     const creditData = { amount: 0, count: 0 };
@@ -73,7 +74,7 @@ export const calculateTransactionTypeReport = createAsyncThunk(
 );
 
 export const calculateAccountTransactionTypeReport = createAsyncThunk(
-  'tagReport/calculateAccountTransactionType',
+  'labelReport/calculateAccountTransactionType',
   async (transactions: ITransaction[]) => {
     const accountData: { [key: number]: { debit: number; credit: number } } = {};
 
@@ -109,17 +110,17 @@ export const calculateAccountTransactionTypeReport = createAsyncThunk(
   { serializeError: serializeAxiosError },
 );
 
-export type TagReportState = Readonly<typeof initialState>;
+export type LabelReportState = Readonly<typeof initialState>;
 
-export const TagReportSlice = createSlice({
-  name: 'tagReport',
-  initialState: initialState as TagReportState,
+export const LabelReportSlice = createSlice({
+  name: 'labelReport',
+  initialState: initialState as LabelReportState,
   reducers: {
     reset() {
       return initialState;
     },
     clearData(state) {
-      state.tagReportData = [];
+      state.labelReportData = [];
       state.transactionTypeData = [];
       state.accountTransactionTypeData = [];
       state.errorMessage = '';
@@ -127,18 +128,18 @@ export const TagReportSlice = createSlice({
   },
   extraReducers(builder) {
     builder
-      .addCase(calculateTagReport.pending, (state) => {
+      .addCase(calculateLabelReport.pending, (state) => {
         state.loading = true;
         state.errorMessage = '';
       })
-      .addCase(calculateTagReport.rejected, (state, action) => {
+      .addCase(calculateLabelReport.rejected, (state, action) => {
         state.loading = false;
-        state.errorMessage = action.error.message || 'Failed to calculate tag report';
+        state.errorMessage = action.error.message || 'Failed to calculate label report';
       })
-      .addCase(calculateTagReport.fulfilled, (state, action) => {
+      .addCase(calculateLabelReport.fulfilled, (state, action) => {
         state.loading = false;
         state.errorMessage = '';
-        state.tagReportData = action.payload;
+        state.labelReportData = action.payload;
       })
       .addCase(calculateTransactionTypeReport.pending, (state) => {
         state.loading = true;
@@ -169,5 +170,5 @@ export const TagReportSlice = createSlice({
   },
 });
 
-export const { reset, clearData } = TagReportSlice.actions;
-export default TagReportSlice.reducer;
+export const { reset, clearData } = LabelReportSlice.actions;
+export default LabelReportSlice.reducer; 

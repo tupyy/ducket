@@ -9,7 +9,7 @@ import (
 // This includes handlers for transactions, rules, tags, summary, and import endpoints.
 func RegisterApiV1Handlers(r *gin.RouterGroup) {
 	v1.TransactionHandlers(r)
-	v1.TagHandlers(r)
+	v1.LabelHandlers(r)
 	v1.RulesHandlers(r)
 	v1.SummaryHandlers(r)
 	v1.ImportHandlers(r)

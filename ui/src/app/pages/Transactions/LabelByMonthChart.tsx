@@ -12,24 +12,24 @@ import {
 import { ITransaction } from '@app/shared/models/transaction';
 import { useTheme } from '@app/shared/contexts/ThemeContext';
 
-interface TagByMonthChartProps {
+interface LabelByMonthChartProps {
   transactions: ITransaction[];
   startDate?: string;
   endDate?: string;
   title?: string;
 }
 
-interface MonthlyTagData {
-  tag: string;
+interface MonthlyLabelData {
+  label: string;
   month: string;
   amount: number;
 }
 
-const TagByMonthChart: React.FC<TagByMonthChartProps> = ({
+const LabelByMonthChart: React.FC<LabelByMonthChartProps> = ({
   transactions,
   startDate,
   endDate,
-  title = 'Tag Totals by Month',
+  title = 'Label Totals by Month',
 }) => {
   const { theme } = useTheme();
 
@@ -58,7 +58,7 @@ const TagByMonthChart: React.FC<TagByMonthChartProps> = ({
     return null;
   }, [startDate, endDate]);
 
-  // Process data to get monthly totals by tag
+  // Process data to get monthly totals by label
   const monthlyData = React.useMemo(() => {
     if (dateRangeError || transactions.length === 0) {
       return [];
@@ -73,25 +73,26 @@ const TagByMonthChart: React.FC<TagByMonthChartProps> = ({
       return transactionDate >= start && transactionDate <= end;
     });
 
-    // Group by month and tag
-    const monthlyTagTotals: { [key: string]: number } = {};
+    // Group by month and label
+    const monthlyLabelTotals: { [key: string]: number } = {};
 
     transactionsInRange.forEach((transaction) => {
       const transactionDate = new Date(transaction.date);
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const monthKey = `${monthNames[transactionDate.getMonth()]}-${transactionDate.getFullYear()}`;
 
-      transaction.tags.forEach((tag) => {
-        const key = `${monthKey}|${tag.value}`;
-        monthlyTagTotals[key] = (monthlyTagTotals[key] || 0) + transaction.amount;
+      transaction.labels.forEach((label) => {
+        const labelKey = `${label.key}=${label.value}`;
+        const key = `${monthKey}|${labelKey}`;
+        monthlyLabelTotals[key] = (monthlyLabelTotals[key] || 0) + transaction.amount;
       });
     });
 
     // Convert to array format
-    const data: MonthlyTagData[] = [];
-    Object.entries(monthlyTagTotals).forEach(([key, amount]) => {
-      const [month, tag] = key.split('|');
-      data.push({ month, tag, amount });
+    const data: MonthlyLabelData[] = [];
+    Object.entries(monthlyLabelTotals).forEach(([key, amount]) => {
+      const [month, label] = key.split('|');
+      data.push({ month, label, amount });
     });
 
     // Sort by actual date for proper chronological order
@@ -106,10 +107,10 @@ const TagByMonthChart: React.FC<TagByMonthChartProps> = ({
     });
   }, [transactions, startDate, endDate, dateRangeError]);
 
-  // Get unique tags and months for chart organization
-  const uniqueTags = React.useMemo(() => {
-    const tags = new Set(monthlyData.map((d) => d.tag));
-    return Array.from(tags).sort();
+  // Get unique labels and months for chart organization
+  const uniqueLabels = React.useMemo(() => {
+    const labels = new Set(monthlyData.map((d) => d.label));
+    return Array.from(labels).sort();
   }, [monthlyData]);
 
   const uniqueMonths = React.useMemo(() => {
@@ -123,20 +124,20 @@ const TagByMonthChart: React.FC<TagByMonthChartProps> = ({
     return Array.from(months).sort((a, b) => parseMonth(a) - parseMonth(b));
   }, [monthlyData]);
 
-  // Prepare chart data grouped by tag
+  // Prepare chart data grouped by label
   const chartData = React.useMemo(() => {
-    return uniqueTags.map((tag) => {
-      const tagData = uniqueMonths.map((month) => {
-        const dataPoint = monthlyData.find((d) => d.tag === tag && d.month === month);
+    return uniqueLabels.map((label) => {
+      const labelData = uniqueMonths.map((month) => {
+        const dataPoint = monthlyData.find((d) => d.label === label && d.month === month);
         return {
           x: month,
           y: dataPoint ? dataPoint.amount : 0,
-          name: tag,
+          name: label,
         };
       });
-      return { tag, data: tagData };
+      return { label, data: labelData };
     });
-  }, [uniqueTags, uniqueMonths, monthlyData]);
+  }, [uniqueLabels, uniqueMonths, monthlyData]);
 
   // Calculate max value for Y axis
   const maxYValue = React.useMemo(() => {
@@ -148,8 +149,8 @@ const TagByMonthChart: React.FC<TagByMonthChartProps> = ({
 
   // Create legend data
   const legendData = React.useMemo(() => {
-    return uniqueTags.map((tag) => ({ name: tag }));
-  }, [uniqueTags]);
+    return uniqueLabels.map((label) => ({ name: label }));
+  }, [uniqueLabels]);
 
   // Show error message if date range is invalid
   if (dateRangeError) {
@@ -196,7 +197,7 @@ const TagByMonthChart: React.FC<TagByMonthChartProps> = ({
 
         <div style={{ height: '400px', width: '100%' }}>
           <Chart
-            ariaDesc="Monthly tag totals grouped bar chart"
+            ariaDesc="Monthly label totals grouped bar chart"
             ariaTitle={title}
             containerComponent={
               <ChartVoronoiContainer
@@ -243,7 +244,7 @@ const TagByMonthChart: React.FC<TagByMonthChartProps> = ({
             />
             <ChartGroup offset={10}>
               {chartData.map((series) => (
-                <ChartBar key={series.tag} data={series.data} name={series.tag} />
+                <ChartBar key={series.label} data={series.data} name={series.label} />
               ))}
             </ChartGroup>
             <ChartLegend
@@ -265,4 +266,4 @@ const TagByMonthChart: React.FC<TagByMonthChartProps> = ({
   );
 };
 
-export { TagByMonthChart };
+export { LabelByMonthChart }; 

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Card, CardBody, Title, Spinner, Grid, GridItem } from '@patternfly/react-core';
 import { ChartPie, ChartThemeColor, ChartLegend } from '@patternfly/react-charts/victory';
-import { IAccountTransactionTypeReport } from '@app/shared/models/tag';
+import { IAccountTransactionTypeReport } from '@app/shared/models/label';
 import { useTheme } from '@app/shared/contexts/ThemeContext';
 
 interface AccountTransactionTypeChartProps {

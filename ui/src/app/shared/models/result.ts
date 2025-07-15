@@ -7,6 +7,7 @@ export type ErrorType = {
 };
 
 export type CreateTagError = { _tag: 'CreateTagError'; reason: string };
+export type CreateLabelError = { _tag: 'CreateLabelError'; reason: string };
 
 export class Result<T, E extends ErrorType> {
   protected constructor(

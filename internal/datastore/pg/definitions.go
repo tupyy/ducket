@@ -79,9 +79,21 @@ var (
 		)
 
 	insertTransactionLabel = psql.Insert(transactionsLabelsTable).Columns(colTransactionID, colLabelID)
-	selectTransactionStmp  = psql.Select(colID, colDate, colTransactionAccount, colTransactionType, colTransactionContent, colTransactionAmount, colLabelID, colRuleID, colHash).
-				From(transactionTable).
-				LeftJoin("transactions_labels ON transactions_labels.transaction_id = transactions.id")
+
+	selectTransactionStmp = psql.Select(
+		colID,
+		colDate,
+		colTransactionAccount,
+		colTransactionType,
+		colTransactionContent,
+		colTransactionAmount,
+		colHash,
+		colLabelID,
+		colLabelKey,
+		colLabelValue,
+	).
+		From(transactionTable).
+		LeftJoin(`(select a.transaction_id,labels.id as label_id,labels.key,labels.value from transactions_labels as a INNER JOIN labels on a.label_id = labels.id) as b on b.transaction_id = transactions.id`)
 
 	insertRule  = psql.Insert(rulesTable).Columns("id", "pattern")
 	updateRule  = psql.Update(rulesTable)
