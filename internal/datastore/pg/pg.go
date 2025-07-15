@@ -154,15 +154,15 @@ func (d *Datastore) QueryLabels(ctx context.Context, filter ...QueryFilter) ([]e
 }
 
 // CountTransactions returns transaction statistics grouped by labels for reporting purposes.
-func (d *Datastore) CountTransactions(ctx context.Context) ([]entity.TransactionsStat, error) {
+func (d *Datastore) CountTransactions(ctx context.Context) (int, error) {
 	sql, args, err := countTransactionsPerLabelPerRuleStmt.ToSql()
 	if err != nil {
-		return []entity.TransactionsStat{}, fmt.Errorf(errUnableToReadLabel, err)
+		return 0, fmt.Errorf(errUnableToReadLabel, err)
 	}
 
 	rows, err := d.pool.Query(ctx, sql, args...)
 	if err != nil {
-		return []entity.TransactionsStat{}, fmt.Errorf(errUnableToReadLabel, err)
+		return 0, fmt.Errorf(errUnableToReadLabel, err)
 	}
 
 	stats := make([]entity.TransactionsStat, 0)
@@ -172,12 +172,12 @@ func (d *Datastore) CountTransactions(ctx context.Context) ([]entity.Transaction
 		row := models.TransactionCountRow{}
 		err := rs.Scan(&row)
 		if err != nil {
-			return []entity.TransactionsStat{}, fmt.Errorf(errUnableToReadLabel, err)
+			return 0, fmt.Errorf(errUnableToReadLabel, err)
 		}
 		stats = append(stats, entity.TransactionsStat{LabelID: row.LabelID, RuleID: row.RuleID, Count: row.Count})
 	}
 
-	return stats, nil
+	return 0, nil
 }
 
 // WriteTx executes a write transaction with the provided user function.
