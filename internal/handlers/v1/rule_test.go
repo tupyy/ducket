@@ -8,8 +8,9 @@ import (
 	"net/http/httptest"
 	"os"
 
+	v1 "git.tls.tupangiu.ro/cosmin/finante/api/v1"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/datastore/pg"
-	v1 "git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1"
+	v1Impl "git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1/inbound"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -19,14 +20,14 @@ import (
 
 var _ = Describe("RuleHandlers", func() {
 	var (
-		router    *gin.Engine
+		router    *gin.RouterGroup
 		datastore *pg.Datastore
 		ctx       context.Context
+		srv       *httptest.Server
 	)
 
 	BeforeEach(func() {
 		gin.SetMode(gin.TestMode)
-		router = gin.New()
 		ctx = context.Background()
 
 		// Get database URL from environment or use default test database
@@ -41,39 +42,42 @@ var _ = Describe("RuleHandlers", func() {
 		Expect(err).To(BeNil(), "PostgreSQL database must be available for testing")
 
 		// Add middleware to inject datastore
+		engine := gin.New()
+		router = engine.Group("/api/v1")
 		router.Use(func(c *gin.Context) {
 			c.Set("datastore", datastore)
 			c.Next()
 		})
 
 		// Register rule handlers
-		api := router.Group("/api/v1")
-		v1.RulesHandlers(api)
+		v1.RegisterHandlers(router, v1Impl.NewServer())
+		srv = httptest.NewServer(engine)
 	})
 
 	AfterEach(func() {
 		if datastore != nil {
 			datastore.Close()
 		}
+		srv.Close()
 	})
 
 	Context("GET /api/v1/rules", func() {
 		It("should handle requests without crashing", func() {
-			req, _ := http.NewRequest("GET", "/api/v1/rules", nil)
-			w := httptest.NewRecorder()
-			router.ServeHTTP(w, req)
+			req, _ := http.NewRequest("GET", srv.URL+"/api/v1/rules", nil)
+			resp, err := http.DefaultClient.Do(req)
+			Expect(err).To(BeNil())
 
 			// The handler should return OK or accept the request
-			Expect(w.Code).To(BeElementOf([]int{http.StatusOK, http.StatusAccepted}))
+			Expect(resp.StatusCode).To(BeElementOf([]int{http.StatusOK, http.StatusAccepted}))
 		})
 
 		It("should return JSON response", func() {
-			req, _ := http.NewRequest("GET", "/api/v1/rules", nil)
-			w := httptest.NewRecorder()
-			router.ServeHTTP(w, req)
+			req, _ := http.NewRequest("GET", srv.URL+"/api/v1/rules", nil)
+			resp, err := http.DefaultClient.Do(req)
+			Expect(err).To(BeNil())
 
-			if w.Code == http.StatusOK {
-				contentType := w.Header().Get("Content-Type")
+			if resp.StatusCode == http.StatusOK {
+				contentType := resp.Header.Get("Content-Type")
 				Expect(contentType).To(ContainSubstring("application/json"))
 			}
 		})
@@ -81,21 +85,21 @@ var _ = Describe("RuleHandlers", func() {
 
 	Context("POST /api/v1/rules", func() {
 		It("should handle missing form data", func() {
-			req, _ := http.NewRequest("POST", "/api/v1/rules", nil)
+			req, _ := http.NewRequest("POST", srv.URL+"/api/v1/rules", nil)
 			req.Header.Set("Content-Type", "application/json")
-			w := httptest.NewRecorder()
-			router.ServeHTTP(w, req)
+			resp, err := http.DefaultClient.Do(req)
+			Expect(err).To(BeNil())
 
-			Expect(w.Code).To(Equal(http.StatusBadRequest))
+			Expect(resp.StatusCode).To(Equal(http.StatusBadRequest))
 		})
 
 		It("should handle empty JSON payload", func() {
-			req, _ := http.NewRequest("POST", "/api/v1/rules", bytes.NewBuffer([]byte("{}")))
+			req, _ := http.NewRequest("POST", srv.URL+"/api/v1/rules", bytes.NewBuffer([]byte("{}")))
 			req.Header.Set("Content-Type", "application/json")
-			w := httptest.NewRecorder()
-			router.ServeHTTP(w, req)
+			resp, err := http.DefaultClient.Do(req)
+			Expect(err).To(BeNil())
 
-			Expect(w.Code).To(Equal(http.StatusBadRequest))
+			Expect(resp.StatusCode).To(Equal(http.StatusBadRequest))
 		})
 
 		It("should validate rule name length", func() {
@@ -106,15 +110,16 @@ var _ = Describe("RuleHandlers", func() {
 			}
 
 			jsonData, _ := json.Marshal(form)
-			req, _ := http.NewRequest("POST", "/api/v1/rules", bytes.NewBuffer(jsonData))
+			req, _ := http.NewRequest("POST", srv.URL+"/api/v1/rules", bytes.NewBuffer(jsonData))
 			req.Header.Set("Content-Type", "application/json")
-			w := httptest.NewRecorder()
-			router.ServeHTTP(w, req)
+			resp, err := http.DefaultClient.Do(req)
+			Expect(err).To(BeNil())
 
-			Expect(w.Code).To(Equal(http.StatusBadRequest))
+			Expect(resp.StatusCode).To(Equal(http.StatusBadRequest))
 
 			var response map[string]interface{}
-			json.Unmarshal(w.Body.Bytes(), &response)
+			err = json.NewDecoder(resp.Body).Decode(&response)
+			Expect(err).To(BeNil())
 			Expect(response["error"]).ToNot(BeNil())
 		})
 
@@ -126,15 +131,16 @@ var _ = Describe("RuleHandlers", func() {
 			}
 
 			jsonData, _ := json.Marshal(form)
-			req, _ := http.NewRequest("POST", "/api/v1/rules", bytes.NewBuffer(jsonData))
+			req, _ := http.NewRequest("POST", srv.URL+"/api/v1/rules", bytes.NewBuffer(jsonData))
 			req.Header.Set("Content-Type", "application/json")
-			w := httptest.NewRecorder()
-			router.ServeHTTP(w, req)
+			resp, err := http.DefaultClient.Do(req)
+			Expect(err).To(BeNil())
 
-			Expect(w.Code).To(Equal(http.StatusBadRequest))
+			Expect(resp.StatusCode).To(Equal(http.StatusBadRequest))
 
 			var response map[string]interface{}
-			json.Unmarshal(w.Body.Bytes(), &response)
+			err = json.NewDecoder(resp.Body).Decode(&response)
+			Expect(err).To(BeNil())
 			Expect(response["error"]).ToNot(BeNil())
 		})
 
@@ -146,15 +152,16 @@ var _ = Describe("RuleHandlers", func() {
 			}
 
 			jsonData, _ := json.Marshal(form)
-			req, _ := http.NewRequest("POST", "/api/v1/rules", bytes.NewBuffer(jsonData))
+			req, _ := http.NewRequest("POST", srv.URL+"/api/v1/rules", bytes.NewBuffer(jsonData))
 			req.Header.Set("Content-Type", "application/json")
-			w := httptest.NewRecorder()
-			router.ServeHTTP(w, req)
+			resp, err := http.DefaultClient.Do(req)
+			Expect(err).To(BeNil())
 
-			Expect(w.Code).To(Equal(http.StatusBadRequest))
+			Expect(resp.StatusCode).To(Equal(http.StatusBadRequest))
 
 			var response map[string]interface{}
-			json.Unmarshal(w.Body.Bytes(), &response)
+			err = json.NewDecoder(resp.Body).Decode(&response)
+			Expect(err).To(BeNil())
 			Expect(response["error"]).ToNot(BeNil())
 		})
 	})
@@ -167,12 +174,12 @@ var _ = Describe("RuleHandlers", func() {
 			}
 
 			jsonData, _ := json.Marshal(form)
-			req, _ := http.NewRequest("PUT", "/api/v1/rules/missing_id", bytes.NewBuffer(jsonData))
+			req, _ := http.NewRequest("PUT", srv.URL+"/api/v1/rules/missing_id", bytes.NewBuffer(jsonData))
 			req.Header.Set("Content-Type", "application/json")
-			w := httptest.NewRecorder()
-			router.ServeHTTP(w, req)
+			resp, err := http.DefaultClient.Do(req)
+			Expect(err).To(BeNil())
 
-			Expect(w.Code).To(BeElementOf([]int{http.StatusCreated, http.StatusOK}))
+			Expect(resp.StatusCode).To(BeElementOf([]int{http.StatusCreated, http.StatusOK}))
 		})
 
 		It("should validate form data for updates", func() {
@@ -182,27 +189,28 @@ var _ = Describe("RuleHandlers", func() {
 			}
 
 			jsonData, _ := json.Marshal(form)
-			req, _ := http.NewRequest("PUT", "/api/v1/rules/test_rule", bytes.NewBuffer(jsonData))
+			req, _ := http.NewRequest("PUT", srv.URL+"/api/v1/rules/test_rule", bytes.NewBuffer(jsonData))
 			req.Header.Set("Content-Type", "application/json")
-			w := httptest.NewRecorder()
-			router.ServeHTTP(w, req)
+			resp, err := http.DefaultClient.Do(req)
+			Expect(err).To(BeNil())
 
-			Expect(w.Code).To(Equal(http.StatusBadRequest))
+			Expect(resp.StatusCode).To(Equal(http.StatusBadRequest))
 
 			var response map[string]interface{}
-			json.Unmarshal(w.Body.Bytes(), &response)
+			err = json.NewDecoder(resp.Body).Decode(&response)
+			Expect(err).To(BeNil())
 			Expect(response["error"]).ToNot(BeNil())
 		})
 	})
 
 	Context("DELETE /api/v1/rules/:id", func() {
 		It("should handle requests without crashing", func() {
-			req, _ := http.NewRequest("DELETE", "/api/v1/rules/nonexistent", nil)
-			w := httptest.NewRecorder()
-			router.ServeHTTP(w, req)
+			req, _ := http.NewRequest("DELETE", srv.URL+"/api/v1/rules/nonexistent", nil)
+			resp, err := http.DefaultClient.Do(req)
+			Expect(err).To(BeNil())
 
 			// Should handle gracefully even if rule doesn't exist
-			Expect(w.Code).To(BeElementOf([]int{http.StatusOK, http.StatusNotFound, http.StatusInternalServerError, http.StatusNoContent}))
+			Expect(resp.StatusCode).To(BeElementOf([]int{http.StatusOK, http.StatusNotFound, http.StatusInternalServerError, http.StatusNoContent}))
 		})
 	})
 

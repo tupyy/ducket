@@ -19,24 +19,9 @@ func NewLabelService(dt *pg.Datastore) *LabelService {
 // GetLabels retrieves all labels from the database along with their associated transaction counts.
 // It also includes the rules that reference each label.
 func (l *LabelService) GetLabels(ctx context.Context) ([]entity.Label, error) {
-	// count transaction first
-	stats, err := l.dt.CountTransactions(ctx)
-	if err != nil {
-		return []entity.Label{}, err
-	}
-
 	labels, err := l.dt.QueryLabels(ctx)
 	if err != nil {
 		return []entity.Label{}, err
-	}
-
-	// Add number of transactions for each label
-	for i := range labels {
-		for _, s := range stats {
-			if s.LabelID == labels[i].ID {
-				labels[i].CountTransactions += s.Count
-			}
-		}
 	}
 
 	return labels, nil
@@ -68,40 +53,33 @@ func (l *LabelService) IsExists(ctx context.Context, key, value string) (bool, e
 
 // Create creates a new label in the database if it doesn't already exist.
 // If the label already exists, this method returns without error.
-func (l *LabelService) Create(ctx context.Context, key, value string) error {
-	exists, err := l.IsExists(ctx, key, value)
+func (l *LabelService) Create(ctx context.Context, key, value string) (entity.Label, error) {
+	label, err := l.Get(ctx, key, value)
 	if err != nil {
-		return err
+		return entity.Label{}, err
 	}
 
-	if exists {
-		return nil
+	if label != nil {
+		return *label, nil
 	}
 
-	label := entity.Label{
+	newLabel := entity.Label{
 		Key:   key,
 		Value: value,
 	}
 
-	return l.dt.WriteTx(ctx, func(ctx context.Context, w pg.Writer) error {
-		return w.WriteLabel(ctx, label)
-	})
-}
-
-// CreateLabel creates a new label entity in the database.
-func (l *LabelService) CreateLabel(ctx context.Context, label entity.Label) error {
-	exists, err := l.IsExists(ctx, label.Key, label.Value)
-	if err != nil {
-		return err
-	}
-
-	if exists {
+	if err := l.dt.WriteTx(ctx, func(ctx context.Context, w *pg.Writer) error {
+		id, err := w.WriteLabel(ctx, newLabel)
+		if err != nil {
+			return err
+		}
+		label.ID = id
 		return nil
+	}); err != nil {
+		return entity.Label{}, err
 	}
 
-	return l.dt.WriteTx(ctx, func(ctx context.Context, w pg.Writer) error {
-		return w.WriteLabel(ctx, label)
-	})
+	return newLabel, nil
 }
 
 // Delete removes a label from the database by its key and value.
@@ -111,14 +89,14 @@ func (l *LabelService) Delete(ctx context.Context, key, value string) error {
 		Value: value,
 	}
 
-	return l.dt.WriteTx(ctx, func(ctx context.Context, w pg.Writer) error {
+	return l.dt.WriteTx(ctx, func(ctx context.Context, w *pg.Writer) error {
 		return w.DeleteLabel(ctx, label)
 	})
 }
 
 // DeleteLabel removes a label entity from the database.
 func (l *LabelService) DeleteLabel(ctx context.Context, label entity.Label) error {
-	return l.dt.WriteTx(ctx, func(ctx context.Context, w pg.Writer) error {
+	return l.dt.WriteTx(ctx, func(ctx context.Context, w *pg.Writer) error {
 		return w.DeleteLabel(ctx, label)
 	})
 }

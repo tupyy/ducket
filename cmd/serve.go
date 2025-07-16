@@ -4,9 +4,10 @@ import (
 	"context"
 	"time"
 
+	v1 "git.tls.tupangiu.ro/cosmin/finante/api/v1"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/config"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/datastore/pg"
-	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers"
+	implV1 "git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/server"
 	"git.tls.tupangiu.ro/cosmin/finante/pkg/logger"
 	"github.com/ecordell/optgen/helpers"
@@ -52,7 +53,7 @@ func NewServeCommand(config *config.Config) *cobra.Command {
 					server.WithGraceTimeout(1*time.Second),
 					server.WithPort(config.ServerPort),
 					server.WithRegisterHandlers(string(ApiV1), func(r *gin.RouterGroup) {
-						handlers.RegisterApiV1Handlers(r)
+						v1.RegisterHandlers(r, implV1.NewServer())
 					}),
 					server.WithGinMode(config.GinMode),
 					server.WithCloseCallback(func() error {

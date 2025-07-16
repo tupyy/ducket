@@ -72,7 +72,7 @@ func (r *RuleService) Create(ctx context.Context, rule entity.Rule) error {
 		return err
 	}
 
-	return r.dt.WriteTx(ctx, func(ctx context.Context, w pg.Writer) error {
+	return r.dt.WriteTx(ctx, func(ctx context.Context, w *pg.Writer) error {
 		for _, label := range rule.Labels {
 			found := false
 			for _, existingLabel := range existingLabels {
@@ -82,7 +82,7 @@ func (r *RuleService) Create(ctx context.Context, rule entity.Rule) error {
 				}
 			}
 			if !found {
-				if err := w.WriteLabel(ctx, label); err != nil {
+				if _, err := w.WriteLabel(ctx, label); err != nil {
 					return err
 				}
 			}
@@ -108,7 +108,7 @@ func (r *RuleService) UpdateOrCreate(ctx context.Context, rule entity.Rule) (boo
 	}
 
 	update := existingRule != nil
-	err = r.dt.WriteTx(ctx, func(ctx context.Context, w pg.Writer) error {
+	err = r.dt.WriteTx(ctx, func(ctx context.Context, w *pg.Writer) error {
 		for _, label := range rule.Labels {
 			found := false
 			for _, existingLabel := range existingLabels {
@@ -118,7 +118,7 @@ func (r *RuleService) UpdateOrCreate(ctx context.Context, rule entity.Rule) (boo
 				}
 			}
 			if !found {
-				if err := w.WriteLabel(ctx, label); err != nil {
+				if _, err := w.WriteLabel(ctx, label); err != nil {
 					return err
 				}
 			}
@@ -131,7 +131,7 @@ func (r *RuleService) UpdateOrCreate(ctx context.Context, rule entity.Rule) (boo
 
 // DeleteRule removes a rule from the database by its name.
 func (r *RuleService) DeleteRule(ctx context.Context, name string) error {
-	return r.dt.WriteTx(ctx, func(ctx context.Context, w pg.Writer) error {
+	return r.dt.WriteTx(ctx, func(ctx context.Context, w *pg.Writer) error {
 		return w.DeleteRule(ctx, name)
 	})
 }

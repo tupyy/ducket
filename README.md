@@ -117,6 +117,12 @@ http://localhost:8080/api/v1
 - `PUT /transactions/:id` - Update transaction
 - `DELETE /transactions/:id` - Delete transaction
 
+#### Transaction Labels
+- `GET /transactions/:id/labels` - Get all labels for a transaction
+- `POST /transactions/:id/labels` - Add a label to a transaction
+- `DELETE /transactions/:id/labels` - Remove all labels from a transaction
+- `DELETE /transactions/:id/labels/:labelId` - Remove a specific label from a transaction
+
 #### Rules
 - `GET /rules` - List all rules
 - `GET /rules/:name` - Get specific rule
@@ -161,7 +167,7 @@ curl -X GET "http://localhost:8080/api/v1/transactions?start=2024-01-01&end=2024
           "key": "category",
           "value": "food",
           "href": "/api/v1/labels/1",
-          "rule": "grocery-rule"
+          "rule_href": "/api/v1/rules/grocery-rule"
         }
       ]
     }
@@ -191,13 +197,13 @@ curl -X GET http://localhost:8080/api/v1/transactions/abc123def456
       "key": "category",
       "value": "food",
       "href": "/api/v1/labels/1",
-      "rule": "grocery-rule"
+      "rule_href": "/api/v1/rules/grocery-rule"
     },
     {
       "key": "type",
       "value": "essential",
       "href": "/api/v1/labels/2",
-      "rule": "grocery-rule"
+      "rule_href": "/api/v1/rules/grocery-rule"
     }
   ]
 }
@@ -262,6 +268,79 @@ curl -X DELETE http://localhost:8080/api/v1/transactions/1
 }
 ```
 
+#### Transaction Labels
+
+##### Get Transaction Labels
+```bash
+curl -X GET http://localhost:8080/api/v1/transactions/1/labels
+```
+
+**Response:**
+```json
+{
+  "total": 2,
+  "labels": [
+    {
+      "href": "/api/v1/labels/5",
+      "key": "category",
+      "value": "food",
+      "rules": [
+        {
+          "name": "grocery-rule",
+          "href": "/api/v1/rules/grocery-rule"
+        }
+      ]
+    },
+    {
+      "href": "/api/v1/labels/8",
+      "key": "type",
+      "value": "essential",
+      "rules": []
+    }
+  ]
+}
+```
+
+##### Add Label to Transaction
+```bash
+curl -X POST http://localhost:8080/api/v1/transactions/1/labels \
+  -H "Content-Type: application/json" \
+  -d '{
+    "key": "category",
+    "value": "groceries"
+  }'
+```
+
+**Response:**
+```json
+{
+  "href": "/api/v1/labels/12",
+  "key": "category",
+  "value": "groceries",
+  "rules": []
+}
+```
+
+##### Remove All Labels from Transaction
+```bash
+curl -X DELETE http://localhost:8080/api/v1/transactions/1/labels
+```
+
+**Response:**
+```
+HTTP/1.1 204 No Content
+```
+
+##### Remove Specific Label from Transaction
+```bash
+curl -X DELETE http://localhost:8080/api/v1/transactions/1/labels/12
+```
+
+**Response:**
+```
+HTTP/1.1 204 No Content
+```
+
 #### Rules
 
 ##### List All Rules
@@ -287,8 +366,7 @@ curl -X GET http://localhost:8080/api/v1/rules
           "value": "essential",
           "href": "/api/v1/labels/2"
         }
-      ],
-      "created_at": "2024-01-01T10:00:00Z"
+      ]
     },
     {
       "name": "salary-rule",
@@ -304,8 +382,7 @@ curl -X GET http://localhost:8080/api/v1/rules
           "value": "work",
           "href": "/api/v1/labels/4"
         }
-      ],
-      "created_at": "2024-01-01T10:30:00Z"
+      ]
     }
   ]
 }
@@ -332,8 +409,7 @@ curl -X GET http://localhost:8080/api/v1/rules/grocery-rule
       "value": "essential",
       "href": "/api/v1/labels/2"
     }
-  ],
-  "created_at": "2024-01-01T10:00:00Z"
+  ]
 }
 ```
 
@@ -367,8 +443,7 @@ curl -X POST http://localhost:8080/api/v1/rules \
       "value": "essential",
       "href": "/api/v1/labels/2"
     }
-  ],
-  "created_at": "2024-01-15T14:30:00Z"
+  ]
 }
 ```
 
@@ -416,8 +491,7 @@ curl -X GET http://localhost:8080/api/v1/labels
       "value": "food",
       "href": "/api/v1/labels/1",
       "rules": ["grocery-rule", "restaurant-rule"],
-      "transaction_count": 25,
-      "created_at": "2024-01-01T10:00:00Z"
+      "transaction_count": 25
     },
     {
       "id": 2,
@@ -425,8 +499,7 @@ curl -X GET http://localhost:8080/api/v1/labels
       "value": "transport",
       "href": "/api/v1/labels/2",
       "rules": ["uber-rule", "gas-rule"],
-      "transaction_count": 12,
-      "created_at": "2024-01-01T11:00:00Z"
+      "transaction_count": 12
     }
   ]
 }
@@ -450,8 +523,7 @@ curl -X POST http://localhost:8080/api/v1/labels \
   "value": "entertainment",
   "href": "/api/v1/labels/3",
   "rules": [],
-  "transaction_count": 0,
-  "created_at": "2024-01-15T14:30:00Z"
+  "transaction_count": 0
 }
 ```
 

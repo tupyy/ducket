@@ -27,6 +27,12 @@ func TransactionHashQueryFilter(hash string) func(orig sq.SelectBuilder) sq.Sele
 	}
 }
 
+func TransactionIDQueryFilter(id int) func(orig sq.SelectBuilder) sq.SelectBuilder {
+	return func(o sq.SelectBuilder) sq.SelectBuilder {
+		return o.Where(sq.Eq{colID: id})
+	}
+}
+
 // IntervalDateQueryFilter creates a filter that adds date range constraints to the query.
 // This filter supports three modes of operation:
 // 1. Both start and end provided: Filters for dates between start and end (inclusive)
@@ -197,5 +203,17 @@ func LabelKeyValuesQueryFilter(key string, values []string) func(orig sq.SelectB
 		conditions = append(conditions, sq.Eq{colLabelValue: values})
 
 		return orig.Where(conditions)
+	}
+}
+
+func CountByLabelIDQueryFilter(labelID int) func(orig sq.SelectBuilder) sq.SelectBuilder {
+	return func(orig sq.SelectBuilder) sq.SelectBuilder {
+		return orig.Where(sq.Eq{colLabelID: labelID})
+	}
+}
+
+func CountByRuleIDQueryFilter(ruleID string) func(orig sq.SelectBuilder) sq.SelectBuilder {
+	return func(orig sq.SelectBuilder) sq.SelectBuilder {
+		return orig.Where(sq.Eq{colRuleID: ruleID})
 	}
 }

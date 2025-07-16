@@ -10,8 +10,9 @@ import (
 	"os"
 	"strings"
 
+	v1 "git.tls.tupangiu.ro/cosmin/finante/api/v1"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/datastore/pg"
-	v1 "git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1"
+	v1Impl "git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1"
 	"github.com/gin-gonic/gin"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -19,14 +20,14 @@ import (
 
 var _ = Describe("ImportHandlers", func() {
 	var (
-		router    *gin.Engine
+		router    *gin.RouterGroup
 		datastore *pg.Datastore
 		ctx       context.Context
+		srv       *httptest.Server
 	)
 
 	BeforeEach(func() {
 		gin.SetMode(gin.TestMode)
-		router = gin.New()
 		ctx = context.Background()
 
 		// Get database URL from environment or use default test database
@@ -41,20 +42,22 @@ var _ = Describe("ImportHandlers", func() {
 		Expect(err).To(BeNil(), "PostgreSQL database must be available for testing")
 
 		// Add middleware to inject datastore
+		engine := gin.New()
+		router = engine.Group("/api/v1")
 		router.Use(func(c *gin.Context) {
 			c.Set("datastore", datastore)
 			c.Next()
 		})
 
-		// Register import handlers
-		api := router.Group("/api/v1")
-		v1.ImportHandlers(api)
+		v1.RegisterHandlers(router, v1Impl.NewServer())
+		srv = httptest.NewServer(engine)
 	})
 
 	AfterEach(func() {
 		if datastore != nil {
 			datastore.Close()
 		}
+		srv.Close()
 	})
 
 	Describe("POST /api/v1/import", func() {
@@ -79,18 +82,20 @@ var _ = Describe("ImportHandlers", func() {
 				Expect(err).To(BeNil())
 
 				// Create request
-				req, err := http.NewRequest("POST", "/api/v1/import", body)
+				req, err := http.NewRequest("POST", srv.URL+"/api/v1/import", body)
 				Expect(err).To(BeNil())
 				req.Header.Set("Content-Type", writer.FormDataContentType())
 
 				// Execute request
-				w := httptest.NewRecorder()
-				router.ServeHTTP(w, req)
+				resp, err := http.DefaultClient.Do(req)
+				Expect(err).To(BeNil())
 
 				// Verify response
-				Expect(w.Code).To(Equal(http.StatusOK))
-				Expect(w.Body.String()).To(ContainSubstring("success"))
-				Expect(w.Body.String()).To(ContainSubstring("test.csv"))
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+				respBody, err := io.ReadAll(resp.Body)
+				Expect(err).To(BeNil())
+				Expect(string(respBody)).To(ContainSubstring("success"))
+				Expect(string(respBody)).To(ContainSubstring("test.csv"))
 			})
 		})
 
@@ -109,17 +114,19 @@ var _ = Describe("ImportHandlers", func() {
 				Expect(err).To(BeNil())
 
 				// Create request
-				req, err := http.NewRequest("POST", "/api/v1/import", body)
+				req, err := http.NewRequest("POST", srv.URL+"/api/v1/import", body)
 				Expect(err).To(BeNil())
 				req.Header.Set("Content-Type", writer.FormDataContentType())
 
 				// Execute request
-				w := httptest.NewRecorder()
-				router.ServeHTTP(w, req)
+				resp, err := http.DefaultClient.Do(req)
+				Expect(err).To(BeNil())
 
 				// Verify response
-				Expect(w.Code).To(Equal(http.StatusBadRequest))
-				Expect(w.Body.String()).To(ContainSubstring("unsupported extension"))
+				Expect(resp.StatusCode).To(Equal(http.StatusBadRequest))
+				respBody, err := io.ReadAll(resp.Body)
+				Expect(err).To(BeNil())
+				Expect(string(respBody)).To(ContainSubstring("unsupported extension"))
 			})
 		})
 
@@ -132,17 +139,19 @@ var _ = Describe("ImportHandlers", func() {
 				Expect(err).To(BeNil())
 
 				// Create request
-				req, err := http.NewRequest("POST", "/api/v1/import", body)
+				req, err := http.NewRequest("POST", srv.URL+"/api/v1/import", body)
 				Expect(err).To(BeNil())
 				req.Header.Set("Content-Type", writer.FormDataContentType())
 
 				// Execute request
-				w := httptest.NewRecorder()
-				router.ServeHTTP(w, req)
+				resp, err := http.DefaultClient.Do(req)
+				Expect(err).To(BeNil())
 
 				// Verify response
-				Expect(w.Code).To(Equal(http.StatusBadRequest))
-				Expect(w.Body.String()).To(ContainSubstring("No files uploaded"))
+				Expect(resp.StatusCode).To(Equal(http.StatusBadRequest))
+				respBody, err := io.ReadAll(resp.Body)
+				Expect(err).To(BeNil())
+				Expect(string(respBody)).To(ContainSubstring("No files uploaded"))
 			})
 		})
 
@@ -176,18 +185,20 @@ var _ = Describe("ImportHandlers", func() {
 				Expect(err).To(BeNil())
 
 				// Create request
-				req, err := http.NewRequest("POST", "/api/v1/import", body)
+				req, err := http.NewRequest("POST", srv.URL+"/api/v1/import", body)
 				Expect(err).To(BeNil())
 				req.Header.Set("Content-Type", writer.FormDataContentType())
 
 				// Execute request
-				w := httptest.NewRecorder()
-				router.ServeHTTP(w, req)
+				resp, err := http.DefaultClient.Do(req)
+				Expect(err).To(BeNil())
 
 				// Verify response
-				Expect(w.Code).To(Equal(http.StatusOK))
-				Expect(w.Body.String()).To(ContainSubstring("success"))
-				Expect(w.Body.String()).To(ContainSubstring("Processed 2 files"))
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+				respBody, err := io.ReadAll(resp.Body)
+				Expect(err).To(BeNil())
+				Expect(string(respBody)).To(ContainSubstring("success"))
+				Expect(string(respBody)).To(ContainSubstring("Processed 2 files"))
 			})
 		})
 
@@ -209,17 +220,19 @@ var _ = Describe("ImportHandlers", func() {
 				Expect(err).To(BeNil())
 
 				// Create request
-				req, err := http.NewRequest("POST", "/api/v1/import", body)
+				req, err := http.NewRequest("POST", srv.URL+"/api/v1/import", body)
 				Expect(err).To(BeNil())
 				req.Header.Set("Content-Type", writer.FormDataContentType())
 
 				// Execute request
-				w := httptest.NewRecorder()
-				router.ServeHTTP(w, req)
+				resp, err := http.DefaultClient.Do(req)
+				Expect(err).To(BeNil())
 
 				// Verify response
-				Expect(w.Code).To(Equal(http.StatusBadRequest))
-				Expect(w.Body.String()).To(ContainSubstring("exceeds maximum size"))
+				Expect(resp.StatusCode).To(Equal(http.StatusBadRequest))
+				respBody, err := io.ReadAll(resp.Body)
+				Expect(err).To(BeNil())
+				Expect(string(respBody)).To(ContainSubstring("exceeds maximum size"))
 			})
 		})
 	})

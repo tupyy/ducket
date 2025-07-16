@@ -67,7 +67,7 @@ func NewRunnableServer(cfg *RunnableServerConfig) Server {
 	}
 
 	// for each api version register handlers
-	for apiVersion, handlerFn := range cfg.RegisterHandlersFn {
+	for apiVersion, registerHandlersFn := range cfg.RegisterHandlersFn {
 		router := engine.Group(apiVersion)
 		router.Use(
 			middlewares.Headers(),
@@ -75,7 +75,7 @@ func NewRunnableServer(cfg *RunnableServerConfig) Server {
 			middlewares.DatastoreMiddleware(cfg.Datastore),
 			ginzap.RecoveryWithZap(zap.S().Desugar(), true),
 		)
-		handlerFn(router)
+		registerHandlersFn(router)
 	}
 
 	srv := &http.Server{

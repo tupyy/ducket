@@ -13,9 +13,11 @@ const (
 	CreditTransaction TransactionKind = "credit"
 )
 
-type Association struct {
-	RuleID  string
-	LabelID int64
+// LabelAssociation keeps association between a label applied on a transaction and the ruleID which matched the transaction.
+// If RuleID is nil, it means the label has been manually applied.
+type LabelAssociation struct {
+	Label  Label
+	RuleID *string
 }
 
 type Transaction struct {
@@ -26,7 +28,7 @@ type Transaction struct {
 	RawContent string
 	Hash       string
 	Amount     float32
-	Labels     map[string]Label
+	Labels     []LabelAssociation
 }
 
 // NewTransaction creates a new Transaction entity with the specified kind, date, amount, and raw content.
@@ -42,17 +44,6 @@ func NewTransaction(kind TransactionKind, account int64, date time.Time, sum flo
 		Hash:       fmt.Sprintf("%x", h.Sum(nil)),
 		Kind:       kind,
 		Amount:     sum,
-		Labels:     map[string]Label{},
+		Labels:     []LabelAssociation{},
 	}
-}
-
-type TransactionAssociation struct {
-	RuleID  string
-	LabelID int
-	Count   int
-}
-
-type TransactionsStat struct {
-	Total        int
-	Associations []TransactionAssociation
 }

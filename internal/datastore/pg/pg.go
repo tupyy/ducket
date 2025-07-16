@@ -15,16 +15,7 @@ import (
 
 type QueryFilter func(original sq.SelectBuilder) sq.SelectBuilder
 
-type Writer interface {
-	WriteTransaction(ctx context.Context, transaction entity.Transaction) (int64, error)
-	DeleteTransaction(ctx context.Context, id int64) error
-	WriteLabel(ctx context.Context, label entity.Label) error
-	DeleteLabel(ctx context.Context, label entity.Label) error
-	WriteRule(ctx context.Context, rule entity.Rule, update bool) error
-	DeleteRule(ctx context.Context, id string) error
-}
-
-type TxUserFunc func(context.Context, Writer) error
+type TxUserFunc func(context.Context, *Writer) error
 
 type Datastore struct {
 	pool ConnPooler
@@ -154,30 +145,29 @@ func (d *Datastore) QueryLabels(ctx context.Context, filter ...QueryFilter) ([]e
 }
 
 // CountTransactions returns transaction statistics grouped by labels for reporting purposes.
-func (d *Datastore) CountTransactions(ctx context.Context) (int, error) {
-	sql, args, err := countTransactionsPerLabelPerRuleStmt.ToSql()
+func (d *Datastore) CountTransactions(ctx context.Context, filter ...QueryFilter) (int, error) {
+	sql, args, err := countAllTransactions.ToSql()
 	if err != nil {
-		return 0, fmt.Errorf(errUnableToReadLabel, err)
+		return 0, fmt.Errorf(errUnableToCountTransactions, err)
 	}
 
-	rows, err := d.pool.Query(ctx, sql, args...)
-	if err != nil {
-		return 0, fmt.Errorf(errUnableToReadLabel, err)
-	}
-
-	stats := make([]entity.TransactionsStat, 0)
-	rs := pgxscan.NewRowScanner(rows)
-
-	for rows.Next() {
-		row := models.TransactionCountRow{}
-		err := rs.Scan(&row)
-		if err != nil {
-			return 0, fmt.Errorf(errUnableToReadLabel, err)
+	if len(filter) > 0 {
+		countQuery := countTransactionsWithFilter
+		for _, f := range filter {
+			countQuery = f(countQuery)
 		}
-		stats = append(stats, entity.TransactionsStat{LabelID: row.LabelID, RuleID: row.RuleID, Count: row.Count})
+		sql, args, err = countQuery.ToSql()
+		if err != nil {
+			return 0, fmt.Errorf(errUnableToCountTransactions, err)
+		}
 	}
 
-	return 0, nil
+	count := 0
+	if err := d.pool.QueryRow(ctx, sql, args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf(errUnableToCountTransactions, err)
+	}
+
+	return count, nil
 }
 
 // WriteTx executes a write transaction with the provided user function.
@@ -188,7 +178,7 @@ func (d *Datastore) WriteTx(ctx context.Context, txFn TxUserFunc) error {
 		return err
 	}
 
-	writer := &writerTx{tx: tx}
+	writer := &Writer{tx: tx}
 
 	if err := txFn(ctx, writer); err != nil {
 		tx.Rollback(ctx)

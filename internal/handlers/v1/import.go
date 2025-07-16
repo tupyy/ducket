@@ -18,105 +18,103 @@ const (
 
 // ImportHandlers registers the file import HTTP handlers with the provided router group.
 // This includes the endpoint for uploading and processing transaction files.
-func ImportHandlers(r *gin.RouterGroup) {
-	r.POST("/import", func(c *gin.Context) {
-		// Parse multipart form
-		err := c.Request.ParseMultipartForm(maxFileSize)
-		if err != nil {
-			zap.S().Errorw("failed to parse multipart form", "error", err)
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse form data"})
-			return
-		}
+func (s *ServerImpl) ImportTransactions(c *gin.Context) {
+	// Parse multipart form
+	err := c.Request.ParseMultipartForm(maxFileSize)
+	if err != nil {
+		zap.S().Errorw("failed to parse multipart form", "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse form data"})
+		return
+	}
 
-		// Get uploaded files
-		form := c.Request.MultipartForm
-		files := form.File["files"]
+	// Get uploaded files
+	form := c.Request.MultipartForm
+	files := form.File["files"]
 
-		if len(files) == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "No files uploaded"})
-			return
-		}
+	if len(files) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No files uploaded"})
+		return
+	}
 
-		// Validate file types and prepare file uploads
-		var fileUploads []services.FileUpload
-		supportedExtensions := map[string]bool{
-			".xlsx": true,
-			".xls":  true,
-			".csv":  true,
-		}
+	// Validate file types and prepare file uploads
+	var fileUploads []services.FileUpload
+	supportedExtensions := map[string]bool{
+		".xlsx": true,
+		".xls":  true,
+		".csv":  true,
+	}
 
-		for _, fileHeader := range files {
-			// Check file size
-			if fileHeader.Size > maxFileSize {
-				c.JSON(http.StatusBadRequest, gin.H{
-					"error": fmt.Sprintf("File '%s' exceeds maximum size of %d bytes", fileHeader.Filename, maxFileSize),
-				})
-				return
-			}
-
-			// Check file extension
-			ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
-			if !supportedExtensions[ext] {
-				c.JSON(http.StatusBadRequest, gin.H{
-					"error": fmt.Sprintf("File '%s' has unsupported extension '%s'. Supported: .xlsx, .xls, .csv", fileHeader.Filename, ext),
-				})
-				return
-			}
-
-			// Open file
-			file, err := fileHeader.Open()
-			if err != nil {
-				zap.S().Errorw("failed to open uploaded file", "filename", fileHeader.Filename, "error", err)
-				c.JSON(http.StatusInternalServerError, gin.H{
-					"error": fmt.Sprintf("Failed to open file '%s'", fileHeader.Filename),
-				})
-				return
-			}
-
-			fileUploads = append(fileUploads, services.FileUpload{
-				Filename: fileHeader.Filename,
-				Content:  file,
+	for _, fileHeader := range files {
+		// Check file size
+		if fileHeader.Size > maxFileSize {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": fmt.Sprintf("File '%s' exceeds maximum size of %d bytes", fileHeader.Filename, maxFileSize),
 			})
-		}
-
-		// Make sure to close all files after processing
-		defer func() {
-			for _, fileUpload := range fileUploads {
-				if closer, ok := fileUpload.Content.(interface{ Close() error }); ok {
-					closer.Close()
-				}
-			}
-		}()
-
-		// Process files using import service
-		dt := dtContext.MustFromContext(c)
-		importService := services.NewImportService(dt)
-
-		results, err := importService.ImportFiles(c.Request.Context(), fileUploads)
-		if err != nil {
-			zap.S().Errorw("failed to import files", "error", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process files"})
 			return
 		}
 
-		// Calculate summary statistics
-		summary := calculateSummary(results)
+		// Check file extension
+		ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
+		if !supportedExtensions[ext] {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": fmt.Sprintf("File '%s' has unsupported extension '%s'. Supported: .xlsx, .xls, .csv", fileHeader.Filename, ext),
+			})
+			return
+		}
 
-		zap.S().Infow("Import operation completed",
-			"files_count", len(results),
-			"total_processed", summary["total_processed"],
-			"total_created", summary["total_created"],
-			"total_updated", summary["total_updated"],
-			"total_errors", summary["total_errors"],
-		)
+		// Open file
+		file, err := fileHeader.Open()
+		if err != nil {
+			zap.S().Errorw("failed to open uploaded file", "filename", fileHeader.Filename, "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": fmt.Sprintf("Failed to open file '%s'", fileHeader.Filename),
+			})
+			return
+		}
 
-		// Return results
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"message": fmt.Sprintf("Processed %d files", len(results)),
-			"summary": summary,
-			"results": results,
+		fileUploads = append(fileUploads, services.FileUpload{
+			Filename: fileHeader.Filename,
+			Content:  file,
 		})
+	}
+
+	// Make sure to close all files after processing
+	defer func() {
+		for _, fileUpload := range fileUploads {
+			if closer, ok := fileUpload.Content.(interface{ Close() error }); ok {
+				closer.Close()
+			}
+		}
+	}()
+
+	// Process files using import service
+	dt := dtContext.MustFromContext(c)
+	importService := services.NewImportService(dt)
+
+	results, err := importService.ImportFiles(c.Request.Context(), fileUploads)
+	if err != nil {
+		zap.S().Errorw("failed to import files", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process files"})
+		return
+	}
+
+	// Calculate summary statistics
+	summary := calculateSummary(results)
+
+	zap.S().Infow("Import operation completed",
+		"files_count", len(results),
+		"total_processed", summary["total_processed"],
+		"total_created", summary["total_created"],
+		"total_updated", summary["total_updated"],
+		"total_errors", summary["total_errors"],
+	)
+
+	// Return results
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("Processed %d files", len(results)),
+		"summary": summary,
+		"results": results,
 	})
 }
 

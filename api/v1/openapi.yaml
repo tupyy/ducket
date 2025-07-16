@@ -1,0 +1,878 @@
+openapi: 3.0.3
+info:
+  title: Finante API
+  description: Personal finance management API for tracking transactions, labels, and rules
+  version: 1.0.0
+  contact:
+    name: Finante API Support
+    email: cosmin@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development server
+  - url: https://api.finante.example.com/api/v1
+    description: Production server
+
+tags:
+  - name: transactions
+    description: Transaction management operations
+  - name: labels
+    description: Label management operations
+  - name: rules
+    description: Rule management operations
+
+paths:
+  /transactions:
+    get:
+      tags:
+        - transactions
+      summary: Get transactions
+      description: Retrieve transactions with optional date filtering
+      parameters:
+        - name: startDate
+          in: query
+          description: Start date as milliseconds since epoch
+          required: false
+          schema:
+            type: integer
+            format: int64
+            example: 1704067200000
+        - name: endDate
+          in: query
+          description: End date as milliseconds since epoch
+          required: false
+          schema:
+            type: integer
+            format: int64
+            example: 1706745600000
+      responses:
+        '200':
+          description: Successfully retrieved transactions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transactions'
+        '400':
+          description: Bad request - invalid date parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - transactions
+      summary: Create transaction
+      description: Create a new transaction
+      operationId: createTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionForm'
+      responses:
+        '201':
+          description: Transaction created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '400':
+          description: Bad request - validation error or transaction already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /transactions/import:
+    post:
+      tags:
+        - transactions
+      summary: Import transactions
+      description: Import transactions from uploaded files (Excel, CSV)
+      operationId: importTransactions
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Files to upload (.xlsx, .xls, .csv)
+      responses:
+        '200':
+          description: Files imported successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Files imported successfully"
+                  processedFiles:
+                    type: integer
+                    example: 3
+        '400':
+          description: Bad request - no files uploaded, unsupported file type, or file too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /transactions/{id}:
+    get:
+      tags:
+        - transactions
+      summary: Get transaction by id
+      description: Get an existing transaction
+      operationId: getTransaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Transaction ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Transaction updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '400':
+          description: Bad request - invalid ID or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+        - transactions
+      summary: Update transaction
+      description: Update an existing transaction
+      operationId: updateTransaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Transaction ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionForm'
+      responses:
+        '201':
+          description: Transaction updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '400':
+          description: Bad request - invalid ID or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - transactions
+      summary: Delete transaction
+      description: Delete a transaction by ID
+      operationId: deleteTransaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Transaction ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Transaction deleted successfully
+        '400':
+          description: Bad request - invalid ID or transaction cannot be deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /transactions/{id}/labels:
+    get:
+      tags:
+        - transactions
+      summary: Get transaction labels
+      description: Get all labels associated with a transaction
+      operationId: getTransactionLabels
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Transaction ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successfully retrieved transaction labels
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Labels'
+        '400':
+          description: Bad request - invalid transaction ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Transaction not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - transactions
+      summary: Add label to transaction
+      description: Add a label to a transaction
+      operationId: addTransactionLabel
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Transaction ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LabelForm'
+      responses:
+        '201':
+          description: Label added to transaction successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Label'
+        '400':
+          description: Bad request - invalid transaction ID or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Transaction not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - transactions
+      summary: Remove all labels from transaction
+      description: Remove all labels from a transaction
+      operationId: removeTransactionLabels
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Transaction ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: All labels removed from transaction successfully
+        '400':
+          description: Bad request - invalid transaction ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Transaction not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /transactions/{id}/labels/{labelId}:
+    delete:
+      tags:
+        - transactions
+      summary: Remove specific label from transaction
+      description: Remove a specific label from a transaction
+      operationId: removeTransactionLabel
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Transaction ID
+          schema:
+            type: integer
+            format: int64
+        - name: labelId
+          in: path
+          required: true
+          description: Label ID
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Label removed from transaction successfully
+        '400':
+          description: Bad request - invalid transaction ID or label ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Transaction not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /labels:
+    get:
+      tags:
+        - labels
+      summary: Get all labels
+      description: Retrieve all available labels
+      responses:
+        '200':
+          description: Successfully retrieved labels
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Labels'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /rules:
+    get:
+      tags:
+        - rules
+      summary: Get all rules
+      description: Retrieve all available rules
+      responses:
+        '200':
+          description: Successfully retrieved rules
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rules'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - rules
+      summary: Create rule
+      description: Create a new rule
+      operationId: createRule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RuleForm'
+      responses:
+        '201':
+          description: Rule created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuleForm'
+        '400':
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /rules/{id}:
+    put:
+      tags:
+        - rules
+      summary: Update rule
+      description: Update an existing rule
+      operationId: updateRule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Rule name/ID
+          schema:
+            type: string
+            maxLength: 20
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RuleForm'
+      responses:
+        '200':
+          description: Rule updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rule'
+        '400':
+          description: Bad request - validation error or rule name too long
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Rule not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - rules
+      summary: Delete rule
+      description: Delete a rule by name/ID
+      operationId: deleteRule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Rule name/ID
+          schema:
+            type: string
+            maxLength: 20
+      responses:
+        '204':
+          description: Rule deleted successfully
+        '400':
+          description: Bad request - rule name too long
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Rule not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /rules/process:
+    post:
+      tags:
+        - rules
+      summary: Apply all rules
+      description: Apply all rules to all transactions
+      operationId: processRules
+      responses:
+        '200':
+          description: Rules applied successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Successfully applied all rules to all transactions"
+                  success:
+                    type: boolean
+                    example: true
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Failed to apply rules to transactions"
+                  success:
+                    type: boolean
+                    example: false
+
+  /rules/{id}/process:
+    post:
+      tags:
+        - rules
+      summary: Apply specific rule
+      description: Apply a specific rule to all transactions
+      operationId: processRule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Rule name/ID
+          schema:
+            type: string
+            maxLength: 20
+      responses:
+        '200':
+          description: Rule applied successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Successfully applied rule to all transactions"
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Bad request - rule name too long or empty
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Rule not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Rule not found"
+                  success:
+                    type: boolean
+                    example: false
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Failed to get rule"
+                  success:
+                    type: boolean
+                    example: false
+
+components:
+  schemas:
+    TransactionForm:
+      type: object
+      required:
+        - kind
+        - date
+        - content
+        - amount
+        - account
+      properties:
+        kind:
+          type: string
+          enum: [credit, debit]
+          description: Transaction type
+        date:
+          type: string
+          format: date
+          pattern: '^\d{2}/\d{2}/\d{4}$'
+          example: "15/01/2024"
+          description: Transaction date in DD/MM/YYYY format
+        content:
+          type: string
+          description: Transaction description/content
+          example: "Grocery shopping at SuperMart"
+        amount:
+          type: number
+          format: float
+          description: Transaction amount
+          example: 45.67
+        account:
+          type: integer
+          format: int64
+          description: Account number
+          example: 1234567890
+
+    Transaction:
+      type: object
+      properties:
+        href:
+          type: string
+          format: uri
+          example: "/api/v1/transactions/123"
+        kind:
+          type: string
+          example: "EXPENSE"
+        date:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+        account:
+          type: integer
+          format: int64
+          example: 1234567890
+        description:
+          type: string
+          example: "Grocery shopping at SuperMart"
+        amount:
+          type: number
+          format: float
+          example: 45.67
+        labels:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionLabelAssociation'
+
+    TransactionLabelAssociation:
+      type: object
+      properties:
+        href:
+          type: string
+          format: uri
+          example: "/api/v1/labels/456"
+        key:
+          type: string
+          example: "category"
+        value:
+          type: string
+          example: "groceries"
+        rule_href:
+          type: string
+          format: uri
+          example: "/api/v1/rules/grocery-rule"
+          description: Reference to the rule that created this label association
+
+    Transactions:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 150
+        start:
+          type: string
+          format: date
+          pattern: '^\d{2}/\d{2}/\d{4}$'
+          example: "01/01/2024"
+        end:
+          type: string
+          format: date
+          pattern: '^\d{2}/\d{2}/\d{4}$'
+          example: "31/01/2024"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+
+    LabelForm:
+      type: object
+      required:
+        - key
+        - value
+      properties:
+        key:
+          type: string
+          description: Label key
+          example: "category"
+        value:
+          type: string
+          description: Label value
+          example: "groceries"
+
+    Label:
+      type: object
+      properties:
+        href:
+          type: string
+          format: uri
+          example: "/api/v1/labels/123"
+        key:
+          type: string
+          example: "category"
+        value:
+          type: string
+          example: "groceries"
+        rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/Rule'
+          description: Rules that can create this label
+
+    Labels:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 25
+        labels:
+          type: array
+          items:
+            $ref: '#/components/schemas/Label'
+
+    RuleForm:
+      type: object
+      required:
+        - name
+        - pattern
+        - labels
+      properties:
+        name:
+          type: string
+          maxLength: 20
+          description: Rule name (max 20 characters)
+          example: "grocery-rule"
+        pattern:
+          type: string
+          description: Regular expression pattern to match transaction content
+          example: "(?i).*(grocery|supermarket).*"
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+          description: Map of labels to apply when pattern matches
+          example:
+            category: "groceries"
+            type: "expense"
+
+    Rule:
+      type: object
+      properties:
+        href:
+          type: string
+          format: uri
+          example: "/api/v1/rules/grocery-rule"
+        name:
+          type: string
+          example: "grocery-rule"
+        pattern:
+          type: string
+          example: "(?i).*(grocery|supermarket).*"
+        labels:
+          type: array
+          items:
+            $ref: '#/components/schemas/Label'
+          description: Labels that this rule applies
+
+    Rules:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 10
+        rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/Rule'
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "Validation failed"

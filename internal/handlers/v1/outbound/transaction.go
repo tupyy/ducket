@@ -12,9 +12,10 @@ const (
 )
 
 type TransactionLabelAssociation struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
-	Href  string `json:"href"`
+	Href    string `json:"href"`
+	Key     string `json:"key"`
+	Value   string `json:"value"`
+	RuleRef string `json:"rule_href,omitempty"`
 }
 
 type Transaction struct {
@@ -40,12 +41,16 @@ func FromEntity(t entity.Transaction) Transaction {
 		Labels:      make([]TransactionLabelAssociation, 0, len(t.Labels)),
 	}
 
-	for labelID, label := range t.Labels {
-		transaction.Labels = append(transaction.Labels, TransactionLabelAssociation{
-			Key:   label.Key,
-			Value: label.Value,
-			Href:  fmt.Sprintf("%s/labels/%d", apiV1, labelID),
-		})
+	for _, a := range t.Labels {
+		tLabelAssociation := TransactionLabelAssociation{
+			Key:   a.Label.Key,
+			Value: a.Label.Value,
+			Href:  fmt.Sprintf("/api/v1/labels/%d", a.Label.ID),
+		}
+		if a.RuleID != nil {
+			tLabelAssociation.RuleRef = fmt.Sprintf("/api/v1/rules/%s", *a.RuleID)
+		}
+		transaction.Labels = append(transaction.Labels, tLabelAssociation)
 	}
 
 	return transaction

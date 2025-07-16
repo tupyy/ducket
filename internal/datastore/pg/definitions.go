@@ -44,6 +44,8 @@ const (
 
 	errUnableToDeleteTransaction = "unable to delete transaction: %w"
 	errUnableToWriteTransaction  = "unable to write transaction: %w"
+	errUnableToCountTransactions = "unable to count transactions: %w"
+	errUnableToApplyLabel        = "unable to apply label: %w"
 )
 
 var (
@@ -80,16 +82,8 @@ var (
 	// Example SQL: SELECT * FROM transactions_labels
 	selectTransactionLabelsStmt = psql.Select("*").From(transactionsLabelsTable)
 
-	// countTransactionsPerLabelPerRuleStmt counts the number of transactions for each label grouped by rule.
-	// Example SQL: SELECT b.id as label_id, b.rule_id, COUNT(transaction_id)
-	//              FROM (SELECT labels.id, key, value, rule_id, created_at FROM labels LEFT JOIN rules_labels on rules_labels.label_id = labels.id) AS b
-	//              INNER JOIN transactions_labels on transactions_labels.label_id = b.id
-	//              GROUP BY b.id, b.rule_id
-	countTransactionsPerLabelPerRuleStmt = psql.
-						Select("b.id as label_id", "b.rule_id", "COUNT(transaction_id)").
-						FromSelect(selectLabelsStmt, "b").
-						InnerJoin("transactions_labels on transactions_labels.label_id = b.id").
-						GroupBy("b.id", "b.rule_id")
+	countAllTransactions        = psql.Select("COUNT(*)").From(transactionTable)
+	countTransactionsWithFilter = psql.Select("COUNT(*)").From(transactionsLabelsTable)
 
 	// insertTransaction inserts a new transaction record.
 	// Example SQL: INSERT INTO transactions (date, account, hash, kind, content, amount) VALUES ($1, $2, $3, $4, $5, $6)
@@ -124,9 +118,10 @@ var (
 		colLabelID,
 		colLabelKey,
 		colLabelValue,
+		colRuleID,
 	).
 		From(transactionTable).
-		LeftJoin(`(select a.transaction_id,labels.id as label_id,labels.key,labels.value from transactions_labels as a INNER JOIN labels on a.label_id = labels.id) as b on b.transaction_id = transactions.id`)
+		LeftJoin(`(select a.transaction_id,labels.id as label_id,labels.key,labels.value, a.rule_id from transactions_labels as a INNER JOIN labels on a.label_id = labels.id) as b on b.transaction_id = transactions.id`)
 
 	// insertRule inserts a new rule record.
 	// Example SQL: INSERT INTO rules (id, pattern) VALUES ($1, $2)
