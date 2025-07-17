@@ -42,10 +42,11 @@ const (
 	errUnableToDeleteRule = "unable to delete rule: %w"
 	errUnableToWriteRule  = "unable to write rule: %w"
 
-	errUnableToDeleteTransaction = "unable to delete transaction: %w"
-	errUnableToWriteTransaction  = "unable to write transaction: %w"
-	errUnableToCountTransactions = "unable to count transactions: %w"
-	errUnableToApplyLabel        = "unable to apply label: %w"
+	errUnableToDeleteTransaction  = "unable to delete transaction: %w"
+	errUnableToWriteTransaction   = "unable to write transaction: %w"
+	errUnableToCountTransactions  = "unable to count transactions: %w"
+	errUnableToWriteRelationship  = "unable to write relationship: %w"
+	errUnableToDeleteRelationship = "unable to delete relationship: %w"
 )
 
 var (
@@ -99,7 +100,12 @@ var (
 
 	// insertTransactionLabel creates an association between a transaction and a label.
 	// Example SQL: INSERT INTO transactions_labels (transaction_id, label_id) VALUES ($1, $2)
-	insertTransactionLabel = psql.Insert(transactionsLabelsTable).Columns(colTransactionID, colLabelID)
+	insertTransactionLabelRuleRelationship = psql.Insert(transactionsLabelsTable).Columns(colTransactionID, colLabelID, colRuleID)
+	insertTransactionLabelRelationship     = psql.Insert(transactionsLabelsTable).Columns(colTransactionID, colLabelID)
+	insertLabelRuleRelationship            = psql.Insert(rulesLabelsTable).Columns(colLabelID, colRuleID)
+
+	deleteTransactionLabelRuleRelationship = psql.Delete(transactionsLabelsTable)
+	deleteLabelRuleRelationship            = psql.Delete(rulesLabelsTable)
 
 	// selectTransactionStmp retrieves transactions with their associated labels via left join.
 	// Example SQL: SELECT id, date, account, kind, content, amount, hash, label_id, key, value

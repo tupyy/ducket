@@ -37,7 +37,7 @@ CREATE TABLE transactions_labels (
     transaction_id SERIAL REFERENCES transactions(id) ON DELETE CASCADE,
     label_id SERIAL  REFERENCES labels(id) ON DELETE CASCADE,
     rule_id VARCHAR(100) REFERENCES rules(id) ON DELETE CASCADE,
-    CONSTRAINT transaction_tag_pk PRIMARY KEY (transaction_id, label_id, rule_id)
+    CONSTRAINT transaction_tag_pk PRIMARY KEY (transaction_id, label_id)
 );
 
 -- +goose StatementEnd

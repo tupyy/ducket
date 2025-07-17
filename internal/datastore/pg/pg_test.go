@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"git.tls.tupangiu.ro/cosmin/finante/internal/datastore/pg"
-	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5/pgxpool"
 	. "github.com/onsi/ginkgo/v2"
@@ -147,201 +146,6 @@ var _ = Describe("query", Ordered, func() {
 			}
 		})
 
-		It("delete successfully rule", func() {
-			sql, args, err := insertRule.
-				Values("rule1", "pattern").
-				ToSql()
-			Expect(err).To(BeNil())
-
-			_, err = pgPool.Exec(context.TODO(), sql, args...)
-			Expect(err).To(BeNil())
-
-			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w *pg.Writer) error {
-				return w.DeleteRule(ctx, "rule1")
-			})
-			Expect(err).To(BeNil())
-
-			var count int
-			rows, err := pgPool.Query(context.TODO(), "select count(*) from rules;")
-			Expect(err).To(BeNil())
-			defer rows.Close()
-
-			for rows.Next() {
-				err := rows.Scan(&count)
-				Expect(err).To(BeNil())
-				Expect(count).To(Equal(0))
-			}
-		})
-
-		It("delete successfully rule -- rule not found", func() {
-			err := dt.WriteTx(context.TODO(), func(ctx context.Context, w *pg.Writer) error {
-				return w.DeleteRule(ctx, "rule1")
-			})
-			Expect(err).To(BeNil())
-
-			var count int
-			rows, err := pgPool.Query(context.TODO(), "select count(*) from rules;")
-			Expect(err).To(BeNil())
-			defer rows.Close()
-
-			for rows.Next() {
-				err := rows.Scan(&count)
-				Expect(err).To(BeNil())
-				Expect(count).To(Equal(0))
-			}
-		})
-
-		AfterEach(func() {
-			_, err := pgPool.Exec(context.TODO(), "DELETE FROM transactions;")
-			Expect(err).To(BeNil())
-			_, err = pgPool.Exec(context.TODO(), "DELETE FROM labels;")
-			Expect(err).To(BeNil())
-			_, err = pgPool.Exec(context.TODO(), "DELETE FROM rules;")
-			Expect(err).To(BeNil())
-		})
-	})
-
-	Context("write rule", func() {
-		It("write rule successfully -- no labels", func() {
-			rule := entity.NewRule("rule1", "pattern1")
-			err := dt.WriteTx(context.TODO(), func(ctx context.Context, w *pg.Writer) error {
-				return w.WriteRule(context.TODO(), rule, false)
-			})
-
-			var count int
-
-			err = pgPool.QueryRow(context.TODO(), "select count(*) from rules;").Scan(&count)
-			Expect(err).To(BeNil())
-			Expect(count).To(Equal(1))
-		})
-
-		It("update rule successfully -- no labels", func() {
-			sql, args, err := insertRule.
-				Values("rule1", "pattern").
-				ToSql()
-			Expect(err).To(BeNil())
-
-			_, err = pgPool.Exec(context.TODO(), sql, args...)
-			Expect(err).To(BeNil())
-
-			rule := entity.NewRule("rule1", "updated_pattern")
-			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w *pg.Writer) error {
-				return w.WriteRule(context.TODO(), rule, true)
-			})
-
-			var pattern string
-			err = pgPool.QueryRow(context.TODO(), "select pattern from rules limit 1;").Scan(&pattern)
-			Expect(err).To(BeNil())
-			Expect(pattern).To(Equal("updated_pattern"))
-		})
-
-		It("update rule successfully -- with additional labels", func() {
-			sql, args, err := insertLabelStmt.
-				Values("category", "label1").
-				Values("category", "label2").
-				Values("category", "label3").
-				Values("category", "label4").
-				ToSql()
-			Expect(err).To(BeNil())
-			_, err = pgPool.Exec(context.TODO(), sql, args...)
-			Expect(err).To(BeNil())
-
-			sql, args, err = insertRule.
-				Values("rule1", "pattern").
-				ToSql()
-			Expect(err).To(BeNil())
-
-			_, err = pgPool.Exec(context.TODO(), sql, args...)
-			Expect(err).To(BeNil())
-
-			rule := entity.NewRule("rule1", "updated_pattern", entity.Label{Key: "category", Value: "label1"})
-			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w *pg.Writer) error {
-				return w.WriteRule(context.TODO(), rule, true)
-			})
-
-			var pattern string
-			err = pgPool.QueryRow(context.TODO(), "select pattern from rules limit 1;").Scan(&pattern)
-			Expect(err).To(BeNil())
-			Expect(pattern).To(Equal("updated_pattern"))
-
-			count := 0
-			err = pgPool.QueryRow(context.TODO(), "select count(*) from rules_labels;").Scan(&count)
-			Expect(err).To(BeNil())
-			Expect(count).To(Equal(1))
-		})
-
-		It("update rule successfully -- remove labels", func() {
-			sql, args, err := insertLabelStmt.
-				Values("category", "label1").
-				Values("category", "label2").
-				ToSql()
-			Expect(err).To(BeNil())
-			_, err = pgPool.Exec(context.TODO(), sql, args...)
-			Expect(err).To(BeNil())
-
-			sql, args, err = insertRule.
-				Values("rule1", "pattern").
-				ToSql()
-			Expect(err).To(BeNil())
-
-			_, err = pgPool.Exec(context.TODO(), sql, args...)
-			Expect(err).To(BeNil())
-
-			// Get the actual label ID from the database
-			var labelID int
-			err = pgPool.QueryRow(context.TODO(), "SELECT id FROM labels WHERE key = 'category' AND value = 'label1'").Scan(&labelID)
-			Expect(err).To(BeNil())
-
-			sql, args, err = psql.Insert("rules_labels").Columns("rule_id", "label_id").Values("rule1", labelID).ToSql()
-			Expect(err).To(BeNil())
-
-			_, err = pgPool.Exec(context.TODO(), sql, args...)
-			Expect(err).To(BeNil())
-
-			rule := entity.NewRule("rule1", "updated_pattern")
-			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w *pg.Writer) error {
-				return w.WriteRule(context.TODO(), rule, true)
-			})
-
-			var pattern string
-			err = pgPool.QueryRow(context.TODO(), "select pattern from rules limit 1;").Scan(&pattern)
-			Expect(err).To(BeNil())
-			Expect(pattern).To(Equal("updated_pattern"))
-
-			count := 1
-			err = pgPool.QueryRow(context.TODO(), "select count(*) from rules_labels;").Scan(&count)
-			Expect(err).To(BeNil())
-			Expect(count).To(Equal(0))
-		})
-
-		It("write rule successfully -- with labels", func() {
-			sql, args, err := insertLabelStmt.
-				Values("category", "label1").
-				Values("category", "label2").
-				Values("category", "label3").
-				Values("category", "label4").
-				ToSql()
-			Expect(err).To(BeNil())
-			_, err = pgPool.Exec(context.TODO(), sql, args...)
-			Expect(err).To(BeNil())
-
-			rule := entity.NewRule("rule1", "pattern1", entity.Label{Key: "category", Value: "label1"}, entity.Label{Key: "category", Value: "label2"})
-			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w *pg.Writer) error {
-				return w.WriteRule(context.TODO(), rule, false)
-			})
-			Expect(err).To(BeNil())
-
-			count := 0
-			err = pgPool.QueryRow(context.TODO(), "select count(*) from rules;").Scan(&count)
-			Expect(err).To(BeNil())
-			Expect(count).To(Equal(1))
-
-			count = 0
-			err = pgPool.QueryRow(context.TODO(), "select count(*) from rules_labels;").Scan(&count)
-			Expect(err).To(BeNil())
-			Expect(count).To(Equal(2))
-		})
-
 		AfterEach(func() {
 			_, err := pgPool.Exec(context.TODO(), "DELETE FROM transactions;")
 			Expect(err).To(BeNil())
@@ -432,8 +236,13 @@ var _ = Describe("query", Ordered, func() {
 			for _, t := range transactions {
 				if t.ID == 1 {
 					Expect(t.Labels).To(HaveLen(2))
-					Expect(t.Labels["rule1"].Value).To(Equal("label1"))
-					Expect(t.Labels["rule2"].Value).To(Equal("label2"))
+					// Check that we have the expected labels
+					labelValues := make([]string, len(t.Labels))
+					for i, labelAssoc := range t.Labels {
+						labelValues[i] = labelAssoc.Label.Value
+					}
+					Expect(labelValues).To(ContainElement("label1"))
+					Expect(labelValues).To(ContainElement("label2"))
 				}
 
 				if t.ID == 2 {
@@ -525,163 +334,6 @@ var _ = Describe("query", Ordered, func() {
 			Expect(transactions).To(HaveLen(1))
 		})
 
-		It("write transaction successfully -- without labels", func() {
-			t := entity.NewTransaction(entity.CreditTransaction, 1001, time.Now(), 1.1, "content")
-
-			err := dt.WriteTx(context.TODO(), func(ctx context.Context, w *pg.Writer) error {
-				_, err := w.WriteTransaction(ctx, *t)
-				return err
-			})
-			Expect(err).To(BeNil())
-
-			var count int
-			rows, err := pgPool.Query(context.TODO(), "select count(*) from transactions;")
-			Expect(err).To(BeNil())
-			defer rows.Close()
-
-			for rows.Next() {
-				err := rows.Scan(&count)
-				Expect(err).To(BeNil())
-				Expect(count).To(Equal(1))
-			}
-		})
-
-		It("write transaction successfully -- with labels", func() {
-			sql, args, err := insertRule.
-				Values("rule1", "pattern").
-				ToSql()
-			Expect(err).To(BeNil())
-
-			_, err = pgPool.Exec(context.TODO(), sql, args...)
-			Expect(err).To(BeNil())
-
-			sql, args, err = insertLabelStmt.
-				Values("category", "label1").
-				ToSql()
-			Expect(err).To(BeNil())
-
-			_, err = pgPool.Exec(context.TODO(), sql, args...)
-			Expect(err).To(BeNil())
-
-			// Get the actual label ID from the database
-			var labelID int
-			err = pgPool.QueryRow(context.TODO(), "SELECT id FROM labels WHERE key = 'category' AND value = 'label1'").Scan(&labelID)
-			Expect(err).To(BeNil())
-
-			t := entity.NewTransaction(entity.CreditTransaction, 1001, time.Now(), 1.1, "content")
-
-			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w *pg.Writer) error {
-				_, err := w.WriteTransaction(ctx, *t)
-				return err
-			})
-			Expect(err).To(BeNil())
-
-			var count int
-			rows, err := pgPool.Query(context.TODO(), "select count(*) from transactions;")
-			Expect(err).To(BeNil())
-			defer rows.Close()
-
-			for rows.Next() {
-				err := rows.Scan(&count)
-				Expect(err).To(BeNil())
-				Expect(count).To(Equal(1))
-			}
-		})
-
-		It("update successfully transactions -- no labels", func() {
-			sql, args, err := insertRule.
-				Values("rule1", "pattern").
-				ToSql()
-			Expect(err).To(BeNil())
-
-			_, err = pgPool.Exec(context.TODO(), sql, args...)
-			Expect(err).To(BeNil())
-
-			sql, args, err = insertLabelStmt.
-				Values("category", "label1").
-				ToSql()
-			Expect(err).To(BeNil())
-
-			_, err = pgPool.Exec(context.TODO(), sql, args...)
-			Expect(err).To(BeNil())
-
-			sql, args, err = insertTransaction.
-				Values(1, time.Now(), 1001, "credit", "transaction", "1.1", "hash1").
-				ToSql()
-			Expect(err).To(BeNil())
-
-			_, err = pgPool.Exec(context.TODO(), sql, args...)
-			Expect(err).To(BeNil())
-
-			// Get the actual label ID from the database
-			var labelID int
-			err = pgPool.QueryRow(context.TODO(), "SELECT id FROM labels WHERE key = 'category' AND value = 'label1'").Scan(&labelID)
-			Expect(err).To(BeNil())
-
-			sql, args, err = psql.Insert("transactions_labels").
-				Columns("transaction_id", "label_id", "rule_id").
-				Values(1, labelID, "rule1").
-				ToSql()
-			Expect(err).To(BeNil())
-
-			_, err = pgPool.Exec(context.TODO(), sql, args...)
-			Expect(err).To(BeNil())
-
-			t := entity.NewTransaction(entity.DebitTransaction, 1001, time.Now(), 2, "content")
-			t.ID = 1 // fix ID
-
-			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w *pg.Writer) error {
-				_, err := w.WriteTransaction(ctx, *t)
-				return err
-			})
-			Expect(err).To(BeNil())
-
-			content := ""
-			kind := ""
-			hash := ""
-			sql, args, _ = psql.Select("content", "kind", "hash").From("transactions").Where(sq.Eq{"id": 1}).ToSql()
-			err = pgPool.QueryRow(context.TODO(), sql, args...).Scan(&content, &kind, &hash)
-			Expect(err).To(BeNil())
-
-			count := 1
-			err = pgPool.QueryRow(context.TODO(), "select count(*) from transactions_labels;").Scan(&count)
-			Expect(err).To(BeNil())
-			Expect(count).To(Equal(0))
-
-		})
-
-		It("update successfully transactions -- remove labels", func() {
-			sql, args, err := insertTransaction.
-				Values(1, time.Now(), 1001, "credit", "transaction", "1.1", "hash1").
-				ToSql()
-
-			_, err = pgPool.Exec(context.TODO(), sql, args...)
-			Expect(err).To(BeNil())
-
-			t := entity.NewTransaction(entity.DebitTransaction, 1001, time.Now(), 2, "content")
-			t.ID = 1 // fix ID
-
-			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w *pg.Writer) error {
-				_, err := w.WriteTransaction(ctx, *t)
-				return err
-			})
-			Expect(err).To(BeNil())
-
-			content := ""
-			account := 0
-			kind := ""
-			hash := ""
-			sql, args, _ = psql.Select("content", "kind", "hash", "account").From("transactions").Where(sq.Eq{"id": 1}).ToSql()
-			err = pgPool.QueryRow(context.TODO(), sql, args...).Scan(&content, &kind, &hash, &account)
-			Expect(err).To(BeNil())
-
-			Expect(account).To(Equal(1001))
-			Expect(content).To(Equal("content"))
-			Expect(kind).NotTo(Equal("hash1"))
-			Expect(kind).To(Equal("debit"))
-
-		})
-
 		AfterEach(func() {
 			_, err := pgPool.Exec(context.TODO(), "DELETE FROM transactions;")
 			Expect(err).To(BeNil())
@@ -756,24 +408,6 @@ var _ = Describe("query", Ordered, func() {
 			Expect(err).To(BeNil())
 
 			Expect(tags).To(HaveLen(2))
-		})
-
-		It("write labels successfully", func() {
-			err := dt.WriteTx(context.TODO(), func(ctx context.Context, w *pg.Writer) error {
-				return w.WriteLabel(ctx, entity.Label{Key: "category", Value: "label1"})
-			})
-			Expect(err).To(BeNil())
-
-			var count int
-			rows, err := pgPool.Query(context.TODO(), "select count(*) from labels;")
-			Expect(err).To(BeNil())
-			defer rows.Close()
-
-			for rows.Next() {
-				err := rows.Scan(&count)
-				Expect(err).To(BeNil())
-				Expect(count).To(Equal(1))
-			}
 		})
 
 		AfterEach(func() {

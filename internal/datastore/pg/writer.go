@@ -6,6 +6,7 @@ import (
 
 	"git.tls.tupangiu.ro/cosmin/finante/internal/datastore/pg/models"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
+	"github.com/Masterminds/squirrel"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/georgysavva/scany/v2/pgxscan"
 	"github.com/jackc/pgx/v5"
@@ -16,12 +17,6 @@ type Writer struct {
 }
 
 func (w *Writer) WriteRule(ctx context.Context, rule entity.Rule, update bool) error {
-	labelsToDissociate := []int{}
-	labelsToAssociate := []entity.Label{}
-	for _, label := range rule.Labels {
-		labelsToAssociate = append(labelsToAssociate, label)
-	}
-
 	switch update {
 	case false:
 		query := insertRule
@@ -55,7 +50,6 @@ func (w *Writer) WriteRule(ctx context.Context, rule entity.Rule, update bool) e
 			if oldRule.LabelID == nil {
 				continue
 			}
-			labelsToDissociate = append(labelsToDissociate, *oldRule.LabelID)
 		}
 		rows.Close()
 
@@ -70,59 +64,6 @@ func (w *Writer) WriteRule(ctx context.Context, rule entity.Rule, update bool) e
 
 		if _, err := w.tx.Exec(ctx, sql, args...); err != nil {
 			return fmt.Errorf(errUnableToWriteRule, err)
-		}
-	}
-
-	if len(labelsToDissociate) > 0 {
-		deleteLabelAssociationStmt := psql.Delete(rulesLabelsTable).Where(sq.Eq{colRuleID: rule.Name})
-
-		sql, arg, err := deleteLabelAssociationStmt.ToSql()
-		if err != nil {
-			return fmt.Errorf(errUnableToWriteLabel, err)
-		}
-		if _, err := w.tx.Exec(ctx, sql, arg...); err != nil {
-			return fmt.Errorf(errUnableToWriteLabel, err)
-		}
-	}
-
-	if len(labelsToAssociate) > 0 {
-		addLabelAssociationStmt := psql.Insert(rulesLabelsTable).Columns(colRuleID, colLabelID)
-		for _, label := range labelsToAssociate {
-			// First, make sure the label exists (create if it doesn't)
-			if _, err := w.WriteLabel(ctx, label); err != nil {
-				return fmt.Errorf(errUnableToWriteLabel, err)
-			}
-
-			// Get the label ID from the database
-			var labelID int
-			labelSelectSQL, labelSelectArgs, err := psql.Select(colID).
-				From(labelsTable).
-				Where(sq.And{
-					sq.Eq{colLabelKey: label.Key},
-					sq.Eq{colLabelValue: label.Value},
-				}).
-				ToSql()
-			if err != nil {
-				return fmt.Errorf(errUnableToWriteLabel, err)
-			}
-
-			err = w.tx.QueryRow(ctx, labelSelectSQL, labelSelectArgs...).Scan(&labelID)
-			if err != nil {
-				return fmt.Errorf(errUnableToWriteLabel, err)
-			}
-
-			addLabelAssociationStmt = addLabelAssociationStmt.Values(rule.Name, labelID)
-		}
-
-		// add on conflict statement
-		addLabelAssociationStmt = addLabelAssociationStmt.Suffix("ON CONFLICT DO NOTHING")
-
-		sql, arg, err := addLabelAssociationStmt.ToSql()
-		if err != nil {
-			return fmt.Errorf(errUnableToWriteLabel, err)
-		}
-		if _, err := w.tx.Exec(ctx, sql, arg...); err != nil {
-			return fmt.Errorf(errUnableToWriteLabel, err)
 		}
 	}
 
@@ -146,7 +87,6 @@ func (w *Writer) WriteLabel(ctx context.Context, label entity.Label) (int, error
 	sql, args, err := psql.Insert(labelsTable).
 		Columns(colLabelKey, colLabelValue).
 		Values(label.Key, label.Value).
-		Suffix("ON CONFLICT (key, value) DO NOTHING").
 		Suffix("RETURNING id").
 		ToSql()
 	if err != nil {
@@ -265,45 +205,93 @@ func (w *Writer) DeleteTransaction(ctx context.Context, id int64) error {
 	return nil
 }
 
-func (w *Writer) ApplyLabel(ctx context.Context, transactionID int, labelID int, ruleID *string) error {
-	insertQuery := psql.Insert(transactionsLabelsTable)
-	if ruleID != nil {
-		insertQuery = insertQuery.Columns(colTransactionID, colLabelID, colRuleID).Values(transactionID, labelID, *ruleID)
-	} else {
-		insertQuery = insertQuery.Columns(colTransactionID, colLabelID).Values(transactionID, labelID)
+func (w *Writer) WriteRelationships(ctx context.Context, relationships []entity.Relationship) error {
+	qInsertTransactionLabelRule := insertTransactionLabelRuleRelationship
+	hasTransactionLabelRuleRelationship := false
+
+	qInsertTransactionLabel := insertTransactionLabelRelationship
+	hasTransactionLabelRelationship := false
+
+	qInsertLabelRule := insertLabelRuleRelationship
+	hasLabelRuleRelationship := false
+
+	for _, r := range relationships {
+		switch r.Kind {
+		case entity.RelationshipLabelRule:
+			qInsertLabelRule = qInsertLabelRule.Values(r.LabelID, r.RuleID)
+			hasLabelRuleRelationship = true
+		case entity.RelationshipLabelTransaction:
+			qInsertTransactionLabel = qInsertTransactionLabel.Values(r.TransactionID, r.LabelID)
+			hasTransactionLabelRelationship = true
+		case entity.RelationshipLabelRuleTransaction:
+			qInsertTransactionLabelRule = qInsertTransactionLabelRule.Values(r.TransactionID, r.LabelID, r.RuleID)
+			hasTransactionLabelRuleRelationship = true
+		}
 	}
 
-	sql, args, err := insertQuery.ToSql()
-	if err != nil {
-		return fmt.Errorf(errUnableToApplyLabel, err)
+	if hasTransactionLabelRuleRelationship {
+		sql, args, err := qInsertTransactionLabelRule.ToSql()
+		if err != nil {
+			return fmt.Errorf(errUnableToWriteRelationship, err)
+		}
+		if _, err := w.tx.Exec(ctx, sql, args...); err != nil {
+			return fmt.Errorf(errUnableToWriteRelationship, err)
+		}
 	}
 
-	if _, err := w.tx.Exec(ctx, sql, args...); err != nil {
-		return fmt.Errorf(errUnableToApplyLabel, err)
+	if hasTransactionLabelRelationship {
+		sql, args, err := qInsertTransactionLabel.ToSql()
+		if err != nil {
+			return fmt.Errorf(errUnableToWriteRelationship, err)
+		}
+		if _, err := w.tx.Exec(ctx, sql, args...); err != nil {
+			return fmt.Errorf(errUnableToWriteRelationship, err)
+		}
+	}
+
+	if hasLabelRuleRelationship {
+		sql, args, err := qInsertLabelRule.ToSql()
+		if err != nil {
+			return fmt.Errorf(errUnableToWriteRelationship, err)
+		}
+		if _, err := w.tx.Exec(ctx, sql, args...); err != nil {
+			return fmt.Errorf(errUnableToWriteRelationship, err)
+		}
 	}
 
 	return nil
 }
 
-func (w *Writer) RemoveLabels(ctx context.Context, transactionID int) error {
-	sql, arg, err := psql.Delete(transactionsLabelsTable).Where(sq.Eq{colTransactionID: transactionID}).ToSql()
-	if err != nil {
-		return fmt.Errorf(errUnableToWriteLabel, err)
-	}
-	if _, err := w.tx.Exec(ctx, sql, arg...); err != nil {
-		return fmt.Errorf(errUnableToWriteLabel, err)
+func (w *Writer) DeleteRelationships(ctx context.Context, relationships []entity.Relationship) error {
+	execQuery := func(q squirrel.DeleteBuilder) error {
+		sql, args, err := q.ToSql()
+		if err != nil {
+			return err
+		}
+		if _, err := w.tx.Exec(ctx, sql, args...); err != nil {
+			return err
+		}
+		return nil
 	}
 
-	return nil
-}
-
-func (w *Writer) RemoveLabel(ctx context.Context, transactionID int, labelID int) error {
-	sql, arg, err := psql.Delete(transactionsLabelsTable).Where(sq.And{sq.Eq{colTransactionID: transactionID}, sq.Eq{colLabelID: labelID}}).ToSql()
-	if err != nil {
-		return fmt.Errorf(errUnableToWriteLabel, err)
-	}
-	if _, err := w.tx.Exec(ctx, sql, arg...); err != nil {
-		return fmt.Errorf(errUnableToWriteLabel, err)
+	for _, r := range relationships {
+		switch r.Kind {
+		case entity.RelationshipLabelRule:
+			query := deleteLabelRuleRelationship.Where(sq.And{sq.Eq{colRuleID: r.RuleID}, sq.Eq{colLabelID: r.LabelID}})
+			if err := execQuery(query); err != nil {
+				return fmt.Errorf(errUnableToDeleteRelationship, err)
+			}
+		case entity.RelationshipLabelTransaction:
+			query := deleteTransactionLabelRuleRelationship.Where(sq.And{sq.Eq{colTransactionID: r.TransactionID}, sq.Eq{colLabelID: r.LabelID}})
+			if err := execQuery(query); err != nil {
+				return fmt.Errorf(errUnableToDeleteRelationship, err)
+			}
+		case entity.RelationshipLabelRuleTransaction:
+			query := deleteTransactionLabelRuleRelationship.Where(sq.And{sq.Eq{colTransactionID: r.TransactionID}, sq.Eq{colLabelID: r.LabelID}, sq.Eq{colRuleID: r.RuleID}})
+			if err := execQuery(query); err != nil {
+				return fmt.Errorf(errUnableToDeleteRelationship, err)
+			}
+		}
 	}
 
 	return nil
