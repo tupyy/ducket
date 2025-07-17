@@ -89,16 +89,23 @@ func (s *ImportService) importSingleFile(ctx context.Context, file FileUpload) I
 		}
 
 		// Create or update transaction (now with applied rule labels)
-		_, err = transactionService.CreateOrUpdate(ctx, transaction)
-		if err != nil {
-			result.Errors = append(result.Errors, fmt.Sprintf("Error saving transaction %s: %v", transaction.Hash, err))
-			result.ErrorCount++
-			continue
-		}
-
 		if existingTransaction != nil {
+			// Transaction exists, update it
+			_, err = transactionService.Update(ctx, transaction)
+			if err != nil {
+				result.Errors = append(result.Errors, fmt.Sprintf("Error updating transaction %s: %v", transaction.Hash, err))
+				result.ErrorCount++
+				continue
+			}
 			result.UpdatedCount++
 		} else {
+			// Transaction doesn't exist, create it
+			_, err = transactionService.Create(ctx, transaction)
+			if err != nil {
+				result.Errors = append(result.Errors, fmt.Sprintf("Error creating transaction %s: %v", transaction.Hash, err))
+				result.ErrorCount++
+				continue
+			}
 			result.CreatedCount++
 		}
 

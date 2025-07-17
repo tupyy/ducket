@@ -179,14 +179,8 @@ var _ = Describe("RuleService", Ordered, func() {
 			label := entity.Label{Key: "status", Value: "active"}
 			newRule := entity.NewRule("upsert-new", "pattern", label)
 
-			updated, err := ruleService.UpdateOrCreate(context.TODO(), newRule)
-			Expect(err).To(BeNil())
-			Expect(updated).To(BeFalse()) // Should be false for creation
-
-			// Verify rule was created
-			rule, err := ruleService.GetRule(context.TODO(), "upsert-new")
-			Expect(err).To(BeNil())
-			Expect(rule).ToNot(BeNil())
+			err := ruleService.Update(context.TODO(), newRule)
+			Expect(err).NotTo(BeNil())
 		})
 
 		It("should update existing rule", func() {
@@ -199,9 +193,8 @@ var _ = Describe("RuleService", Ordered, func() {
 			// Update the rule
 			newLabel := entity.Label{Key: "category", Value: "expense"}
 			updatedRule := entity.NewRule("upd-exist", "updated-pattern", newLabel)
-			updated, err := ruleService.UpdateOrCreate(context.TODO(), updatedRule)
+			err = ruleService.Update(context.TODO(), updatedRule)
 			Expect(err).To(BeNil())
-			Expect(updated).To(BeTrue()) // Should be true for update
 
 			// Verify rule was updated
 			rule, err := ruleService.GetRule(context.TODO(), "upd-exist")
@@ -209,27 +202,155 @@ var _ = Describe("RuleService", Ordered, func() {
 			Expect(rule).ToNot(BeNil())
 			Expect(rule.Pattern).To(Equal("updated-pattern"))
 		})
+	})
 
-		It("should handle updating rule with new labels", func() {
+	Context("Update", func() {
+		It("should return error when rule does not exist", func() {
+			// Try to update a non-existent rule
+			label := entity.Label{Key: "category", Value: "expense"}
+			nonExistentRule := entity.NewRule("non-existent-rule", "pattern", label)
+
+			err := ruleService.Update(context.TODO(), nonExistentRule)
+			Expect(err).ToNot(BeNil())
+			Expect(err.Error()).To(ContainSubstring("rule non-existent-rule not found"))
+		})
+
+		It("should update existing rule successfully", func() {
 			// First, create a rule
-			originalLabel := entity.Label{Key: "old-key", Value: "old-value"}
-			originalRule := entity.NewRule("upd-with-labels", "pattern", originalLabel)
+			originalLabel := entity.Label{Key: "category", Value: "income"}
+			originalRule := entity.NewRule("update-existing", "original-pattern", originalLabel)
 			err := ruleService.Create(context.TODO(), originalRule)
 			Expect(err).To(BeNil())
 
-			// Update with new labels
-			newLabel1 := entity.Label{Key: "new-key1", Value: "new-value1"}
-			newLabel2 := entity.Label{Key: "new-key2", Value: "new-value2"}
-			updatedRule := entity.NewRule("upd-with-labels", "updated-pattern", newLabel1, newLabel2)
-			updated, err := ruleService.UpdateOrCreate(context.TODO(), updatedRule)
+			// Update the rule
+			newLabel := entity.Label{Key: "category", Value: "expense"}
+			updatedRule := entity.NewRule("update-existing", "updated-pattern", newLabel)
+			err = ruleService.Update(context.TODO(), updatedRule)
 			Expect(err).To(BeNil())
-			Expect(updated).To(BeTrue())
 
-			// Verify rule was updated with new labels
-			rule, err := ruleService.GetRule(context.TODO(), "upd-with-labels")
+			// Verify rule was updated
+			rule, err := ruleService.GetRule(context.TODO(), "update-existing")
+			Expect(err).To(BeNil())
+			Expect(rule).ToNot(BeNil())
+			Expect(rule.Pattern).To(Equal("updated-pattern"))
+			Expect(rule.Labels).To(HaveLen(1))
+			Expect(rule.Labels[0].Key).To(Equal("category"))
+			Expect(rule.Labels[0].Value).To(Equal("expense"))
+		})
+
+		It("should update rule-label relationships correctly", func() {
+			// First, create a rule with initial labels
+			label1 := entity.Label{Key: "priority", Value: "high"}
+			label2 := entity.Label{Key: "category", Value: "expense"}
+			originalRule := entity.NewRule("update-relationships", "pattern", label1, label2)
+			err := ruleService.Create(context.TODO(), originalRule)
+			Expect(err).To(BeNil())
+
+			// Update the rule with completely different labels
+			newLabel1 := entity.Label{Key: "status", Value: "active"}
+			newLabel2 := entity.Label{Key: "type", Value: "recurring"}
+			newLabel3 := entity.Label{Key: "frequency", Value: "monthly"}
+			updatedRule := entity.NewRule("update-relationships", "updated-pattern", newLabel1, newLabel2, newLabel3)
+			err = ruleService.Update(context.TODO(), updatedRule)
+			Expect(err).To(BeNil())
+
+			// Verify rule was updated with new relationships
+			rule, err := ruleService.GetRule(context.TODO(), "update-relationships")
+			Expect(err).To(BeNil())
+			Expect(rule).ToNot(BeNil())
+			Expect(rule.Labels).To(HaveLen(3))
+
+			// Check that the new labels exist
+			labelMap := make(map[string]string)
+			for _, label := range rule.Labels {
+				labelMap[label.Key] = label.Value
+			}
+			Expect(labelMap).To(HaveKeyWithValue("status", "active"))
+			Expect(labelMap).To(HaveKeyWithValue("type", "recurring"))
+			Expect(labelMap).To(HaveKeyWithValue("frequency", "monthly"))
+
+			// Verify old labels are no longer associated with this rule
+			Expect(labelMap).ToNot(HaveKey("priority"))
+			Expect(labelMap).ToNot(HaveKey("category"))
+		})
+
+		It("should create new labels during update if they don't exist", func() {
+			// First, create a rule with existing labels
+			existingLabel := entity.Label{Key: "existing", Value: "label"}
+			originalRule := entity.NewRule("update-create-labels", "pattern", existingLabel)
+			err := ruleService.Create(context.TODO(), originalRule)
+			Expect(err).To(BeNil())
+
+			// Update with a mix of existing and new labels
+			newLabel := entity.Label{Key: "brand-new", Value: "never-seen-before"}
+			updatedRule := entity.NewRule("update-create-labels", "updated-pattern", existingLabel, newLabel)
+			err = ruleService.Update(context.TODO(), updatedRule)
+			Expect(err).To(BeNil())
+
+			// Verify the rule has both labels
+			rule, err := ruleService.GetRule(context.TODO(), "update-create-labels")
 			Expect(err).To(BeNil())
 			Expect(rule).ToNot(BeNil())
 			Expect(rule.Labels).To(HaveLen(2))
+
+			labelMap := make(map[string]string)
+			for _, label := range rule.Labels {
+				labelMap[label.Key] = label.Value
+			}
+			Expect(labelMap).To(HaveKeyWithValue("existing", "label"))
+			Expect(labelMap).To(HaveKeyWithValue("brand-new", "never-seen-before"))
+		})
+	})
+
+	Context("Create - Relationship Management", func() {
+		It("should create relationships between rule and labels in Create method", func() {
+			label1 := entity.Label{Key: "test-relationship", Value: "value1"}
+			label2 := entity.Label{Key: "test-relationship", Value: "value2"}
+			newRule := entity.NewRule("relationship-test", "pattern", label1, label2)
+
+			err := ruleService.Create(context.TODO(), newRule)
+			Expect(err).To(BeNil())
+
+			// Verify the rule and its relationships were created
+			rule, err := ruleService.GetRule(context.TODO(), "relationship-test")
+			Expect(err).To(BeNil())
+			Expect(rule).ToNot(BeNil())
+			Expect(rule.Labels).To(HaveLen(2))
+
+			// Verify each label is properly associated
+			for _, label := range rule.Labels {
+				Expect(label.Key).To(Equal("test-relationship"))
+				Expect(label.Value).To(BeElementOf([]string{"value1", "value2"}))
+				Expect(label.ID).ToNot(BeZero()) // Label should have an ID assigned
+			}
+		})
+
+		It("should reuse existing labels when creating relationships", func() {
+			// First, create a label through another rule
+			existingLabel := entity.Label{Key: "reusable", Value: "shared"}
+			firstRule := entity.NewRule("first-rule", "pattern1", existingLabel)
+			err := ruleService.Create(context.TODO(), firstRule)
+			Expect(err).To(BeNil())
+
+			// Create another rule with the same label
+			secondRule := entity.NewRule("second-rule", "pattern2", existingLabel)
+			err = ruleService.Create(context.TODO(), secondRule)
+			Expect(err).To(BeNil())
+
+			// Verify both rules reference the same label
+			rule1, err := ruleService.GetRule(context.TODO(), "first-rule")
+			Expect(err).To(BeNil())
+			rule2, err := ruleService.GetRule(context.TODO(), "second-rule")
+			Expect(err).To(BeNil())
+
+			Expect(rule1.Labels).To(HaveLen(1))
+			Expect(rule2.Labels).To(HaveLen(1))
+
+			// Both rules should reference labels with the same key-value pair
+			Expect(rule1.Labels[0].Key).To(Equal("reusable"))
+			Expect(rule1.Labels[0].Value).To(Equal("shared"))
+			Expect(rule2.Labels[0].Key).To(Equal("reusable"))
+			Expect(rule2.Labels[0].Value).To(Equal("shared"))
 		})
 	})
 

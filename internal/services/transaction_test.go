@@ -201,8 +201,8 @@ var _ = Describe("TransactionService", Ordered, func() {
 		})
 	})
 
-	Context("CreateOrUpdate", func() {
-		It("should create a new transaction", func() {
+	Context("Create", func() {
+		It("should create a new transaction successfully", func() {
 			newTransaction := entity.NewTransaction(
 				entity.DebitTransaction,
 				1001, // account
@@ -211,7 +211,7 @@ var _ = Describe("TransactionService", Ordered, func() {
 				"New tx content",
 			)
 
-			result, err := transactionService.CreateOrUpdate(context.TODO(), *newTransaction)
+			result, err := transactionService.Create(context.TODO(), *newTransaction)
 			Expect(err).To(BeNil())
 			Expect(result.ID).To(BeNumerically(">", 0))
 			Expect(result.Hash).To(Equal(newTransaction.Hash))
@@ -224,7 +224,7 @@ var _ = Describe("TransactionService", Ordered, func() {
 			Expect(retrieved.Kind).To(Equal(entity.DebitTransaction))
 		})
 
-		It("should update existing transaction", func() {
+		It("should return error when transaction already exists", func() {
 			// First, create a transaction
 			originalTransaction := entity.NewTransaction(
 				entity.CreditTransaction,
@@ -234,47 +234,34 @@ var _ = Describe("TransactionService", Ordered, func() {
 				"Original",
 			)
 
-			created, err := transactionService.CreateOrUpdate(context.TODO(), *originalTransaction)
+			_, err := transactionService.Create(context.TODO(), *originalTransaction)
 			Expect(err).To(BeNil())
-			originalID := created.ID
 
-			// Update the same transaction (same hash, different content)
-			updatedTransaction := &entity.Transaction{
-				Hash:       originalTransaction.Hash, // Same hash
-				Kind:       entity.CreditTransaction,
-				Date:       testTime,
-				Account:    1001,
-				Amount:     200.0,     // Different amount
-				RawContent: "Updated", // Different content
-				Labels:     make(map[int]string),
-			}
+			// Try to create the same transaction again (same hash)
+			duplicateTransaction := entity.NewTransaction(
+				entity.CreditTransaction,
+				1001, // account
+				testTime,
+				100.0,
+				"Original", // Same content will generate same hash
+			)
 
-			result, err := transactionService.CreateOrUpdate(context.TODO(), *updatedTransaction)
-			Expect(err).To(BeNil())
-			Expect(result.ID).To(Equal(originalID)) // Should keep same ID
-			Expect(result.Amount).To(Equal(float32(200.0)))
-
-			// Verify transaction was updated
-			retrieved, err := transactionService.GetTransaction(context.TODO(), originalTransaction.Hash)
-			Expect(err).To(BeNil())
-			Expect(retrieved).ToNot(BeNil())
-			Expect(retrieved.ID).To(Equal(originalID))
-			Expect(retrieved.Amount).To(Equal(float32(200.0)))
-			Expect(retrieved.RawContent).To(Equal("Updated"))
+			_, err = transactionService.Create(context.TODO(), *duplicateTransaction)
+			Expect(err).ToNot(BeNil())
+			Expect(err.Error()).To(ContainSubstring("already exists"))
 		})
 
-		It("should handle transactions with labels", func() {
-			// First, insert required labels
+		It("should create relationships between transaction and labels", func() {
+			// First, create some labels and rules
 			insertLabelStmt := psql.Insert("labels").Columns("id", "key", "value")
 			sql, args, err := insertLabelStmt.
-				Values(1, "category", "expense").
-				Values(2, "type", "recurring").
+				Values(101, "category", "expense").
+				Values(102, "type", "recurring").
 				ToSql()
 			Expect(err).To(BeNil())
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
 			Expect(err).To(BeNil())
 
-			// Insert required rules
 			insertRuleStmt := psql.Insert("rules").Columns("id", "pattern")
 			sql, args, err = insertRuleStmt.
 				Values("rule1", "pattern1").
@@ -287,35 +274,441 @@ var _ = Describe("TransactionService", Ordered, func() {
 			// Link rules to labels
 			insertRuleLabelStmt := psql.Insert("rules_labels").Columns("rule_id", "label_id")
 			sql, args, err = insertRuleLabelStmt.
-				Values("rule1", 1).
-				Values("rule2", 2).
+				Values("rule1", 101).
+				Values("rule2", 102).
 				ToSql()
 			Expect(err).To(BeNil())
 			_, err = pgPool.Exec(context.TODO(), sql, args...)
 			Expect(err).To(BeNil())
 
-			// Create transaction with labels
+			// Create transaction with label assignments that include rule references
 			transactionWithLabels := entity.NewTransaction(
 				entity.DebitTransaction,
 				1001, // account
 				testTime,
 				-50.0,
-				"Tx with labels",
+				"Tx with relationship test",
 			)
-			transactionWithLabels.Labels = map[int]string{
-				1: "rule1", // label_id -> rule_id
-				2: "rule2",
+
+			// Simulate labels with rule associations
+			ruleID1 := "rule1"
+			ruleID2 := "rule2"
+			transactionWithLabels.Labels = []entity.LabelAssociation{
+				{
+					Label:  entity.Label{ID: 101, Key: "category", Value: "expense"},
+					RuleID: &ruleID1,
+				},
+				{
+					Label:  entity.Label{ID: 102, Key: "type", Value: "recurring"},
+					RuleID: &ruleID2,
+				},
 			}
 
-			result, err := transactionService.CreateOrUpdate(context.TODO(), *transactionWithLabels)
+			result, err := transactionService.Create(context.TODO(), *transactionWithLabels)
 			Expect(err).To(BeNil())
 			Expect(result.ID).To(BeNumerically(">", 0))
 
-			// Verify transaction was created
+			count := 0
+			err = pgPool.QueryRow(context.TODO(), "select count(*) from transactions_labels;").Scan(&count)
+			Expect(err).To(BeNil())
+			Expect(count).To(Equal(2))
+
+			// Verify transaction was created with relationships
 			retrieved, err := transactionService.GetTransaction(context.TODO(), transactionWithLabels.Hash)
 			Expect(err).To(BeNil())
 			Expect(retrieved).ToNot(BeNil())
 			Expect(retrieved.Labels).To(HaveLen(2))
+
+			// Verify the relationships include rule references
+			for _, assignment := range retrieved.Labels {
+				Expect(assignment.RuleID).ToNot(BeNil())
+				Expect(*assignment.RuleID).To(BeElementOf([]string{"rule1", "rule2"}))
+			}
+		})
+
+		It("should create new labels during transaction creation if they don't exist", func() {
+			transactionWithNewLabels := entity.NewTransaction(
+				entity.CreditTransaction,
+				1001, // account
+				testTime,
+				150.0,
+				"Tx with new labels",
+			)
+
+			// Add labels that don't exist yet
+			transactionWithNewLabels.Labels = []entity.LabelAssociation{
+				{
+					Label: entity.Label{Key: "new-category", Value: "investment"},
+				},
+				{
+					Label: entity.Label{Key: "new-priority", Value: "high"},
+				},
+			}
+
+			result, err := transactionService.Create(context.TODO(), *transactionWithNewLabels)
+			Expect(err).To(BeNil())
+			Expect(result.ID).To(BeNumerically(">", 0))
+
+			// Verify transaction was created and labels were created
+			retrieved, err := transactionService.GetTransaction(context.TODO(), transactionWithNewLabels.Hash)
+			Expect(err).To(BeNil())
+			Expect(retrieved).ToNot(BeNil())
+			Expect(retrieved.Labels).To(HaveLen(2))
+
+			// Verify the new labels were created with proper IDs
+			for _, assignment := range retrieved.Labels {
+				Expect(assignment.Label.ID).To(BeNumerically(">", 0))
+				Expect(assignment.Label.Key).To(BeElementOf([]string{"new-category", "new-priority"}))
+			}
+		})
+	})
+
+	Context("Update", func() {
+		It("should return error when transaction does not exist", func() {
+			nonExistentTransaction := entity.NewTransaction(
+				entity.DebitTransaction,
+				1001, // account
+				testTime,
+				-25.0,
+				"Non-existent transaction",
+			)
+
+			_, err := transactionService.Update(context.TODO(), *nonExistentTransaction)
+			Expect(err).ToNot(BeNil())
+			Expect(err.Error()).To(ContainSubstring("not found"))
+		})
+
+		It("should update existing transaction successfully", func() {
+			// First, create a transaction
+			originalTransaction := entity.NewTransaction(
+				entity.CreditTransaction,
+				1001, // account
+				testTime,
+				100.0,
+				"Original content",
+			)
+
+			created, err := transactionService.Create(context.TODO(), *originalTransaction)
+			Expect(err).To(BeNil())
+			originalID := created.ID
+
+			// Update the transaction
+			updatedTransaction := &entity.Transaction{
+				ID:         originalID,
+				Hash:       originalTransaction.Hash, // Same hash
+				Kind:       entity.CreditTransaction,
+				Date:       testTime,
+				Account:    1001,
+				Amount:     200.0,             // Different amount
+				RawContent: "Updated content", // Different content
+			}
+
+			result, err := transactionService.Update(context.TODO(), *updatedTransaction)
+			Expect(err).To(BeNil())
+			Expect(result.ID).To(Equal(originalID)) // Should keep same ID
+			Expect(result.Amount).To(Equal(float32(200.0)))
+
+			// Verify transaction was updated
+			retrieved, err := transactionService.GetTransaction(context.TODO(), originalTransaction.Hash)
+			Expect(err).To(BeNil())
+			Expect(retrieved).ToNot(BeNil())
+			Expect(retrieved.ID).To(Equal(originalID))
+			Expect(retrieved.Amount).To(Equal(float32(200.0)))
+			Expect(retrieved.RawContent).To(Equal("Updated content"))
+		})
+
+		It("should update transaction-label relationships correctly", func() {
+			// First, create labels and rules
+			insertLabelStmt := psql.Insert("labels").Columns("id", "key", "value")
+			sql, args, err := insertLabelStmt.
+				Values(201, "old-category", "expense").
+				Values(202, "old-type", "one-time").
+				Values(203, "new-category", "income").
+				Values(204, "new-priority", "high").
+				ToSql()
+			Expect(err).To(BeNil())
+			_, err = pgPool.Exec(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			insertRuleStmt := psql.Insert("rules").Columns("id", "pattern")
+			sql, args, err = insertRuleStmt.
+				Values("update-rule-1", "old-pattern").
+				Values("update-rule-2", "new-pattern").
+				ToSql()
+			Expect(err).To(BeNil())
+			_, err = pgPool.Exec(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			// Link rules to labels
+			insertRuleLabelStmt := psql.Insert("rules_labels").Columns("rule_id", "label_id")
+			sql, args, err = insertRuleLabelStmt.
+				Values("update-rule-1", 201).
+				Values("update-rule-1", 202).
+				Values("update-rule-2", 203).
+				Values("update-rule-2", 204).
+				ToSql()
+			Expect(err).To(BeNil())
+			_, err = pgPool.Exec(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			// Create transaction with initial labels
+			originalTransaction := entity.NewTransaction(
+				entity.DebitTransaction,
+				1001, // account
+				testTime,
+				-100.0,
+				"Transaction for relationship update",
+			)
+
+			oldRuleID := "update-rule-1"
+			originalTransaction.Labels = []entity.LabelAssociation{
+				{
+					Label:  entity.Label{ID: 201, Key: "old-category", Value: "expense"},
+					RuleID: &oldRuleID,
+				},
+				{
+					Label:  entity.Label{ID: 202, Key: "old-type", Value: "one-time"},
+					RuleID: &oldRuleID,
+				},
+			}
+
+			created, err := transactionService.Create(context.TODO(), *originalTransaction)
+			Expect(err).To(BeNil())
+
+			// Update with completely different labels and rules
+			newRuleID := "update-rule-2"
+			updatedTransaction := &entity.Transaction{
+				ID:         created.ID,
+				Hash:       originalTransaction.Hash,
+				Kind:       entity.DebitTransaction,
+				Date:       testTime,
+				Account:    1001,
+				Amount:     -150.0,
+				RawContent: "Updated transaction content",
+				Labels: []entity.LabelAssociation{
+					{
+						Label:  entity.Label{ID: 203, Key: "new-category", Value: "income"},
+						RuleID: &newRuleID,
+					},
+					{
+						Label:  entity.Label{ID: 204, Key: "new-priority", Value: "high"},
+						RuleID: &newRuleID,
+					},
+				},
+			}
+
+			result, err := transactionService.Update(context.TODO(), *updatedTransaction)
+			Expect(err).To(BeNil())
+			Expect(result.ID).To(Equal(created.ID))
+
+			// Verify the transaction was updated with new relationships
+			retrieved, err := transactionService.GetTransaction(context.TODO(), originalTransaction.Hash)
+			Expect(err).To(BeNil())
+			Expect(retrieved).ToNot(BeNil())
+			Expect(retrieved.Labels).To(HaveLen(2))
+
+			// Verify the new relationships
+			labelMap := make(map[string]string)
+			for _, assignment := range retrieved.Labels {
+				labelMap[assignment.Label.Key] = assignment.Label.Value
+				Expect(assignment.RuleID).ToNot(BeNil())
+				Expect(*assignment.RuleID).To(Equal("update-rule-2"))
+			}
+			Expect(labelMap).To(HaveKeyWithValue("new-category", "income"))
+			Expect(labelMap).To(HaveKeyWithValue("new-priority", "high"))
+
+			// Verify old relationships are gone
+			Expect(labelMap).ToNot(HaveKey("old-category"))
+			Expect(labelMap).ToNot(HaveKey("old-type"))
+		})
+
+		It("should create new labels during update if they don't exist", func() {
+			// First, create a transaction with existing labels
+			existingTransaction := entity.NewTransaction(
+				entity.CreditTransaction,
+				1001, // account
+				testTime,
+				75.0,
+				"Transaction to update with new labels",
+			)
+
+			// Use existing label
+			sql, args, err := psql.Insert("labels").Columns("id", "key", "value").
+				Values(301, "existing", "label").
+				ToSql()
+			Expect(err).To(BeNil())
+			_, err = pgPool.Exec(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			existingTransaction.Labels = []entity.LabelAssociation{
+				{
+					Label: entity.Label{ID: 301, Key: "existing", Value: "label"},
+				},
+			}
+
+			created, err := transactionService.Create(context.TODO(), *existingTransaction)
+			Expect(err).To(BeNil())
+
+			// Update with a mix of existing and brand new labels
+			updatedTransaction := &entity.Transaction{
+				ID:         created.ID,
+				Hash:       existingTransaction.Hash,
+				Kind:       entity.CreditTransaction,
+				Date:       testTime,
+				Account:    1001,
+				Amount:     100.0,
+				RawContent: "Updated with new labels",
+				Labels: []entity.LabelAssociation{
+					{
+						Label: entity.Label{ID: 301, Key: "existing", Value: "label"}, // Keep existing
+					},
+					{
+						Label: entity.Label{Key: "brand-new", Value: "created-on-update"}, // New label
+					},
+					{
+						Label: entity.Label{Key: "another-new", Value: "also-new"}, // Another new label
+					},
+				},
+			}
+
+			result, err := transactionService.Update(context.TODO(), *updatedTransaction)
+			Expect(err).To(BeNil())
+			Expect(result.ID).To(Equal(created.ID))
+
+			// Verify the transaction has all labels
+			retrieved, err := transactionService.GetTransaction(context.TODO(), existingTransaction.Hash)
+			Expect(err).To(BeNil())
+			Expect(retrieved).ToNot(BeNil())
+			Expect(retrieved.Labels).To(HaveLen(3))
+
+			// Verify all labels have proper IDs and values
+			labelMap := make(map[string]string)
+			for _, assignment := range retrieved.Labels {
+				Expect(assignment.Label.ID).To(BeNumerically(">", 0))
+				labelMap[assignment.Label.Key] = assignment.Label.Value
+			}
+			Expect(labelMap).To(HaveKeyWithValue("existing", "label"))
+			Expect(labelMap).To(HaveKeyWithValue("brand-new", "created-on-update"))
+			Expect(labelMap).To(HaveKeyWithValue("another-new", "also-new"))
+		})
+	})
+
+	Context("Relationship Management", func() {
+		It("should handle complex transaction-rule-label relationships in Create", func() {
+			// Setup complex scenario with multiple rules and labels
+			insertLabelStmt := psql.Insert("labels").Columns("id", "key", "value")
+			sql, args, err := insertLabelStmt.
+				Values(401, "category", "shopping").
+				Values(402, "merchant", "supermarket").
+				Values(403, "payment", "card").
+				ToSql()
+			Expect(err).To(BeNil())
+			_, err = pgPool.Exec(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			insertRuleStmt := psql.Insert("rules").Columns("id", "pattern")
+			sql, args, err = insertRuleStmt.
+				Values("shopping-rule", "supermarket.*shopping").
+				Values("payment-rule", "card.*payment").
+				ToSql()
+			Expect(err).To(BeNil())
+			_, err = pgPool.Exec(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			// Link rules to labels
+			insertRuleLabelStmt := psql.Insert("rules_labels").Columns("rule_id", "label_id")
+			sql, args, err = insertRuleLabelStmt.
+				Values("shopping-rule", 401).
+				Values("shopping-rule", 402).
+				Values("payment-rule", 403).
+				ToSql()
+			Expect(err).To(BeNil())
+			_, err = pgPool.Exec(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			// Create transaction with multiple rule-label relationships
+			complexTransaction := entity.NewTransaction(
+				entity.DebitTransaction,
+				1001, // account
+				testTime,
+				-85.50,
+				"Complex transaction with multiple relationships",
+			)
+
+			shoppingRule := "shopping-rule"
+			paymentRule := "payment-rule"
+			complexTransaction.Labels = []entity.LabelAssociation{
+				{
+					Label:  entity.Label{ID: 401, Key: "category", Value: "shopping"},
+					RuleID: &shoppingRule,
+				},
+				{
+					Label:  entity.Label{ID: 402, Key: "merchant", Value: "supermarket"},
+					RuleID: &shoppingRule,
+				},
+				{
+					Label:  entity.Label{ID: 403, Key: "payment", Value: "card"},
+					RuleID: &paymentRule,
+				},
+			}
+
+			result, err := transactionService.Create(context.TODO(), *complexTransaction)
+			Expect(err).To(BeNil())
+			Expect(result.ID).To(BeNumerically(">", 0))
+
+			// Verify all relationships were created correctly
+			retrieved, err := transactionService.GetTransaction(context.TODO(), complexTransaction.Hash)
+			Expect(err).To(BeNil())
+			Expect(retrieved).ToNot(BeNil())
+			Expect(retrieved.Labels).To(HaveLen(3))
+
+			// Verify each label assignment has the correct rule
+			ruleMap := make(map[string]string)
+			for _, assignment := range retrieved.Labels {
+				Expect(assignment.RuleID).ToNot(BeNil())
+				ruleMap[assignment.Label.Key] = *assignment.RuleID
+			}
+			Expect(ruleMap).To(HaveKeyWithValue("category", "shopping-rule"))
+			Expect(ruleMap).To(HaveKeyWithValue("merchant", "shopping-rule"))
+			Expect(ruleMap).To(HaveKeyWithValue("payment", "payment-rule"))
+		})
+
+		It("should handle transactions with labels but no rules", func() {
+			// Create transaction with labels that don't have rule associations
+			simpleTransaction := entity.NewTransaction(
+				entity.CreditTransaction,
+				1001, // account
+				testTime,
+				45.75,
+				"Simple transaction without rules",
+			)
+
+			simpleTransaction.Labels = []entity.LabelAssociation{
+				{
+					Label:  entity.Label{Key: "manual-tag", Value: "user-added"},
+					RuleID: nil, // No rule association
+				},
+				{
+					Label:  entity.Label{Key: "custom", Value: "annotation"},
+					RuleID: nil, // No rule association
+				},
+			}
+
+			result, err := transactionService.Create(context.TODO(), *simpleTransaction)
+			Expect(err).To(BeNil())
+			Expect(result.ID).To(BeNumerically(">", 0))
+
+			// Verify transaction was created with labels but no rule relationships
+			retrieved, err := transactionService.GetTransaction(context.TODO(), simpleTransaction.Hash)
+			Expect(err).To(BeNil())
+			Expect(retrieved).ToNot(BeNil())
+			Expect(retrieved.Labels).To(HaveLen(2))
+
+			// Verify no rule associations
+			for _, assignment := range retrieved.Labels {
+				Expect(assignment.RuleID).To(BeNil())
+				Expect(assignment.Label.Key).To(BeElementOf([]string{"manual-tag", "custom"}))
+			}
 		})
 	})
 
@@ -330,7 +723,7 @@ var _ = Describe("TransactionService", Ordered, func() {
 				"Tx to delete",
 			)
 
-			created, err := transactionService.CreateOrUpdate(context.TODO(), *transactionToDelete)
+			created, err := transactionService.Create(context.TODO(), *transactionToDelete)
 			Expect(err).To(BeNil())
 			transactionID := created.ID
 
@@ -388,7 +781,7 @@ var _ = Describe("TransactionService", Ordered, func() {
 				"Zero amount",
 			)
 
-			result, err := transactionService.CreateOrUpdate(context.TODO(), *zeroTransaction)
+			result, err := transactionService.Create(context.TODO(), *zeroTransaction)
 			Expect(err).To(BeNil())
 			Expect(result.Amount).To(Equal(float32(0.0)))
 
@@ -408,7 +801,7 @@ var _ = Describe("TransactionService", Ordered, func() {
 				"Large amount",
 			)
 
-			result, err := transactionService.CreateOrUpdate(context.TODO(), *largeTransaction)
+			result, err := transactionService.Create(context.TODO(), *largeTransaction)
 			Expect(err).To(BeNil())
 			Expect(result.Amount).To(Equal(largeAmount))
 		})
@@ -422,7 +815,7 @@ var _ = Describe("TransactionService", Ordered, func() {
 				"", // Empty content
 			)
 
-			result, err := transactionService.CreateOrUpdate(context.TODO(), *emptyContentTransaction)
+			result, err := transactionService.Create(context.TODO(), *emptyContentTransaction)
 			Expect(err).To(BeNil())
 			Expect(result.RawContent).To(Equal(""))
 

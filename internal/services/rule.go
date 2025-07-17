@@ -73,60 +73,99 @@ func (r *RuleService) Create(ctx context.Context, rule entity.Rule) error {
 	}
 
 	return r.dt.WriteTx(ctx, func(ctx context.Context, w *pg.Writer) error {
+		// write rule
+		if err := w.WriteRule(ctx, rule, false); err != nil {
+			return err
+		}
+
+		relationships := []entity.Relationship{}
 		for _, label := range rule.Labels {
 			found := false
+			labelID := 0
 			for _, existingLabel := range existingLabels {
 				if label.Equal(existingLabel) {
 					found = true
+					labelID = existingLabel.ID
 					break
 				}
 			}
 			if !found {
-				if _, err := w.WriteLabel(ctx, label); err != nil {
+				id, err := w.WriteLabel(ctx, label)
+				if err != nil {
 					return err
 				}
+				labelID = id
 			}
+
+			relationships = append(relationships, entity.NewLabeRuleRelationship(labelID, rule.Name))
 		}
-		// write rule
-		return w.WriteRule(ctx, rule, false)
+
+		return w.WriteRelationships(ctx, relationships)
 	})
 }
 
 // UpdateOrCreate creates a new rule or updates an existing one based on the name.
 // Returns true if an existing rule was updated, false if a new rule was created.
 // Also ensures that all tags referenced by the rule exist in the database.
-func (r *RuleService) UpdateOrCreate(ctx context.Context, rule entity.Rule) (bool, error) {
+func (r *RuleService) Update(ctx context.Context, rule entity.Rule) error {
 	existingRule, err := r.GetRule(ctx, rule.Name)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	labelSrv := NewLabelService(r.dt)
 	existingLabels, err := labelSrv.GetLabels(ctx)
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	update := existingRule != nil
+	if existingRule == nil {
+		return NewErrRuleNotFound(rule.Name)
+	}
+
 	err = r.dt.WriteTx(ctx, func(ctx context.Context, w *pg.Writer) error {
+		existingRelationships := []entity.Relationship{}
+		// remove old relationships
+		for _, label := range existingRule.Labels {
+			existingRelationships = append(existingRelationships, entity.NewLabeRuleRelationship(label.ID, rule.Name))
+		}
+
+		if err := w.DeleteRelationships(ctx, existingRelationships); err != nil {
+			return err
+		}
+
+		// update the rule
+		if err := w.WriteRule(ctx, rule, true); err != nil {
+			return err
+		}
+
+		// add new relationships
+		relationships := []entity.Relationship{}
 		for _, label := range rule.Labels {
 			found := false
+			labelID := 0
 			for _, existingLabel := range existingLabels {
 				if label.Equal(existingLabel) {
 					found = true
+					labelID = existingLabel.ID
 					break
 				}
 			}
 			if !found {
-				if _, err := w.WriteLabel(ctx, label); err != nil {
+				id, err := w.WriteLabel(ctx, label)
+				if err != nil {
 					return err
 				}
+				labelID = id
 			}
+
+			relationships = append(relationships, entity.NewLabeRuleRelationship(labelID, rule.Name))
 		}
-		return w.WriteRule(ctx, rule, update)
+
+		return w.WriteRelationships(ctx, relationships)
 	})
 
-	return update, err
+	return err
 }
 
 // DeleteRule removes a rule from the database by its name.

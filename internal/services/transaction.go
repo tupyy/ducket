@@ -66,14 +66,14 @@ func (t *TransactionService) GetTransaction(ctx context.Context, hash string) (*
 // CreateOrUpdate creates a new transaction or updates an existing one based on the hash.
 // If a transaction with the same hash exists, it updates the existing record.
 // Otherwise, it creates a new transaction record.
-func (t *TransactionService) CreateOrUpdate(ctx context.Context, transaction entity.Transaction) (entity.Transaction, error) {
+func (t *TransactionService) Create(ctx context.Context, transaction entity.Transaction) (entity.Transaction, error) {
 	tt, err := t.dt.QueryTransactions(ctx, pg.TransactionHashQueryFilter(transaction.Hash))
 	if err != nil {
 		return transaction, err
 	}
 
 	if len(tt) == 1 {
-		transaction.ID = tt[0].ID
+		return tt[0], NewErrTransactionExistsAlready(int(tt[0].ID))
 	}
 
 	if err := t.dt.WriteTx(ctx, func(ctx context.Context, w *pg.Writer) error {
@@ -82,7 +82,113 @@ func (t *TransactionService) CreateOrUpdate(ctx context.Context, transaction ent
 			return err
 		}
 		transaction.ID = id
-		return nil
+
+		labelSrv := NewLabelService(t.dt)
+		relationships := []entity.Relationship{}
+		for _, a := range transaction.Labels {
+			labelID := 0
+			l, err := labelSrv.Get(ctx, a.Label.Key, a.Label.Value)
+			if err != nil {
+				return err
+			}
+
+			if l != nil {
+				labelID = l.ID
+			}
+
+			if l == nil {
+				label, err := labelSrv.Create(ctx, a.Label.Key, a.Label.Value)
+				if err != nil {
+					return err
+				}
+				labelID = label.ID
+			}
+
+			if a.RuleID != nil {
+				relationships = append(relationships, entity.NewLabeRuleTransactionRelationship(labelID, *a.RuleID, int(transaction.ID)))
+				continue
+			}
+			relationships = append(relationships, entity.NewLabelTransaction(labelID, int(transaction.ID)))
+		}
+
+		if len(relationships) == 0 {
+			return nil
+		}
+
+		return w.WriteRelationships(ctx, relationships)
+	}); err != nil {
+		return transaction, err
+	}
+	return transaction, nil
+}
+
+func (t *TransactionService) Update(ctx context.Context, transaction entity.Transaction) (entity.Transaction, error) {
+	tt, err := t.dt.QueryTransactions(ctx, pg.TransactionHashQueryFilter(transaction.Hash))
+	if err != nil {
+		return transaction, err
+	}
+
+	if len(tt) == 0 {
+		return entity.Transaction{}, NewErrTransactionNotFound(int(transaction.ID))
+	}
+
+	oldTransaction := tt[0]
+
+	if err := t.dt.WriteTx(ctx, func(ctx context.Context, w *pg.Writer) error {
+		// remove old relationships
+		existingRelationships := []entity.Relationship{}
+		for _, label := range oldTransaction.Labels {
+			if label.RuleID != nil {
+				existingRelationships = append(existingRelationships, entity.NewLabeRuleTransactionRelationship(label.Label.ID, *label.RuleID, int(oldTransaction.ID)))
+				continue
+			}
+			existingRelationships = append(existingRelationships, entity.NewLabelTransaction(label.Label.ID, int(oldTransaction.ID)))
+		}
+
+		if len(existingRelationships) > 0 {
+			if err := w.DeleteRelationships(ctx, existingRelationships); err != nil {
+				return err
+			}
+		}
+
+		_, err := w.WriteTransaction(ctx, transaction)
+		if err != nil {
+			return err
+		}
+
+		labelSrv := NewLabelService(t.dt)
+		relationships := []entity.Relationship{}
+		for _, a := range transaction.Labels {
+			labelID := 0
+			l, err := labelSrv.Get(ctx, a.Label.Key, a.Label.Value)
+			if err != nil {
+				return err
+			}
+
+			if l != nil {
+				labelID = l.ID
+			}
+
+			if l == nil {
+				label, err := labelSrv.Create(ctx, a.Label.Key, a.Label.Value)
+				if err != nil {
+					return err
+				}
+				labelID = label.ID
+			}
+
+			if a.RuleID != nil {
+				relationships = append(relationships, entity.NewLabeRuleTransactionRelationship(labelID, *a.RuleID, int(transaction.ID)))
+				continue
+			}
+			relationships = append(relationships, entity.NewLabelTransaction(labelID, int(transaction.ID)))
+		}
+
+		if len(relationships) == 0 {
+			return nil
+		}
+
+		return w.WriteRelationships(ctx, relationships)
 	}); err != nil {
 		return transaction, err
 	}
@@ -105,101 +211,6 @@ func (t *TransactionService) Labels(ctx context.Context, transactionID int) ([]e
 	}
 
 	return labels, nil
-}
-
-func (t *TransactionService) ApplyLabel(ctx context.Context, transactionID int, label entity.Label) (entity.Label, error) {
-	tt, err := t.dt.QueryTransactions(ctx, pg.TransactionIDQueryFilter(transactionID))
-	if err != nil {
-		return entity.Label{}, err
-	}
-
-	if len(tt) == 0 {
-		return entity.Label{}, NewErrTransactionNotFound(transactionID)
-	}
-
-	var appliedLabel entity.Label
-	if err := t.dt.WriteTx(ctx, func(ctx context.Context, w *pg.Writer) error {
-		labelSrv := NewLabelService(t.dt)
-		l, err := labelSrv.Get(ctx, label.Key, label.Value)
-		if err != nil {
-			return err
-		}
-		if l == nil {
-			newLabel, err := labelSrv.Create(ctx, label.Key, label.Value)
-			if err != nil {
-				return err
-			}
-			appliedLabel = newLabel
-			return w.ApplyLabel(ctx, transactionID, newLabel.ID, nil)
-		}
-
-		appliedLabel = *l
-		return w.ApplyLabel(ctx, transactionID, label.ID, nil)
-	}); err != nil {
-		return entity.Label{}, err
-	}
-
-	return appliedLabel, nil
-}
-
-func (t *TransactionService) RemoveLabel(ctx context.Context, transactionID int, labelID int) error {
-	tt, err := t.dt.QueryTransactions(ctx, pg.TransactionIDQueryFilter(transactionID))
-	if err != nil {
-		return err
-	}
-
-	if len(tt) == 0 {
-		return NewErrTransactionNotFound(transactionID)
-	}
-
-	if err := t.dt.WriteTx(ctx, func(ctx context.Context, w *pg.Writer) error {
-		labelSrv := NewLabelService(t.dt)
-		labels, err := labelSrv.GetLabels(ctx)
-		if err != nil {
-			return err
-		}
-
-		for _, label := range labels {
-			if label.ID == labelID {
-				return w.RemoveLabel(ctx, transactionID, labelID)
-			}
-		}
-		return nil
-	}); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (t *TransactionService) RemoveLabels(ctx context.Context, transactionID int) error {
-	tt, err := t.dt.QueryTransactions(ctx, pg.TransactionIDQueryFilter(transactionID))
-	if err != nil {
-		return err
-	}
-
-	if len(tt) == 0 {
-		return NewErrTransactionNotFound(transactionID)
-	}
-
-	if err := t.dt.WriteTx(ctx, func(ctx context.Context, w *pg.Writer) error {
-		labelSrv := NewLabelService(t.dt)
-		labels, err := labelSrv.GetLabels(ctx)
-		if err != nil {
-			return err
-		}
-
-		for _, label := range labels {
-			if err := w.RemoveLabel(ctx, transactionID, label.ID); err != nil {
-				return err
-			}
-		}
-		return nil
-	}); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // Delete removes a transaction from the database by its ID.

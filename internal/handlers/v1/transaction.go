@@ -163,7 +163,7 @@ func (s *ServerImpl) GetTransactionLabels(c *gin.Context, id int64) {
 	labels, err := tSrv.Labels(c.Request.Context(), int(id))
 	if err != nil {
 		switch err.(type) {
-		case *services.ErrTransactionNotFound:
+		case *services.ErrResourceNotFound:
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		default:
@@ -196,7 +196,7 @@ func (s *ServerImpl) AddTransactionLabel(c *gin.Context, id int64) {
 	appliedLabel, err := tSrv.ApplyLabel(c.Request.Context(), int(id), form.ToEntity())
 	if err != nil {
 		switch err.(type) {
-		case *services.ErrTransactionNotFound:
+		case *services.ErrResourceNotFound:
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		default:
@@ -224,7 +224,7 @@ func (s *ServerImpl) RemoveTransactionLabels(c *gin.Context, id int64) {
 	_, err = tSrv.Labels(c.Request.Context(), int(transactionID))
 	if err != nil {
 		switch err.(type) {
-		case *services.ErrTransactionNotFound:
+		case *services.ErrResourceNotFound:
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		default:
@@ -248,7 +248,7 @@ func (s *ServerImpl) RemoveTransactionLabel(c *gin.Context, id int64, labelId in
 	tSrv := services.NewTransactionService(dt)
 	if err := tSrv.RemoveLabel(c.Request.Context(), int(id), labelId); err != nil {
 		switch err.(type) {
-		case *services.ErrTransactionNotFound:
+		case *services.ErrResourceNotFound:
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		default:

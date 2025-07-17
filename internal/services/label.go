@@ -73,7 +73,7 @@ func (l *LabelService) Create(ctx context.Context, key, value string) (entity.La
 		if err != nil {
 			return err
 		}
-		label.ID = id
+		newLabel.ID = id
 		return nil
 	}); err != nil {
 		return entity.Label{}, err
