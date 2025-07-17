@@ -32,11 +32,15 @@ Finante follows a clean architecture pattern with clear separation of concerns:
 
 ### Technical Features
 - **RESTful API**: Well-structured API endpoints with JSON responses
+- **Service Architecture**: Clean separation between Create and Update operations with proper error handling
+- **Resource Management**: Comprehensive error handling for existing/non-existing resources
 - **Database Migrations**: Automated schema management with goose
+- **Relationship Integrity**: Automatic management of complex relationships between entities
 - **Graceful Shutdown**: Proper server lifecycle management
 - **Structured Logging**: Comprehensive logging with zap
 - **Configuration Management**: Environment-based configuration
 - **Connection Pooling**: Optimized database connection management
+- **Test Coverage**: Comprehensive unit and integration tests with proper database cleanup
 
 ## 📋 Prerequisites
 
@@ -113,8 +117,8 @@ http://localhost:8080/api/v1
 #### Transactions
 - `GET /transactions` - List all transactions with optional filtering
 - `GET /transactions/:id` - Get specific transaction
-- `POST /transactions` - Create new transaction
-- `PUT /transactions/:id` - Update transaction
+- `POST /transactions` - Create new transaction (returns error if transaction already exists)
+- `PUT /transactions/:id` - Update existing transaction (creates new if doesn't exist)
 - `DELETE /transactions/:id` - Delete transaction
 
 #### Transaction Labels
@@ -126,8 +130,8 @@ http://localhost:8080/api/v1
 #### Rules
 - `GET /rules` - List all rules
 - `GET /rules/:name` - Get specific rule
-- `POST /rules` - Create new rule
-- `PUT /rules/:name` - Update rule
+- `POST /rules` - Create new rule (returns error if rule already exists)
+- `PUT /rules/:name` - Update existing rule (returns error if rule doesn't exist)
 - `DELETE /rules/:name` - Delete rule
 
 #### Labels
@@ -239,6 +243,27 @@ curl -X POST http://localhost:8080/api/v1/transactions \
 }
 ```
 
+**Attempting to create duplicate transaction:**
+```bash
+# Same request as above
+curl -X POST http://localhost:8080/api/v1/transactions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "date": "2024-01-15",
+    "kind": "debit",
+    "amount": 45.50,
+    "content": "grocery store purchase",
+    "account": 1001
+  }'
+```
+
+**Error Response (400 Bad Request):**
+```json
+{
+  "error": "transaction 1 already exists"
+}
+```
+
 ##### Update Transaction
 ```bash
 curl -X PUT http://localhost:8080/api/v1/transactions/1 \
@@ -254,6 +279,45 @@ curl -X PUT http://localhost:8080/api/v1/transactions/1 \
       "type": "essential"
     }
   }'
+```
+
+**Response (200 OK - existing transaction updated):**
+```json
+{
+  "id": 1,
+  "date": "2024-01-15T00:00:00Z",
+  "kind": "debit",
+  "amount": 47.50,
+  "content": "grocery store purchase updated",
+  "hash": "def456ghi789",
+  "labels": []
+}
+```
+
+**Updating non-existent transaction (creates new):**
+```bash
+curl -X PUT http://localhost:8080/api/v1/transactions/999 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "date": "2024-01-16",
+    "kind": "credit",
+    "amount": 100.00,
+    "content": "new transaction via update",
+    "account": 1001
+  }'
+```
+
+**Response (201 Created - new transaction created):**
+```json
+{
+  "id": 150,
+  "date": "2024-01-16T00:00:00Z",
+  "kind": "credit",
+  "amount": 100.00,
+  "content": "new transaction via update",
+  "hash": "ghi789jkl012",
+  "labels": []
+}
 ```
 
 ##### Delete Transaction
@@ -601,12 +665,35 @@ All endpoints return structured error responses:
 }
 ```
 
+**Resource-specific Error Examples:**
+
+Creating duplicate transaction:
+```json
+{
+  "error": "transaction 123 already exists"
+}
+```
+
+Updating non-existent rule:
+```json
+{
+  "error": "rule example-rule not found"
+}
+```
+
+Resource not found:
+```json
+{
+  "error": "transaction with hash abc123 not found"
+}
+```
+
 Common HTTP status codes:
 - `200 OK` - Success
-- `201 Created` - Resource created
-- `400 Bad Request` - Invalid request data
+- `201 Created` - Resource created successfully
+- `400 Bad Request` - Invalid request data or resource already exists
 - `404 Not Found` - Resource not found
-- `409 Conflict` - Resource already exists
+- `409 Conflict` - Resource conflict (deprecated in favor of 400 for duplicates)
 - `500 Internal Server Error` - Server error
 
 ## 🗂️ Project Structure
@@ -708,9 +795,35 @@ COPY --from=builder /app/pkg/migrations/sql ./migrations/
 CMD ["./finante", "serve"]
 ```
 
+## 🔗 Relationship Management
+
+The system automatically manages complex relationships between transactions, rules, and labels:
+
+### Automatic Label Creation
+- When creating transactions or rules, the system automatically creates labels that don't exist
+- Existing labels are reused across multiple transactions and rules
+- Label relationships are properly maintained during updates
+
+### Rule-Label Associations
+- Rules can be associated with multiple labels
+- When a rule matches a transaction, all associated labels are applied
+- Relationship integrity is maintained when rules or labels are updated
+
+### Transaction-Label Relationships
+- Transactions can have labels applied manually or through rule matching
+- Each label association tracks whether it was applied by a rule or manually
+- Updating transactions properly manages existing label relationships
+
+### Update Behavior
+- **Create Operations**: Fail if resource already exists (transactions, rules)
+- **Update Operations**: 
+  - Transactions: Creates new if doesn't exist (upsert behavior)
+  - Rules: Fails if rule doesn't exist (strict update)
+- **Relationship Updates**: Old relationships are removed and new ones are created atomically
+
 ## 📊 Excel Import Format
 
-The system can import transactions from Excel files with the following format:
+The system can import transactions from Excel files with improved error handling and relationship management:
 
 | Date       | Description          | Debit  | Credit |
 |------------|---------------------|--------|--------|
@@ -721,6 +834,13 @@ The system can import transactions from Excel files with the following format:
 - **Description**: Transaction description (used for rule matching)
 - **Debit**: Debit amount (expense)
 - **Credit**: Credit amount (income)
+
+### Import Behavior
+- **Duplicate Detection**: Import automatically detects existing transactions by hash
+- **Smart Updates**: Existing transactions are updated, new transactions are created
+- **Rule Application**: Rules are applied to all transactions during import
+- **Error Handling**: Individual transaction errors don't stop the entire import process
+- **Progress Tracking**: Detailed import results with created/updated/error counts
 
 ## 🏷️ Label System
 
@@ -784,5 +904,11 @@ For support and questions:
 - [ ] Enhanced rule engine with ML capabilities
 - [ ] Real-time notifications
 - [ ] Data export in various formats
-- [ ] Label hierarchy and inheritance
-- [ ] Custom label validation rules
+- [x] ~~Label hierarchy and inheritance~~ **Completed**: Comprehensive relationship management
+- [x] ~~Custom label validation rules~~ **Completed**: Improved service layer validation
+- [ ] Bulk operations API for transactions and rules
+- [ ] Transaction scheduling and recurring payments
+- [ ] Advanced filtering and search capabilities
+- [ ] Audit trail for all data changes
+- [ ] API rate limiting and authentication
+- [ ] Performance monitoring and metrics
