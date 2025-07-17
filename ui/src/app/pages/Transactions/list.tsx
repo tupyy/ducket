@@ -216,8 +216,8 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
           bValue = b.labels.length;
           break;
         case 5: // Rules (based on unique rules from labels)
-          aValue = Array.from(new Set(a.labels.map((label) => label.rule))).length;
-          bValue = Array.from(new Set(b.labels.map((label) => label.rule))).length;
+          aValue = Array.from(new Set(a.labels.map((label) => label.ruleHref))).length;
+          bValue = Array.from(new Set(b.labels.map((label) => label.ruleHref))).length;
           break;
         default:
           return 0;
@@ -354,7 +354,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     const ruleLabels = new Set<string>();
     transactions.forEach((transaction) => {
       transaction.labels.forEach((label) => {
-        if (label.rule === ruleId) {
+        if (label.ruleHref === ruleId) {
           ruleLabels.add(`${label.key}=${label.value}`);
         }
       });

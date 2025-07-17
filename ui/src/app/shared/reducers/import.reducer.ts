@@ -3,7 +3,7 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { serializeAxiosError } from '@app/shared/reducers/reducer.utils';
 import { IImportResponse, IImportResult, IImportSummary } from '@app/shared/models/import';
 
-const importApiUrl = 'api/v1/import';
+const importApiUrl = 'api/v1/transactions/import';
 
 const initialState = {
   loading: false,
@@ -18,7 +18,7 @@ export const importFiles = createAsyncThunk(
   'import/files',
   async (files: File[]) => {
     const formData = new FormData();
-    
+
     // Append all files to the form data
     files.forEach((file) => {
       formData.append('files', file);
@@ -76,4 +76,4 @@ export const ImportSlice = createSlice({
 });
 
 export const { reset, clearResults } = ImportSlice.actions;
-export default ImportSlice.reducer; 
+export default ImportSlice.reducer;

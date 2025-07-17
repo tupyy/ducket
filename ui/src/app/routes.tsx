@@ -56,7 +56,7 @@ const routes: AppRouteConfig[] = [
     element: <LabelsPage />,
     exact: true,
     label: 'Labels',
-    path: '/tags',
+    path: '/labels',
     title: 'Finance | Labels Page',
   },
   {

@@ -1,12 +1,10 @@
 import * as React from 'react';
 import { CubesIcon } from '@patternfly/react-icons';
 import {
-  Button,
   Content,
   ContentVariants,
   EmptyState,
   EmptyStateBody,
-  EmptyStateFooter,
   EmptyStateVariant,
   Flex,
   FlexItem,
@@ -25,8 +23,6 @@ import { useTheme } from '@app/shared/contexts/ThemeContext';
 
 export interface ILabelListProps {
   labels: Array<ILabel> | [];
-  showCreateLabelFormCB: () => void;
-  deleteLabelCB: (id: string) => void;
 }
 
 interface RepositoryFilters {
@@ -37,13 +33,11 @@ interface RepositoryFilters {
 const columns = {
   name: 'Name',
   rules: 'Rules',
-  createdAt: 'Created at',
-  transactions: 'Transactions',
   action: 'action',
 };
 
 // eslint-disable-next-line prefer-const
-const LabelsList: React.FunctionComponent<ILabelListProps> = ({ labels, showCreateLabelFormCB, deleteLabelCB }) => {
+const LabelsList: React.FunctionComponent<ILabelListProps> = ({ labels }) => {
   const { theme } = useTheme();
   const [page, setPage] = React.useState<number | undefined>(1);
   const [perPage, setPerPage] = React.useState<number>(10);
@@ -53,11 +47,11 @@ const LabelsList: React.FunctionComponent<ILabelListProps> = ({ labels, showCrea
 
   const filteredRows = React.useMemo(
     () =>
-      labels.filter((label) => 
-        !filters.name || 
-        `${label.key}=${label.value}`.toLocaleLowerCase().includes(filters.name?.toLocaleLowerCase())
+      labels.filter(
+        (label) =>
+          !filters.name || `${label.key}=${label.value}`.toLocaleLowerCase().includes(filters.name?.toLocaleLowerCase())
       ),
-    [filters, labels],
+    [filters, labels]
   );
   const [paginatedRows, setPaginatedRows] = React.useState(filteredRows.slice(0, 10));
 
@@ -71,7 +65,7 @@ const LabelsList: React.FunctionComponent<ILabelListProps> = ({ labels, showCrea
     newPage: number,
     _perPage: number | undefined,
     startIdx: number | undefined,
-    endIdx: number | undefined,
+    endIdx: number | undefined
   ) => {
     setPaginatedRows(filteredRows?.slice(startIdx, endIdx));
     setPage(newPage);
@@ -82,7 +76,7 @@ const LabelsList: React.FunctionComponent<ILabelListProps> = ({ labels, showCrea
     newPerPage: number,
     newPage: number | undefined,
     startIdx: number | undefined,
-    endIdx: number | undefined,
+    endIdx: number | undefined
   ) => {
     setPaginatedRows(filteredRows.slice(startIdx, endIdx));
     setPage(newPage);
@@ -96,9 +90,6 @@ const LabelsList: React.FunctionComponent<ILabelListProps> = ({ labels, showCrea
           <Content component="p">Please add some labels</Content>
         </Content>
       </EmptyStateBody>
-      <EmptyStateFooter>
-        <Button variant="primary" onClick={showCreateLabelFormCB}>Add label</Button>
-      </EmptyStateFooter>
     </EmptyState>
   );
 
@@ -144,11 +135,6 @@ const LabelsList: React.FunctionComponent<ILabelListProps> = ({ labels, showCrea
 
   const renderToolbar = (
     <DataViewToolbar
-      bulkSelect={
-        <Button onClick={showCreateLabelFormCB} variant="control">
-          Create label
-        </Button>
-      }
       clearAllFilters={clearAllFilters}
       filters={
         <DataViewFilters onChange={(_e, values) => onSetFilters(values)} values={filters}>
@@ -175,48 +161,17 @@ const LabelsList: React.FunctionComponent<ILabelListProps> = ({ labels, showCrea
                 <strong>{columns.rules}</strong>
               </Content>
             </Th>
-            <Th width={20}>
-              <Content component={ContentVariants.p}>
-                <strong>{columns.transactions}</strong>
-              </Content>
-            </Th>
-            <Th width={20}>
-              <Content component={ContentVariants.p}>
-                <strong>{columns.createdAt}</strong>
-              </Content>
-            </Th>
-            <Th screenReaderText="action" />
           </Tr>
         </Thead>
         <Tbody>
           {paginatedRows.map((label: ILabel, i: number) => (
             <Tr key={`label-${i}`}>
               <Td dataLabel={columns.name}>
-                <Content component={ContentVariants.p}>{label.key}={label.value}</Content>
+                <Content component={ContentVariants.p}>
+                  {label.key}={label.value}
+                </Content>
               </Td>
               <Td dataLabel={columns.rules}>{renderRuleCell(label)}</Td>
-              <Td dataLabel={columns.transactions}>{label.transactions}</Td>
-              <Td dataLabel={columns.createdAt}>
-                {label.created_at.toLocaleDateString('fr-FR', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
-              </Td>
-              <Td isActionCell dataLabel={columns.action}>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    if (confirm('Are you sure?')) {
-                      deleteLabelCB(label.href);
-                    }
-                  }}
-                >
-                  Delete
-                </Button>
-              </Td>
             </Tr>
           ))}
         </Tbody>

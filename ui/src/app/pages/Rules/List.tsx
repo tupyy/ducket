@@ -41,7 +41,6 @@ const columns = {
   pattern: 'Pattern',
   labels: 'Labels',
   transactions: 'Transactions',
-  createdAt: 'Created at',
   action: 'action',
 };
 
@@ -64,9 +63,9 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({
   const filteredRows = React.useMemo(
     () =>
       rules.filter(
-        (rule) => !filters.name || rule.name.toLocaleLowerCase().includes(filters.name?.toLocaleLowerCase()),
+        (rule) => !filters.name || rule.name.toLocaleLowerCase().includes(filters.name?.toLocaleLowerCase())
       ),
-    [filters, rules],
+    [filters, rules]
   );
   const [paginatedRows, setPaginatedRows] = React.useState(filteredRows.slice(0, 10));
 
@@ -80,7 +79,7 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({
     newPage: number,
     _perPage: number | undefined,
     startIdx: number | undefined,
-    endIdx: number | undefined,
+    endIdx: number | undefined
   ) => {
     setPaginatedRows(filteredRows?.slice(startIdx, endIdx));
     setPage(newPage);
@@ -91,7 +90,7 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({
     newPerPage: number,
     newPage: number | undefined,
     startIdx: number | undefined,
-    endIdx: number | undefined,
+    endIdx: number | undefined
   ) => {
     setPaginatedRows(filteredRows.slice(startIdx, endIdx));
     setPage(newPage);
@@ -173,12 +172,7 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({
                 <strong>{columns.transactions}</strong>
               </Content>
             </Th>
-            <Th width={20}>
-              <Content component="p">
-                <strong>{columns.createdAt}</strong>
-              </Content>
-            </Th>
-            <Th />
+            <Th screenReaderText='actions'/>
           </Tr>
         </Thead>
         <Tbody>
@@ -196,21 +190,15 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({
                         href={`/api/labels/${label.key}/${label.value}`}
                         style={theme === 'dark' ? { color: '#3e8635' } : {}}
                       >
-                        <Content component="p">{label.key}={label.value}</Content>
+                        <Content component="p">
+                          {label.key}={label.value}
+                        </Content>
                       </Label>
                     </FlexItem>
                   ))}
                 </Flex>
               </Td>
               <Td dataLabel={columns.transactions}>{rule.transactions}</Td>
-              <Td dataLabel={columns.createdAt}>
-                {rule.created_at.toLocaleDateString('fr-FR', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
-              </Td>
               <Td isActionCell dataLabel={columns.action}>
                 <ActionsColumn
                   items={[

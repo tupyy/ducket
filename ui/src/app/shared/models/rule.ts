@@ -4,7 +4,6 @@ export interface IRule {
   href: string;
   name: string;
   pattern: string;
-  created_at: Date;
   transactions: number;
   labels: ILabel[];
 }

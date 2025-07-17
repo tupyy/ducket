@@ -41,7 +41,7 @@ export const getTransactions = createAsyncThunk(
       url = `${transactionApiUrl}?${searchParams.toString()}`;
     }
 
-    return createAxiosDateTransformer().get<ITransactions>(url);
+    return axios.get<ITransactions>(url);
   },
   { serializeError: serializeAxiosError },
 );

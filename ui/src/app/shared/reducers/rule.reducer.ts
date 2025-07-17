@@ -70,7 +70,7 @@ export const syncRule = createAsyncThunk(
   async (ruleName: string, thunkAPI) => {
     // For now, we'll use a placeholder endpoint that re-applies the rule to transactions
     // In the future, this could be a dedicated sync endpoint
-    const url = `${ruleApiUrl}/${ruleName}/sync`;
+    const url = `${ruleApiUrl}/${ruleName}/process`;
     const result = axios.post<void>(url).then(() => thunkAPI.dispatch(getRules()));
     return result;
   },

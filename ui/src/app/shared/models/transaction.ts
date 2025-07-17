@@ -2,13 +2,13 @@ export interface ILabelTransaction {
   href: string;
   key: string;
   value: string;
-  rule: string;
+  ruleHref: string;
 }
 
 export interface ITransaction {
   href: string;
   kind: string;
-  date: Date;
+  date: string;
   amount: number;
   account: number;
   description: string;

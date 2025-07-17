@@ -3,17 +3,17 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   Button,
   Masthead,
+  MastheadContent,
   MastheadMain,
   MastheadToggle,
-  MastheadContent,
-  Toolbar,
-  ToolbarContent,
-  ToolbarGroup,
-  ToolbarItem,
   Nav,
   NavExpandable,
   NavItem,
   NavList,
+  Toolbar,
+  ToolbarContent,
+  ToolbarGroup,
+  ToolbarItem,
   Page,
   PageSidebar,
   PageSidebarBody,
@@ -104,7 +104,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
     <Nav id="nav-primary-simple">
       <NavList id="nav-list-simple">
         {routes.map(
-          (route, idx) => route.label && (!route.routes ? renderNavItem(route, idx) : renderNavGroup(route, idx)),
+          (route, idx) => route.label && (!route.routes ? renderNavItem(route, idx) : renderNavGroup(route, idx))
         )}
       </NavList>
     </Nav>
