@@ -19,6 +19,7 @@ type TransactionLabelAssociation struct {
 }
 
 type Transaction struct {
+	ID          int                           `json:"id"`
 	Href        string                        `json:"href"`
 	Kind        string                        `json:"kind"`
 	Date        string                        `json:"date"`
@@ -32,6 +33,7 @@ type Transaction struct {
 // suitable for API responses.
 func FromEntity(t entity.Transaction) Transaction {
 	transaction := Transaction{
+		ID:          int(t.ID),
 		Href:        fmt.Sprintf("%s/transactions/%d", apiV1, t.ID),
 		Kind:        string(t.Kind),
 		Date:        t.Date.Format(time.RFC3339),

@@ -175,7 +175,7 @@ var _ = Describe("TransactionService", Ordered, func() {
 	Context("GetTransaction", func() {
 		It("should return nil when transaction doesn't exist", func() {
 			transaction, err := transactionService.GetTransaction(context.TODO(), "no-exist-hash")
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(BeNil())
 			Expect(transaction).To(BeNil())
 		})
 
@@ -738,7 +738,7 @@ var _ = Describe("TransactionService", Ordered, func() {
 
 			// Verify transaction was deleted
 			retrieved, err = transactionService.GetTransaction(context.TODO(), transactionToDelete.Hash)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(BeNil())
 			Expect(retrieved).To(BeNil())
 		})
 

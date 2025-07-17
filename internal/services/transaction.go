@@ -58,7 +58,18 @@ func (t *TransactionService) GetTransaction(ctx context.Context, hash string) (*
 		return nil, err
 	}
 	if len(tt) == 0 {
-		return nil, nil
+		return nil, NewErrTransactionNotFoundByHash(hash)
+	}
+	return &tt[0], err
+}
+
+func (t *TransactionService) GetTransactionById(ctx context.Context, id int) (*entity.Transaction, error) {
+	tt, err := t.dt.QueryTransactions(ctx, pg.TransactionIDQueryFilter(id))
+	if err != nil {
+		return nil, err
+	}
+	if len(tt) == 0 {
+		return nil, NewErrTransactionNotFound(id)
 	}
 	return &tt[0], err
 }
@@ -123,7 +134,7 @@ func (t *TransactionService) Create(ctx context.Context, transaction entity.Tran
 }
 
 func (t *TransactionService) Update(ctx context.Context, transaction entity.Transaction) (entity.Transaction, error) {
-	tt, err := t.dt.QueryTransactions(ctx, pg.TransactionHashQueryFilter(transaction.Hash))
+	tt, err := t.dt.QueryTransactions(ctx, pg.TransactionIDQueryFilter(int(transaction.ID)))
 	if err != nil {
 		return transaction, err
 	}

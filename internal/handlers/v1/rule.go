@@ -82,19 +82,24 @@ func (s *ServerImpl) UpdateRule(c *gin.Context, id string) {
 	}
 
 	ruleToCreate := entity.NewRule(id, form.Pattern, labels...)
-	updated, err := ruleSrv.UpdateOrCreate(c.Request.Context(), ruleToCreate)
+	err := ruleSrv.Update(c.Request.Context(), ruleToCreate)
 	if err != nil {
-		zap.S().Errorw("failed to create rule", "error", err.Error(), "form", form)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+		switch err.(type) {
+		case *services.ErrResourceNotFound:
+			if err := ruleSrv.Create(c.Request.Context(), ruleToCreate); err != nil {
+				zap.S().Errorw("failed to create rule", "error", err.Error(), "form", form)
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusCreated, ruleToCreate)
+			return
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 	}
 
-	status := http.StatusCreated
-	if updated {
-		status = http.StatusOK
-	}
-
-	c.JSON(status, ruleToCreate)
+	c.JSON(http.StatusOK, ruleToCreate)
 }
 
 func (s *ServerImpl) DeleteRule(c *gin.Context, id string) {

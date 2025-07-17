@@ -7,6 +7,7 @@ import (
 	"time"
 
 	v1 "git.tls.tupangiu.ro/cosmin/finante/api/v1"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1/inbound"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1/outbound"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/services"
@@ -21,7 +22,22 @@ const (
 )
 
 func (s *ServerImpl) GetTransaction(c *gin.Context, id int64) {
-	return
+	dt := dtContext.MustFromContext(c)
+
+	// Add the label to the transaction - this will handle transaction not found errors
+	tSrv := services.NewTransactionService(dt)
+	transaction, err := tSrv.GetTransactionById(c.Request.Context(), int(id))
+	if err != nil {
+		switch err.(type) {
+		case *services.ErrResourceNotFound:
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+	c.JSON(http.StatusCreated, outbound.FromEntity(*transaction))
 }
 
 func (s *ServerImpl) GetTransactions(c *gin.Context, params v1.GetTransactionsParams) {
@@ -90,8 +106,10 @@ func (s *ServerImpl) CreateTransaction(c *gin.Context) {
 
 	existingTransaction, err := tSrv.GetTransaction(c.Request.Context(), tEntity.Hash)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+		if _, ok := err.(*services.ErrResourceNotFound); !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 	}
 
 	if existingTransaction != nil {
@@ -99,9 +117,14 @@ func (s *ServerImpl) CreateTransaction(c *gin.Context) {
 		return
 	}
 
-	t, err := tSrv.CreateOrUpdate(c.Request.Context(), tEntity)
+	t, err := tSrv.Create(c.Request.Context(), tEntity)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		switch err.(type) {
+		case *services.ErrResourceExistsAlready:
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
 
@@ -132,13 +155,24 @@ func (s *ServerImpl) UpdateTransaction(c *gin.Context, id int64) {
 
 	dt := dtContext.MustFromContext(c)
 	tSrv := services.NewTransactionService(dt)
-	t, err := tSrv.CreateOrUpdate(c.Request.Context(), tEntity)
+
+	updatedTransaction, err := tSrv.Update(c.Request.Context(), tEntity)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		switch err.(type) {
+		case *services.ErrResourceNotFound:
+			newTransaction, err := tSrv.Create(c.Request.Context(), tEntity)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusCreated, outbound.FromEntity(newTransaction))
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
-
-	c.JSON(http.StatusCreated, outbound.FromEntity(t))
+	fmt.Printf("%+v\n", updatedTransaction)
+	c.JSON(http.StatusOK, outbound.FromEntity(updatedTransaction))
 }
 
 func (s *ServerImpl) DeleteTransaction(c *gin.Context, id int64) {
@@ -193,7 +227,7 @@ func (s *ServerImpl) AddTransactionLabel(c *gin.Context, id int64) {
 
 	// Add the label to the transaction - this will handle transaction not found errors
 	tSrv := services.NewTransactionService(dt)
-	appliedLabel, err := tSrv.ApplyLabel(c.Request.Context(), int(id), form.ToEntity())
+	transaction, err := tSrv.GetTransactionById(c.Request.Context(), int(id))
 	if err != nil {
 		switch err.(type) {
 		case *services.ErrResourceNotFound:
@@ -205,48 +239,56 @@ func (s *ServerImpl) AddTransactionLabel(c *gin.Context, id int64) {
 		}
 	}
 
-	c.JSON(http.StatusCreated, outbound.NewLabel(appliedLabel))
-}
+	transaction.Labels = append(transaction.Labels, entity.LabelAssociation{
+		Label: form.ToEntity(),
+	})
 
-// DELETE /api/v1/transactions/{id}/labels - Remove all labels from a transaction
-func (s *ServerImpl) RemoveTransactionLabels(c *gin.Context, id int64) {
-	idParam := c.Param("id")
-	transactionID, err := strconv.ParseInt(idParam, 10, 64)
+	updated, err := tSrv.Update(c.Request.Context(), *transaction)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "transaction id must be an int"})
-		return
-	}
-
-	dt := dtContext.MustFromContext(c)
-
-	// Check if transaction exists by trying to get its labels
-	tSrv := services.NewTransactionService(dt)
-	_, err = tSrv.Labels(c.Request.Context(), int(transactionID))
-	if err != nil {
-		switch err.(type) {
-		case *services.ErrResourceNotFound:
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-	}
-
-	if err := tSrv.RemoveLabels(c.Request.Context(), int(transactionID)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusNoContent, gin.H{})
+	c.JSON(http.StatusOK, outbound.FromEntity(updated))
+}
+
+// DELETE /api/v1/transactions/{id}/labels - Remove all labels from a transaction
+func (s *ServerImpl) RemoveTransactionLabels(c *gin.Context, id int64) {
+	dt := dtContext.MustFromContext(c)
+
+	// Check if transaction exists by trying to get its labels
+	tSrv := services.NewTransactionService(dt)
+	// Add the label to the transaction - this will handle transaction not found errors
+	transaction, err := tSrv.GetTransactionById(c.Request.Context(), int(id))
+	if err != nil {
+		switch err.(type) {
+		case *services.ErrResourceNotFound:
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	transaction.Labels = []entity.LabelAssociation{}
+	updated, err := tSrv.Update(c.Request.Context(), *transaction)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, outbound.FromEntity(updated))
 }
 
 func (s *ServerImpl) RemoveTransactionLabel(c *gin.Context, id int64, labelId int) {
 	dt := dtContext.MustFromContext(c)
 
-	// Remove the specific label from the transaction - this will handle transaction not found errors
+	// Check if transaction exists by trying to get its labels
 	tSrv := services.NewTransactionService(dt)
-	if err := tSrv.RemoveLabel(c.Request.Context(), int(id), labelId); err != nil {
+	// Add the label to the transaction - this will handle transaction not found errors
+	transaction, err := tSrv.GetTransactionById(c.Request.Context(), int(id))
+	if err != nil {
 		switch err.(type) {
 		case *services.ErrResourceNotFound:
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
@@ -257,7 +299,34 @@ func (s *ServerImpl) RemoveTransactionLabel(c *gin.Context, id int64, labelId in
 		}
 	}
 
-	c.JSON(http.StatusNoContent, gin.H{})
+	found := false
+	for _, a := range transaction.Labels {
+		if a.Label.ID == labelId {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Errorf("label %d not found on transaction %d", labelId, id)})
+		return
+	}
+
+	newLabels := []entity.LabelAssociation{}
+	for _, a := range transaction.Labels {
+		if a.Label.ID != labelId {
+			newLabels = append(newLabels, a)
+		}
+	}
+
+	transaction.Labels = newLabels
+	updated, err := tSrv.Update(c.Request.Context(), *transaction)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, outbound.FromEntity(updated))
 }
 
 // parseTimestamp parses a timestamp string (milliseconds since epoch) and returns the corresponding time.
