@@ -25,3 +25,8 @@ type ErrResourceExistsAlready struct {
 func NewErrTransactionExistsAlready(id int) *ErrResourceExistsAlready {
 	return &ErrResourceExistsAlready{fmt.Errorf("transaction %d already exists", id)}
 }
+
+func IsErrResourceNotFound(err error) bool {
+	_, ok := err.(*ErrResourceNotFound)
+	return ok
+}

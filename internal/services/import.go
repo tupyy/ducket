@@ -82,7 +82,7 @@ func (s *ImportService) importSingleFile(ctx context.Context, file FileUpload) I
 
 		// Check if transaction already exists
 		existingTransaction, err := transactionService.GetTransaction(ctx, transaction.Hash)
-		if err != nil {
+		if err != nil && !IsErrResourceNotFound(err) {
 			result.Errors = append(result.Errors, fmt.Sprintf("Error checking transaction %s: %v", transaction.Hash, err))
 			result.ErrorCount++
 			continue

@@ -203,7 +203,7 @@ func (s *ServerImpl) ProcessRule(c *gin.Context, id string) {
 
 	for _, transaction := range transactions {
 		// Check if this rule matches the transaction
-		_, err := ruleApplierService.MatchesRule(transaction.RawContent, rule.Pattern)
+		matched, err := ruleApplierService.MatchesRule(transaction.RawContent, rule.Pattern)
 		if err != nil {
 			zap.S().Warnw("Failed to check rule pattern",
 				"rule", ruleName,
@@ -213,36 +213,36 @@ func (s *ServerImpl) ProcessRule(c *gin.Context, id string) {
 			continue
 		}
 
-		// if matched {
-		// 	// Apply all labels from this rule to the transaction
-		// 	updatedTransaction := transaction
-		// 	if updatedTransaction.Labels == nil {
-		// 		updatedTransaction.Labels = make([]entity.LabelAssociation, 0)
-		// 	}
+		if matched {
+			// Apply all labels from this rule to the transaction
+			updatedTransaction := transaction
+			if updatedTransaction.Labels == nil {
+				updatedTransaction.Labels = make([]entity.LabelAssociation, 0)
+			}
 
-		// 	for _, label := range rule.Labels {
-		// 		updatedTransaction.Labels[label.ID] = label
-		// 	}
+			for _, label := range rule.Labels {
+				updatedTransaction.Labels = append(updatedTransaction.Labels, entity.LabelAssociation{Label: label, RuleID: &ruleName})
+			}
 
-		// 	// Update the transaction in the database
-		// 	_, err = transactionService.CreateOrUpdate(c.Request.Context(), updatedTransaction)
-		// 	if err != nil {
-		// 		zap.S().Errorw("Failed to update transaction with rule",
-		// 			"transaction_id", transaction.ID,
-		// 			"rule", ruleName,
-		// 			"error", err,
-		// 		)
-		// 		continue
-		// 	}
+			// Update the transaction in the database
+			_, err = transactionService.Update(c.Request.Context(), updatedTransaction)
+			if err != nil {
+				zap.S().Errorw("Failed to update transaction with rule",
+					"transaction_id", transaction.ID,
+					"rule", ruleName,
+					"error", err,
+				)
+				continue
+			}
 
-		// 	matchCount++
-		// 	zap.S().Debugw("Applied rule to transaction",
-		// 		"rule", ruleName,
-		// 		"transaction_id", transaction.ID,
-		// 		"transaction_content", transaction.RawContent,
-		// 		"labels", rule.Labels,
-		// 	)
-		// }
+			matchCount++
+			zap.S().Debugw("Applied rule to transaction",
+				"rule", ruleName,
+				"transaction_id", transaction.ID,
+				"transaction_content", transaction.RawContent,
+				"labels", rule.Labels,
+			)
+		}
 	}
 
 	zap.S().Infow("Successfully applied rule to transactions",
