@@ -23,12 +23,12 @@ type ErrorResponse struct {
 
 // Label defines model for Label.
 type Label struct {
-	Href *string `json:"href,omitempty"`
-	Key  *string `json:"key,omitempty"`
+	Href string `json:"href"`
+	Key  string `json:"key"`
 
 	// Rules Rules that can create this label
 	Rules *[]Rule `json:"rules,omitempty"`
-	Value *string `json:"value,omitempty"`
+	Value string  `json:"value"`
 }
 
 // LabelForm defines model for LabelForm.
@@ -42,17 +42,17 @@ type LabelForm struct {
 
 // Labels defines model for Labels.
 type Labels struct {
-	Labels *[]Label `json:"labels,omitempty"`
-	Total  *int     `json:"total,omitempty"`
+	Labels []Label `json:"labels"`
+	Total  int     `json:"total"`
 }
 
 // Rule defines model for Rule.
 type Rule struct {
-	Href *string `json:"href,omitempty"`
+	Href string `json:"href"`
 
 	// Labels Labels that this rule applies
 	Labels  *[]Label `json:"labels,omitempty"`
-	Name    *string  `json:"name,omitempty"`
+	Name    string   `json:"name"`
 	Pattern *string  `json:"pattern,omitempty"`
 }
 
@@ -70,8 +70,8 @@ type RuleForm struct {
 
 // Rules defines model for Rules.
 type Rules struct {
-	Rules *[]Rule `json:"rules,omitempty"`
-	Total *int    `json:"total,omitempty"`
+	Rules []Rule `json:"rules"`
+	Total int    `json:"total"`
 }
 
 // Transaction defines model for Transaction.

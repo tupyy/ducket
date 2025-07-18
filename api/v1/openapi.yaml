@@ -786,6 +786,10 @@ components:
 
     Label:
       type: object
+      required:
+        - href
+        - key
+        - value
       properties:
         href:
           type: string
@@ -805,6 +809,9 @@ components:
 
     Labels:
       type: object
+      required:
+        - total
+        - labels
       properties:
         total:
           type: integer
@@ -841,6 +848,9 @@ components:
 
     Rule:
       type: object
+      required:
+        - href
+        - name
       properties:
         href:
           type: string
@@ -860,6 +870,9 @@ components:
 
     Rules:
       type: object
+      required:
+        - total
+        - rules
       properties:
         total:
           type: integer

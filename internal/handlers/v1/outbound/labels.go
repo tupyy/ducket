@@ -3,57 +3,47 @@ package outbound
 import (
 	"fmt"
 
+	v1 "git.tls.tupangiu.ro/cosmin/finante/api/v1"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
 )
 
-type Labels struct {
-	Total  int     `json:"total"`
-	Labels []Label `json:"labels"`
-}
-
-type Label struct {
-	HRef  string `json:"href"`
-	Key   string `json:"key"`
-	Value string `json:"value"`
-	Rules []Rule `json:"rules,omitempty"`
-}
-
 // NewLabel creates a new Label response structure with the given key, value and associated rules.
-func NewLabel(l entity.Label) Label {
-	label := Label{
-		HRef:  fmt.Sprintf("/api/v1/labels/%d", l.ID),
+func NewLabel(l entity.Label) v1.Label {
+	rules := make([]v1.Rule, 0)
+	label := v1.Label{
+		Href:  fmt.Sprintf("/api/v1/labels/%d", l.ID),
 		Key:   l.Key,
 		Value: l.Value,
-		Rules: make([]Rule, 0),
 	}
 
 	for _, rule := range l.Rules {
-		label.Rules = append(label.Rules, Rule{HRef: fmt.Sprintf("/api/v1/rules/%s", rule), Name: rule})
+		rules = append(rules,
+			v1.Rule{
+				Href: fmt.Sprintf("/api/v1/rules/%s", rule),
+				Name: rule,
+			})
 	}
+
+	label.Rules = &rules
 
 	return label
 }
 
 // NewLabels creates a new Labels response structure from a slice of entity.Label.
-func NewLabels(labels []entity.Label) Labels {
-	mlabels := Labels{
-		Labels: make([]Label, 0),
+func NewLabels(labels []entity.Label) v1.Labels {
+	mlabels := v1.Labels{
+		Labels: make([]v1.Label, 0),
 	}
 
-	for _, eLabel := range labels {
-		l := Label{
-			HRef:  fmt.Sprintf("/api/v1/labels/%d", eLabel.ID),
-			Key:   eLabel.Key,
-			Value: eLabel.Value,
-			Rules: make([]Rule, 0),
-		}
-		for _, rule := range eLabel.Rules {
-			l.Rules = append(l.Rules, Rule{Name: rule, HRef: fmt.Sprintf("/api/v1/rules/%s", rule)})
-		}
-		mlabels.Labels = append(mlabels.Labels, l)
+	for _, label := range labels {
+		mlabels.Labels = append(mlabels.Labels, NewLabel(label))
 	}
 
 	mlabels.Total = len(mlabels.Labels)
 
 	return mlabels
+}
+
+func ptr(s string) *string {
+	return &s
 }
