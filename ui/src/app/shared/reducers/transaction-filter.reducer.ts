@@ -16,9 +16,36 @@ const filterTransactions = (
   transactions: ITransaction[],
   selectedLabels: string[],
   selectedTransactionTypes: string[],
-  selectedAccounts: number[]
+  selectedAccounts: number[],
+  startDate?: string,
+  endDate?: string
 ): ITransaction[] => {
   let filtered = transactions;
+
+  // Filter by date range (parse date strings only when needed)
+  if (startDate || endDate) {
+    filtered = filtered.filter((transaction) => {
+      const transactionDate = new Date(transaction.date);
+      
+      if (startDate) {
+        const start = new Date(startDate);
+        if (transactionDate < start) {
+          return false;
+        }
+      }
+      
+      if (endDate) {
+        const end = new Date(endDate);
+        // Set end date to end of day for inclusive filtering
+        end.setHours(23, 59, 59, 999);
+        if (transactionDate > end) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+  }
 
   // Filter by labels
   if (selectedLabels.length > 0) {
@@ -54,13 +81,17 @@ export const transactionFilterSlice = createSlice({
       selectedLabels: string[];
       selectedTransactionTypes: string[];
       selectedAccounts: number[];
+      startDate?: string;
+      endDate?: string;
     }>) => {
-      const { selectedLabels, selectedTransactionTypes, selectedAccounts } = action.payload;
+      const { selectedLabels, selectedTransactionTypes, selectedAccounts, startDate, endDate } = action.payload;
       state.filteredTransactions = filterTransactions(
         state.sourceTransactions,
         selectedLabels,
         selectedTransactionTypes,
-        selectedAccounts
+        selectedAccounts,
+        startDate,
+        endDate
       );
     },
     

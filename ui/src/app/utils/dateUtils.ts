@@ -75,3 +75,53 @@ export const getRelativeTimeRange = (startDate: string, endDate: string): string
     year: 'numeric',
   })}`;
 };
+
+/**
+ * Safely parse a date string into a Date object
+ * @param dateString - The date string to parse
+ * @returns A valid Date object or null if parsing fails
+ */
+export const safeParseDateString = (dateString: string): Date | null => {
+  try {
+    if (!dateString) return null;
+    
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return null;
+    }
+    
+    return date;
+  } catch (error) {
+    console.warn('Date parsing failed:', error);
+    return null;
+  }
+};
+
+/**
+ * Safely format a date string for display
+ * @param dateString - The date string to format
+ * @param options - Intl.DateTimeFormatOptions for formatting
+ * @param fallback - Fallback text if parsing fails
+ * @returns Formatted date string or fallback
+ */
+export const safeFormatDateString = (
+  dateString: string,
+  options: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  },
+  fallback: string = 'Invalid Date'
+): string => {
+  const date = safeParseDateString(dateString);
+  if (!date) {
+    return dateString || fallback;
+  }
+  
+  try {
+    return date.toLocaleDateString('en-US', options);
+  } catch (error) {
+    console.warn('Date formatting failed:', error);
+    return dateString || fallback;
+  }
+};

@@ -20,6 +20,7 @@ import { ILabelTransaction, ITransaction } from '@app/shared/models/transaction'
 import { LabelFilter } from '@app/shared/components/label-filter';
 import { useTheme } from '@app/shared/contexts/ThemeContext';
 import { getAccountColor, getAccountDarkColor } from '@app/utils/colorUtils';
+import { safeFormatDateString } from '@app/utils/dateUtils';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
 import { setSourceTransactions, applyFilters } from '@app/shared/reducers/transaction-filter.reducer';
 
@@ -195,9 +196,39 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
       let bValue: any;
 
       switch (sortIndex) {
-        case 0: // Date
-          aValue = new Date(a.date);
-          bValue = new Date(b.date);
+        case 0: // Date - parse date strings only when sorting by date
+          try {
+            // Parse both dates and handle invalid dates consistently
+            const aDate = new Date(a.date);
+            const bDate = new Date(b.date);
+            
+            const aIsValid = !isNaN(aDate.getTime());
+            const bIsValid = !isNaN(bDate.getTime());
+            
+            // Both dates are valid - use numeric comparison
+            if (aIsValid && bIsValid) {
+              aValue = aDate.getTime();
+              bValue = bDate.getTime();
+            }
+            // Only a is valid - a should come before b in ascending order
+            else if (aIsValid && !bIsValid) {
+              return sortDirection === 'asc' ? -1 : 1;
+            }
+            // Only b is valid - b should come before a in ascending order
+            else if (!aIsValid && bIsValid) {
+              return sortDirection === 'asc' ? 1 : -1;
+            }
+            // Both dates are invalid - fallback to string comparison
+            else {
+              aValue = a.date;
+              bValue = b.date;
+            }
+          } catch (error) {
+            // Fallback to string comparison if date parsing fails
+            console.warn('Date comparison failed during sort:', error);
+            aValue = a.date;
+            bValue = b.date;
+          }
           break;
         case 1: // Account
           aValue = a.account;
@@ -398,8 +429,8 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
    */
   const getSortParams = (columnIndex: number): ThProps['sort'] => ({
     sortBy: {
-      index: sortIndex || undefined,
-      direction: sortDirection || undefined,
+      index: sortIndex === columnIndex ? sortIndex : undefined,
+      direction: sortIndex === columnIndex ? sortDirection || undefined : undefined,
     },
     onSort: (_event, index, direction) => {
       setSortIndex(index);
@@ -617,6 +648,20 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
             </Flex>
           </FlexItem>
         )}
+
+        {/* Clear All Filters Button */}
+        {(selectedLabels.length > 0 || selectedTransactionTypes.length > 0 || selectedAccounts.length > 0) && (
+          <FlexItem>
+            <Button
+              variant="link"
+              onClick={handleClearAllFilters}
+              size="sm"
+              style={{ padding: '0', fontSize: '0.875rem', alignSelf: 'flex-start' }}
+            >
+              Clear all filters
+            </Button>
+          </FlexItem>
+        )}
       </Flex>
     </PageSection>
   );
@@ -673,11 +718,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                 />
                 {/* Date Column */}
                 <Td dataLabel={columns.date}>
-                  {new Date(t.date).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                  })}
+                  {safeFormatDateString(t.date)}
                 </Td>
                 {/* Account Column - Clickable label for filtering */}
                 <Td dataLabel={columns.account}>
