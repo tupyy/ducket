@@ -11,62 +11,6 @@ const initialState: ITransactionFilterState = {
   filteredTransactions: [],
 };
 
-// Helper function for filtering transactions
-const filterTransactions = (
-  transactions: ITransaction[],
-  selectedLabels: string[],
-  selectedTransactionTypes: string[],
-  selectedAccounts: number[],
-  startDate?: string,
-  endDate?: string
-): ITransaction[] => {
-  let filtered = transactions;
-
-  // Filter by date range (parse date strings only when needed)
-  if (startDate || endDate) {
-    filtered = filtered.filter((transaction) => {
-      const transactionDate = new Date(transaction.date);
-      
-      if (startDate) {
-        const start = new Date(startDate);
-        if (transactionDate < start) {
-          return false;
-        }
-      }
-      
-      if (endDate) {
-        const end = new Date(endDate);
-        // Set end date to end of day for inclusive filtering
-        end.setHours(23, 59, 59, 999);
-        if (transactionDate > end) {
-          return false;
-        }
-      }
-      
-      return true;
-    });
-  }
-
-  // Filter by labels
-  if (selectedLabels.length > 0) {
-    filtered = filtered.filter((transaction) =>
-      selectedLabels.some((selectedLabel) => transaction.labels.some((label) => `${label.key}=${label.value}` === selectedLabel))
-    );
-  }
-
-  // Filter by transaction types
-  if (selectedTransactionTypes.length > 0) {
-    filtered = filtered.filter((transaction) => selectedTransactionTypes.includes(transaction.kind));
-  }
-
-  // Filter by accounts
-  if (selectedAccounts.length > 0) {
-    filtered = filtered.filter((transaction) => selectedAccounts.includes(transaction.account));
-  }
-
-  return filtered;
-};
-
 export const transactionFilterSlice = createSlice({
   name: 'transactionFilter',
   initialState,
@@ -81,18 +25,42 @@ export const transactionFilterSlice = createSlice({
       selectedLabels: string[];
       selectedTransactionTypes: string[];
       selectedAccounts: number[];
-      startDate?: string;
-      endDate?: string;
     }>) => {
-      const { selectedLabels, selectedTransactionTypes, selectedAccounts, startDate, endDate } = action.payload;
-      state.filteredTransactions = filterTransactions(
-        state.sourceTransactions,
-        selectedLabels,
-        selectedTransactionTypes,
-        selectedAccounts,
-        startDate,
-        endDate
-      );
+      const { selectedLabels, selectedTransactionTypes, selectedAccounts } = action.payload;
+      
+      // Start with all source transactions from the store
+      let filtered = state.sourceTransactions;
+
+      // Filter by labels
+      if (selectedLabels.length > 0) {
+        filtered = filtered.filter((transaction) =>
+          selectedLabels.some((selectedLabel) => {
+            // Check if this is a wildcard filter (e.g., "income=*")
+            if (selectedLabel.endsWith('=*')) {
+              // Extract the key part (everything before "=*")
+              const labelKey = selectedLabel.slice(0, -2);
+              // Match any transaction that has this label key, regardless of value
+              return transaction.labels.some((label) => label.key === labelKey);
+            } else {
+              // Exact match for specific key=value pairs
+              return transaction.labels.some((label) => `${label.key}=${label.value}` === selectedLabel);
+            }
+          })
+        );
+      }
+
+      // Filter by transaction types
+      if (selectedTransactionTypes.length > 0) {
+        filtered = filtered.filter((transaction) => selectedTransactionTypes.includes(transaction.kind));
+      }
+
+      // Filter by accounts
+      if (selectedAccounts.length > 0) {
+        filtered = filtered.filter((transaction) => selectedAccounts.includes(transaction.account));
+      }
+
+      // Update the filtered transactions in state
+      state.filteredTransactions = filtered;
     },
     
     reset: () => initialState,

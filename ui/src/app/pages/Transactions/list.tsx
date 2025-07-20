@@ -89,12 +89,40 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   // Calculate available labels from all transactions for filtering
   const availableLabels = React.useMemo(() => {
     const labelSet = new Set<string>();
+    const keySet = new Set<string>();
+    
     transactions.forEach((transaction) => {
       transaction.labels.forEach((label) => {
+        // Add exact key=value pairs
         labelSet.add(`${label.key}=${label.value}`);
+        // Collect unique keys for wildcard options
+        keySet.add(label.key);
       });
     });
-    return Array.from(labelSet).sort();
+    
+    // Add wildcard options for each unique key
+    keySet.forEach((key) => {
+      labelSet.add(`${key}=*`);
+    });
+    
+    // Convert to array and sort with custom logic:
+    // 1. Group by key (wildcard first, then specific values)
+    // 2. Sort keys alphabetically
+    const labels = Array.from(labelSet);
+    return labels.sort((a, b) => {
+      const [keyA, valueA] = a.split('=');
+      const [keyB, valueB] = b.split('=');
+      
+      // First sort by key
+      if (keyA !== keyB) {
+        return keyA.localeCompare(keyB);
+      }
+      
+      // Same key: wildcards (*) come first, then alphabetical values
+      if (valueA === '*' && valueB !== '*') return -1;
+      if (valueA !== '*' && valueB === '*') return 1;
+      return valueA.localeCompare(valueB);
+    });
   }, [transactions]);
 
   // Calculate available transaction types from all transactions
@@ -169,7 +197,12 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
         selectedAccounts,
       })
     );
-  }, [selectedLabels, selectedTransactionTypes, selectedAccounts, dispatch]);
+
+    // Reset pagination to first page when filters change
+    setPage(1);
+  }, [transactions, selectedLabels, selectedTransactionTypes, selectedAccounts, dispatch]);
+
+
 
   // ===============================
   // SORTING AND PAGINATION
@@ -264,6 +297,15 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   const sortedTransactions = React.useMemo(() => {
     return sortTransactions(filteredTransactions, sortIndex, sortDirection);
   }, [filteredTransactions, sortIndex, sortDirection]);
+
+  // Reset pagination when the data set changes (handles date filtering, local filtering, etc.)
+  React.useEffect(() => {
+    // Always reset to page 1 when the data set size changes
+    // This handles date filtering, local filtering, and other data changes
+    if (sortedTransactions.length > 0) {
+      setPage(1);
+    }
+  }, [sortedTransactions.length]);
 
   // Apply pagination to sorted transactions
   const paginatedTransactions = React.useMemo(() => {
@@ -435,6 +477,8 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     onSort: (_event, index, direction) => {
       setSortIndex(index);
       setSortDirection(direction);
+      // Reset pagination to first page when sorting changes
+      setPage(1);
     },
     columnIndex,
   });
