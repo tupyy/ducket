@@ -17,10 +17,11 @@ import {
 } from '@patternfly/react-core';
 import { DataView, DataViewToolbar } from '@patternfly/react-data-view';
 import { ExpandableRowContent, Table, Tbody, Td, Th, Thead, ThProps, Tr } from '@patternfly/react-table';
-import { PlusIcon } from '@patternfly/react-icons';
+import { PlusIcon, TimesIcon } from '@patternfly/react-icons';
 import { ILabelTransaction, ITransaction } from '@app/shared/models/transaction';
 import { LabelFilter } from '@app/shared/components/label-filter';
 import { AddLabelModal } from './AddLabelModal';
+import { RemoveLabelModal } from './RemoveLabelModal';
 import { useTheme } from '@app/shared/contexts/ThemeContext';
 import { getAccountColor, getAccountDarkColor } from '@app/utils/colorUtils';
 import { safeFormatDateString } from '@app/utils/dateUtils';
@@ -36,10 +37,11 @@ import {
   setPage,
   setPerPage,
   setSorting,
-  clearSorting,
   setTransactionExpanded,
   toggleAllExpanded,
 } from './reducers/transaction-filter.reducer';
+import { removeLabelFromTransaction } from '@app/shared/reducers/transaction.reducer';
+import { isKeyOfObject } from '@app/shared/models/label';
 
 export interface ITransactionListProps {
   transactions: Array<ITransaction> | [];
@@ -97,6 +99,10 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   // Modal state for adding labels
   const [isAddLabelModalOpen, setIsAddLabelModalOpen] = React.useState(false);
   const [selectedTransactionForLabel, setSelectedTransactionForLabel] = React.useState<ITransaction | null>(null);
+
+  // Modal state for removing labels
+  const [isRemoveLabelModalOpen, setIsRemoveLabelModalOpen] = React.useState(false);
+  const [labelToRemove, setLabelToRemove] = React.useState<{ transaction: ITransaction; label: ILabelTransaction } | null>(null);
 
   // ===============================
   // COMPUTED VALUES
@@ -409,6 +415,43 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   const handleCloseAddLabelModal = () => {
     setIsAddLabelModalOpen(false);
     setSelectedTransactionForLabel(null);
+  };
+
+  /**
+   * Handle opening the remove label confirmation modal
+   * @param transaction - Transaction to remove label from
+   * @param label - Label to remove
+   */
+  const handleOpenRemoveLabelModal = (transaction: ITransaction, label: ILabelTransaction) => {
+    setLabelToRemove({ transaction, label });
+    setIsRemoveLabelModalOpen(true);
+  };
+
+  /**
+   * Handle closing the remove label modal
+   */
+  const handleCloseRemoveLabelModal = () => {
+    setIsRemoveLabelModalOpen(false);
+    setLabelToRemove(null);
+  };
+
+  /**
+   * Handle confirming the label removal
+   */
+  const handleConfirmRemoveLabel = async () => {
+    if (labelToRemove) {
+      try {
+        await dispatch(removeLabelFromTransaction({
+          transactionHref: labelToRemove.transaction.href,
+          key: labelToRemove.label.key,
+          value: labelToRemove.label.value,
+        }));
+        handleCloseRemoveLabelModal();
+      } catch (error) {
+        console.error('Failed to remove label:', error);
+        // Handle error (could show a toast notification)
+      }
+    }
   };
 
   /**
@@ -833,10 +876,11 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                       <FlexItem key={`label-${idx}`}>
                         <Label
                           variant={theme === 'dark' ? 'outline' : 'filled'}
-                          color="green"
+                          color={isKeyOfObject('rule_href', label) ? 'green' : 'red'}
                           onClick={() => handleLabelClick(`${label.key}=${label.value}`)}
                           style={{ cursor: 'pointer' }}
                           aria-label={`Filter by ${label.key}=${label.value} label`}
+                          onClose={!isKeyOfObject('rule_href', label) ? () => handleOpenRemoveLabelModal(t, label) : undefined}
                         >
                           {label.key}={label.value}
                         </Label>
@@ -847,7 +891,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                 {/* Amount Column */}
                 <Td dataLabel={columns.amount}>
                   <Content>
-                    <strong>{t.amount.toFixed(2)}</strong>
+                    {t.amount.toFixed(2)}
                   </Content>
                 </Td>
                 {/* Actions Column */}
@@ -899,6 +943,15 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
           transactionDescription={selectedTransactionForLabel.description}
         />
       )}
+
+      {/* Remove Label Confirmation Modal */}
+      <RemoveLabelModal
+        isOpen={isRemoveLabelModalOpen}
+        onClose={handleCloseRemoveLabelModal}
+        onConfirm={handleConfirmRemoveLabel}
+        transaction={labelToRemove?.transaction}
+        label={labelToRemove?.label}
+      />
     </React.Fragment>
   );
 };

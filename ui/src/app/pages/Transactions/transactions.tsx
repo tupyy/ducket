@@ -31,7 +31,6 @@ const Transactions: React.FC = () => {
     if (transactions.transactions.length > 0) {
       dispatch(
         calculateTransactionSummary({
-          allTransactions: transactions.transactions,
           filteredTransactions: filteredTransactions,
         })
       );
@@ -68,7 +67,7 @@ const Transactions: React.FC = () => {
     return 'custom';
   };
 
-  
+
 
   const emptyState = (
     <EmptyState variant={EmptyStateVariant.full} titleText="No transactions" icon={CubesIcon}>

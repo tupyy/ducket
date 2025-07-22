@@ -26,39 +26,51 @@ export interface ILabelListProps {
 }
 
 interface RepositoryFilters {
-  name: string;
-  rules: string;
+  key: string;
+  value: string;
 }
 
 const columns = {
-  name: 'Name',
-  rules: 'Rules',
-  action: 'action',
+  Label: 'Label',
+  Rule: 'Rule',
 };
 
 // eslint-disable-next-line prefer-const
 const LabelsList: React.FunctionComponent<ILabelListProps> = ({ labels }) => {
   const { theme } = useTheme();
   const [page, setPage] = React.useState<number | undefined>(1);
-  const [perPage, setPerPage] = React.useState<number>(10);
+  const [perPage, setPerPage] = React.useState<number>(20);
   const { filters, onSetFilters, clearAllFilters } = useDataViewFilters<RepositoryFilters>({
-    initialFilters: { name: '', rules: '' },
+    initialFilters: { key: '', value: '' },
   });
 
   const filteredRows = React.useMemo(
     () =>
-      labels.filter(
-        (label) =>
-          !filters.name || `${label.key}=${label.value}`.toLocaleLowerCase().includes(filters.name?.toLocaleLowerCase())
-      ),
+      labels.filter((label) => {
+        let keyMatch = true;
+        let valueMatch = true;
+        
+        // Filter by key if key filter is provided
+        if (filters.key) {
+          keyMatch = label.key.toLowerCase().includes(filters.key.toLowerCase());
+        }
+        
+        // Filter by value if value filter is provided
+        if (filters.value) {
+          valueMatch = label.value.toLowerCase().includes(filters.value.toLowerCase());
+        }
+        
+        // Both filters must match (AND logic)
+        return keyMatch && valueMatch;
+      }),
     [filters, labels]
   );
-  const [paginatedRows, setPaginatedRows] = React.useState(filteredRows.slice(0, 10));
+  const [paginatedRows, setPaginatedRows] = React.useState(filteredRows.slice(0, 20));
 
   React.useEffect(() => {
-    setPaginatedRows(filteredRows?.slice(0, 10));
+    setPaginatedRows(filteredRows?.slice(0, perPage));
     setPage(1);
-  }, [filteredRows]);
+  }, [filteredRows, perPage]);
 
   const handleSetPage = (
     _evt: React.MouseEvent | React.KeyboardEvent | MouseEvent,
@@ -138,8 +150,8 @@ const LabelsList: React.FunctionComponent<ILabelListProps> = ({ labels }) => {
       clearAllFilters={clearAllFilters}
       filters={
         <DataViewFilters onChange={(_e, values) => onSetFilters(values)} values={filters}>
-          <DataViewTextFilter filterId="name" title="Name" placeholder="Filter by name" />
-          <DataViewTextFilter filterId="rules" title="Rules" placeholder="Filter by rules" />
+          <DataViewTextFilter filterId="key" title="Key" placeholder="Filter by key" />
+          <DataViewTextFilter filterId="value" title="Value" placeholder="Filter by value" />
         </DataViewFilters>
       }
       pagination={renderPagination(PaginationVariant.top, true, false, false)}
@@ -153,12 +165,12 @@ const LabelsList: React.FunctionComponent<ILabelListProps> = ({ labels }) => {
           <Tr>
             <Th>
               <Content component={ContentVariants.p}>
-                <strong>{columns.name}</strong>
+                <strong>{columns.Label}</strong>
               </Content>
             </Th>
             <Th>
               <Content component={ContentVariants.p}>
-                <strong>{columns.rules}</strong>
+                <strong>{columns.Rule}</strong>
               </Content>
             </Th>
           </Tr>
@@ -166,12 +178,12 @@ const LabelsList: React.FunctionComponent<ILabelListProps> = ({ labels }) => {
         <Tbody>
           {paginatedRows.map((label: ILabel, i: number) => (
             <Tr key={`label-${i}`}>
-              <Td dataLabel={columns.name}>
+              <Td dataLabel={columns.Label}>
                 <Content component={ContentVariants.p}>
                   {label.key}={label.value}
                 </Content>
               </Td>
-              <Td dataLabel={columns.rules}>{renderRuleCell(label)}</Td>
+              <Td dataLabel={columns.Rule}>{renderRuleCell(label)}</Td>
             </Tr>
           ))}
         </Tbody>

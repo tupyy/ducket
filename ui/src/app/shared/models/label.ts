@@ -80,3 +80,7 @@ export interface IMonthlyTagSummary {
   tags: IMonthlyTagReport[];
   totalAmount: number;
 }
+
+export function isKeyOfObject<T extends object>(key: string , obj: T):boolean  {
+  return key in obj;
+}

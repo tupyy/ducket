@@ -109,6 +109,40 @@ export const addLabelToTransaction = createAsyncThunk(
   { serializeError: serializeAxiosError }
 );
 
+export const removeLabelFromTransaction = createAsyncThunk(
+  'transactions/removeLabel',
+  async (params: { transactionHref: string; key: string; value: string }, thunkAPI) => {
+    // Extract transaction ID from href (assuming href is like "/api/v1/transactions/123")
+    const transactionId = params.transactionHref.split('/').pop();
+    const url = `${transactionApiUrl}/${transactionId}/labels`;
+
+    // DELETE request with label data in the body
+    const labelData = {
+      key: params.key,
+      value: params.value,
+    };
+
+    const result = await axios.delete(url, { data: labelData });
+    
+    // Refresh transactions after removing label
+    await thunkAPI.dispatch(getTransactions());
+    
+    // Recalculate filters after transactions are refreshed
+    const state = thunkAPI.getState() as any;
+    const filterState = state.transactionFilter;
+    
+    thunkAPI.dispatch(applyFilters({
+      selectedLabels: filterState.selectedLabels,
+      selectedTransactionTypes: filterState.selectedTransactionTypes,
+      selectedAccounts: filterState.selectedAccounts,
+      descriptionFilter: filterState.descriptionFilter,
+    }));
+    
+    return result;
+  },
+  { serializeError: serializeAxiosError }
+);
+
 export const deleteTransaction = createAsyncThunk(
   'transactions/delete',
   async (name: string, thunkAPI) => {

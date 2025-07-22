@@ -27,7 +27,7 @@ const LabelFilter: React.FC<LabelFilterProps> = ({
   availableLabels,
   selectedLabels,
   onLabelsChange,
-  placeholder = 'Filter by labels...',
+  placeholder = 'Filter by key or value...',
 }) => {
   const { theme } = useTheme();
   const [isOpen, setIsOpen] = React.useState<boolean>(false);
@@ -55,9 +55,34 @@ const LabelFilter: React.FC<LabelFilterProps> = ({
   };
 
   // Filter available labels based on input and exclude already selected ones
-  const filteredLabels = availableLabels.filter(
-    (label) => !selectedLabels.includes(label) && label.toLowerCase().includes(inputValue.toLowerCase()),
-  );
+  // Filter by either key or value
+  const filteredLabels = availableLabels.filter((label) => {
+    if (selectedLabels.includes(label)) {
+      return false;
+    }
+    
+    if (!inputValue) {
+      return true;
+    }
+    
+    const searchTerm = inputValue.toLowerCase();
+    
+    // Check if the entire label contains the search term (backward compatibility)
+    if (label.toLowerCase().includes(searchTerm)) {
+      return true;
+    }
+    
+    // Split label by "=" and check key and value separately
+    const [key, value] = label.split('=');
+    if (key && key.toLowerCase().includes(searchTerm)) {
+      return true;
+    }
+    if (value && value.toLowerCase().includes(searchTerm)) {
+      return true;
+    }
+    
+    return false;
+  });
 
   const toggle = (toggleRef: React.Ref<MenuToggleElement>) => (
     <MenuToggle ref={toggleRef} onClick={() => setIsOpen(!isOpen)} isExpanded={isOpen} style={{ width: '300px' }}>
