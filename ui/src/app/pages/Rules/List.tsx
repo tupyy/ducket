@@ -13,11 +13,10 @@ import {
   PageSection,
   Pagination,
   PaginationVariant,
+  TextInput,
 } from '@patternfly/react-core';
 import { IRule } from '@app/shared/models/rule';
-import { DataView, DataViewToolbar, useDataViewFilters } from '@patternfly/react-data-view';
-import { DataViewFilters } from '@patternfly/react-data-view/dist/dynamic/DataViewFilters';
-import { DataViewTextFilter } from '@patternfly/react-data-view/dist/dynamic/DataViewTextFilter';
+import { DataView, DataViewToolbar } from '@patternfly/react-data-view';
 import { Table, Tbody, Td, Th, Thead, Tr, ActionsColumn, IAction } from '@patternfly/react-table';
 import { ILabel } from '@app/shared/models/label';
 import { useTheme } from '@app/shared/contexts/ThemeContext';
@@ -27,8 +26,10 @@ export interface IRuleListProps {
   showCreateRuleFormCB: () => void;
   showEditRuleFormCB: (rule: IRule) => void;
   onSyncRule: (ruleName: string) => void;
+  onSyncAllRules: () => void;
   onDeleteRule: (ruleName: string) => void;
   syncing?: boolean;
+  syncingAll?: boolean;
 }
 
 interface RepositoryFilters {
@@ -50,15 +51,15 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({
   showCreateRuleFormCB,
   showEditRuleFormCB,
   onSyncRule,
+  onSyncAllRules,
   onDeleteRule,
   syncing = false,
+  syncingAll = false,
 }) => {
   const { theme } = useTheme();
   const [page, setPage] = React.useState<number | undefined>(1);
   const [perPage, setPerPage] = React.useState<number>(10);
-  const { filters, onSetFilters, clearAllFilters } = useDataViewFilters<RepositoryFilters>({
-    initialFilters: { name: '', pattern: '' },
-  });
+  const [filters, setFilters] = React.useState<RepositoryFilters>({ name: '', pattern: '' });
 
   const filteredRows = React.useMemo(
     () =>
@@ -97,6 +98,17 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({
     setPerPage(newPerPage);
   };
 
+  const handleFilterChange = (
+    _evt: React.FormEvent<HTMLInputElement> | React.ChangeEvent<HTMLTextAreaElement>,
+    value: string
+  ) => {
+    setFilters((prev) => ({ ...prev, name: value }));
+  };
+
+  const clearAllFilters = () => {
+    setFilters({ name: '', pattern: '' });
+  };
+
   const emptyState = (
     <EmptyState variant={EmptyStateVariant.full} titleText="No rules" icon={CubesIcon}>
       <EmptyStateBody>
@@ -130,18 +142,41 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({
     />
   );
 
-  const renderToolbar = (
-    <DataViewToolbar
-      bulkSelect={
+  const renderButtons = (
+    <div style={{ padding: '1rem 0', marginBottom: '1rem' }}>
+      <div style={{ display: 'flex', gap: '0.5rem' }}>
         <Button onClick={showCreateRuleFormCB} variant="control">
           Create rule
         </Button>
-      }
-      clearAllFilters={clearAllFilters}
+        <Button onClick={onSyncAllRules} variant="control" isLoading={syncingAll} isDisabled={syncingAll}>
+          {syncingAll ? 'Syncing all rules...' : 'Sync all rules'}
+        </Button>
+      </div>
+    </div>
+  );
+
+  const renderToolbar = (
+    <DataViewToolbar
       filters={
-        <DataViewFilters onChange={(_e, values) => onSetFilters(values)} values={filters}>
-          <DataViewTextFilter filterId="name" title="Name" placeholder="Filter by name" />
-        </DataViewFilters>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <TextInput
+            type="text"
+            placeholder="Filter by name"
+            value={filters.name}
+            onChange={handleFilterChange}
+            aria-label="Name filter"
+            style={{ width: '300px' }}
+          />
+          {(filters.name) && (
+            <Button
+              variant="link"
+              onClick={clearAllFilters}
+              size="sm"
+            >
+              Clear filter
+            </Button>
+          )}
+        </div>
       }
       pagination={renderPagination(PaginationVariant.top, true, false, false)}
     />
@@ -172,7 +207,7 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({
                 <strong>{columns.transactions}</strong>
               </Content>
             </Th>
-            <Th screenReaderText='actions'/>
+            <Th screenReaderText="actions" />
           </Tr>
         </Thead>
         <Tbody>
@@ -237,11 +272,14 @@ const RulesList: React.FunctionComponent<IRuleListProps> = ({
       {rules.length === 0 ? (
         emptyState
       ) : (
-        <DataView>
-          {renderToolbar}
-          {renderList}
-          {renderPagination(PaginationVariant.bottom, false, false, true)}
-        </DataView>
+        <React.Fragment>
+          {renderButtons}
+          <DataView>
+            {renderToolbar}
+            {renderList}
+            {renderPagination(PaginationVariant.bottom, false, false, true)}
+          </DataView>
+        </React.Fragment>
       )}
     </PageSection>
   );

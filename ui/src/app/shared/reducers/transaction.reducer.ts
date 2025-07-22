@@ -2,7 +2,6 @@ import axios from 'axios';
 
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { serializeAxiosError } from '@app/shared/reducers/reducer.utils';
-import { createAxiosDateTransformer } from 'axios-date-transformer';
 import { ITransaction, ITransactionForm, ITransactionUpdateForm, ITransactions } from '@app/shared/models/transaction';
 
 const transactionApiUrl = 'api/v1/transactions';
@@ -16,6 +15,8 @@ const initialState = {
   updateSuccess: false,
   deleting: false,
   deleteSuccess: false,
+  addingLabel: false,
+  addLabelSuccess: false,
   transactions: [] as Array<ITransaction>,
   totalItems: 0,
 };
@@ -43,7 +44,7 @@ export const getTransactions = createAsyncThunk(
 
     return axios.get<ITransactions>(url);
   },
-  { serializeError: serializeAxiosError },
+  { serializeError: serializeAxiosError }
 );
 
 export const createTransaction = createAsyncThunk(
@@ -54,7 +55,7 @@ export const createTransaction = createAsyncThunk(
     });
     return result;
   },
-  { serializeError: serializeAxiosError },
+  { serializeError: serializeAxiosError }
 );
 
 export const updateTransaction = createAsyncThunk(
@@ -71,7 +72,28 @@ export const updateTransaction = createAsyncThunk(
     const result = axios.put<ITransactionForm>(url, newTransaction).then(() => thunkAPI.dispatch(getTransactions()));
     return result;
   },
-  { serializeError: serializeAxiosError },
+  { serializeError: serializeAxiosError }
+);
+
+export const addLabelToTransaction = createAsyncThunk(
+  'transactions/addLabel',
+  async (params: { transactionHref: string; key: string; value: string }, thunkAPI) => {
+    // Extract transaction ID from href (assuming href is like "/api/v1/transactions/123")
+    const transactionId = params.transactionHref.split('/').pop();
+    const url = `${transactionApiUrl}/${transactionId}/labels`;
+
+    const labelData = {
+      key: params.key,
+      value: params.value,
+    };
+
+    const result = axios.post(url, labelData).then(() => {
+      // Refresh transactions after adding label
+      thunkAPI.dispatch(getTransactions());
+    });
+    return result;
+  },
+  { serializeError: serializeAxiosError }
 );
 
 export const deleteTransaction = createAsyncThunk(
@@ -81,7 +103,7 @@ export const deleteTransaction = createAsyncThunk(
     const result = axios.delete<void>(url).then(() => thunkAPI.dispatch(getTransactions()));
     return result;
   },
-  { serializeError: serializeAxiosError },
+  { serializeError: serializeAxiosError }
 );
 
 export type transactionState = Readonly<typeof initialState>;
@@ -125,6 +147,11 @@ export const TransactionManagementSlice = createSlice({
         state.deleteSuccess = false;
         state.errorMessage = '';
       })
+      .addCase(addLabelToTransaction.pending, (state) => {
+        state.addingLabel = true;
+        state.addLabelSuccess = false;
+        state.errorMessage = '';
+      })
       .addCase(createTransaction.fulfilled, (state) => {
         state.creating = false;
         state.errorMessage = '';
@@ -138,6 +165,11 @@ export const TransactionManagementSlice = createSlice({
       .addCase(deleteTransaction.fulfilled, (state) => {
         state.deleting = false;
         state.deleteSuccess = true;
+        state.errorMessage = '';
+      })
+      .addCase(addLabelToTransaction.fulfilled, (state) => {
+        state.addingLabel = false;
+        state.addLabelSuccess = true;
         state.errorMessage = '';
       })
       .addCase(createTransaction.rejected, (state, action) => {
@@ -154,6 +186,11 @@ export const TransactionManagementSlice = createSlice({
         state.deleting = false;
         state.errorMessage = action.error.message || 'error deleting transaction';
         state.deleteSuccess = false;
+      })
+      .addCase(addLabelToTransaction.rejected, (state, action) => {
+        state.addingLabel = false;
+        state.errorMessage = action.error.message || 'error adding label to transaction';
+        state.addLabelSuccess = false;
       });
   },
 });

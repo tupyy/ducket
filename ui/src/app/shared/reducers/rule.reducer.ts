@@ -18,6 +18,8 @@ const initialState = {
   deleteSuccess: false,
   syncing: false,
   syncSuccess: false,
+  syncingAll: false,
+  syncAllSuccess: false,
   rules: [] as Array<IRule>,
   totalItems: 0,
 };
@@ -77,6 +79,16 @@ export const syncRule = createAsyncThunk(
   { serializeError: serializeAxiosError },
 );
 
+export const syncAllRules = createAsyncThunk(
+  'rules/syncAll',
+  async (_, thunkAPI) => {
+    const url = `${ruleApiUrl}/process`;
+    const result = axios.post<void>(url).then(() => thunkAPI.dispatch(getRules()));
+    return result;
+  },
+  { serializeError: serializeAxiosError },
+);
+
 export type RuleState = Readonly<typeof initialState>;
 
 export const RuleManagementSlice = createSlice({
@@ -123,6 +135,11 @@ export const RuleManagementSlice = createSlice({
         state.syncSuccess = false;
         state.errorMessage = '';
       })
+      .addCase(syncAllRules.pending, (state) => {
+        state.syncingAll = true;
+        state.syncAllSuccess = false;
+        state.errorMessage = '';
+      })
       .addCase(createRule.fulfilled, (state) => {
         state.creating = false;
         state.errorMessage = '';
@@ -141,6 +158,11 @@ export const RuleManagementSlice = createSlice({
       .addCase(syncRule.fulfilled, (state) => {
         state.syncing = false;
         state.syncSuccess = true;
+        state.errorMessage = '';
+      })
+      .addCase(syncAllRules.fulfilled, (state) => {
+        state.syncingAll = false;
+        state.syncAllSuccess = true;
         state.errorMessage = '';
       })
       .addCase(createRule.rejected, (state, action) => {
@@ -162,6 +184,11 @@ export const RuleManagementSlice = createSlice({
         state.syncing = false;
         state.errorMessage = action.error.message || 'error syncing rule';
         state.syncSuccess = false;
+      })
+      .addCase(syncAllRules.rejected, (state, action) => {
+        state.syncingAll = false;
+        state.errorMessage = action.error.message || 'error syncing all rules';
+        state.syncAllSuccess = false;
       });
   },
 });

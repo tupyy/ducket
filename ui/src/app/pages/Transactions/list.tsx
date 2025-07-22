@@ -13,16 +13,33 @@ import {
   MenuToggle,
   MenuToggleElement,
   Button,
+  TextInput,
 } from '@patternfly/react-core';
 import { DataView, DataViewToolbar } from '@patternfly/react-data-view';
 import { ExpandableRowContent, Table, Tbody, Td, Th, Thead, ThProps, Tr } from '@patternfly/react-table';
+import { PlusIcon } from '@patternfly/react-icons';
 import { ILabelTransaction, ITransaction } from '@app/shared/models/transaction';
 import { LabelFilter } from '@app/shared/components/label-filter';
+import { AddLabelModal } from '@app/shared/components/AddLabelModal';
 import { useTheme } from '@app/shared/contexts/ThemeContext';
 import { getAccountColor, getAccountDarkColor } from '@app/utils/colorUtils';
 import { safeFormatDateString } from '@app/utils/dateUtils';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
-import { setSourceTransactions, applyFilters } from '@app/shared/reducers/transaction-filter.reducer';
+import {
+  setSourceTransactions,
+  setSelectedLabels,
+  setSelectedTransactionTypes,
+  setSelectedAccounts,
+  setDescriptionFilter,
+  clearAllFilters,
+  applyFilters,
+  setPage,
+  setPerPage,
+  setSorting,
+  clearSorting,
+  setTransactionExpanded,
+  toggleAllExpanded,
+} from '@app/shared/reducers/transaction-filter.reducer';
 
 export interface ITransactionListProps {
   transactions: Array<ITransaction> | [];
@@ -36,6 +53,7 @@ const columns = {
   amount: 'Amount',
   labels: 'Labels',
   rules: 'Rules',
+  actions: 'Actions',
 };
 
 /**
@@ -49,38 +67,36 @@ const columns = {
  * - Expandable rows showing transaction descriptions
  * - Expand all/collapse all functionality
  * - Interactive labels and filters for quick filtering
+ * - All table state persists across navigation via Redux reducer
  */
 const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ transactions }) => {
   const { theme } = useTheme();
   const dispatch = useAppDispatch();
 
-  // Get filtered transactions from the filter reducer
-  const { filteredTransactions } = useAppSelector((state) => state.transactionFilter);
+  // Get all table state from the filter reducer
+  const {
+    filteredTransactions,
+    selectedLabels,
+    selectedTransactionTypes,
+    selectedAccounts,
+    descriptionFilter,
+    page,
+    perPage,
+    sortDirection,
+    sortIndex,
+    expandedTransactions,
+  } = useAppSelector((state) => state.transactionFilter);
 
   // ===============================
-  // STATE MANAGEMENT
+  // LOCAL UI STATE (NON-PERSISTENT)
   // ===============================
-
-  // Filter states
-  const [selectedLabels, setSelectedLabels] = React.useState<string[]>([]);
-  const [selectedTransactionTypes, setSelectedTransactionTypes] = React.useState<string[]>([]);
-  const [selectedAccounts, setSelectedAccounts] = React.useState<number[]>([]);
-
-  // UI states for dropdown controls
+  // Keep only UI states for dropdown controls as local state since they shouldn't persist
   const [isTransactionTypeSelectOpen, setIsTransactionTypeSelectOpen] = React.useState(false);
   const [isAccountSelectOpen, setIsAccountSelectOpen] = React.useState(false);
 
-  // Pagination states
-  const [page, setPage] = React.useState<number | undefined>(1);
-  const [perPage, setPerPage] = React.useState<number>(10);
-
-  // Sorting states
-  const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc' | null>(null);
-  const [sortIndex, setSortIndex] = React.useState<number | null>(null);
-
-  // Row expansion states
-  const [expandedTransactions, setExpandedTransactions] = React.useState<string[]>([]);
-  const [allExpanded, setAllExpanded] = React.useState<boolean>(false);
+  // Modal state for adding labels
+  const [isAddLabelModalOpen, setIsAddLabelModalOpen] = React.useState(false);
+  const [selectedTransactionForLabel, setSelectedTransactionForLabel] = React.useState<ITransaction | null>(null);
 
   // ===============================
   // COMPUTED VALUES
@@ -90,7 +106,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   const availableLabels = React.useMemo(() => {
     const labelSet = new Set<string>();
     const keySet = new Set<string>();
-    
+
     transactions.forEach((transaction) => {
       transaction.labels.forEach((label) => {
         // Add exact key=value pairs
@@ -99,12 +115,12 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
         keySet.add(label.key);
       });
     });
-    
+
     // Add wildcard options for each unique key
     keySet.forEach((key) => {
       labelSet.add(`${key}=*`);
     });
-    
+
     // Convert to array and sort with custom logic:
     // 1. Group by key (wildcard first, then specific values)
     // 2. Sort keys alphabetically
@@ -112,12 +128,12 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     return labels.sort((a, b) => {
       const [keyA, valueA] = a.split('=');
       const [keyB, valueB] = b.split('=');
-      
+
       // First sort by key
       if (keyA !== keyB) {
         return keyA.localeCompare(keyB);
       }
-      
+
       // Same key: wildcards (*) come first, then alphabetical values
       if (valueA === '*' && valueB !== '*') return -1;
       if (valueA !== '*' && valueB === '*') return 1;
@@ -153,25 +169,8 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
    * @returns Color name for the label
    */
   const getTransactionKindColor = (kind: string): 'red' | 'blue' => {
-    return kind === 'EXPENSE' ? 'red' : 'blue';
+    return kind === 'credit' ? 'red' : 'blue';
   };
-
-  /**
-   * Set transaction expanded state
-   * @param t - Transaction to expand/collapse
-   * @param isExpanding - Whether to expand (true) or collapse (false)
-   */
-  const setTransactionExpanded = (t: ITransaction, isExpanding = true) =>
-    setExpandedTransactions((prevExpanded) => {
-      const transactionIndex = prevExpanded.findIndex((href) => href === t.href);
-      const newExpanded = [...prevExpanded];
-      if (isExpanding && transactionIndex === -1) {
-        newExpanded.push(t.href);
-      } else if (!isExpanding && transactionIndex !== -1) {
-        newExpanded.splice(transactionIndex, 1);
-      }
-      return newExpanded;
-    });
 
   /**
    * Check if a transaction is currently expanded
@@ -184,25 +183,21 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   // EFFECTS
   // ===============================
 
-  // Apply filters whenever filter selections change
+  // Set source transactions and apply filters whenever transactions change
   React.useEffect(() => {
     // Set source transactions for the filter reducer
     dispatch(setSourceTransactions(transactions));
 
-    // Apply filters
+    // Apply current filters to new transaction data
     dispatch(
       applyFilters({
         selectedLabels,
         selectedTransactionTypes,
         selectedAccounts,
+        descriptionFilter,
       })
     );
-
-    // Reset pagination to first page when filters change
-    setPage(1);
-  }, [transactions, selectedLabels, selectedTransactionTypes, selectedAccounts, dispatch]);
-
-
+  }, [transactions, selectedLabels, selectedTransactionTypes, selectedAccounts, descriptionFilter, dispatch]);
 
   // ===============================
   // SORTING AND PAGINATION
@@ -234,10 +229,10 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
             // Parse both dates and handle invalid dates consistently
             const aDate = new Date(a.date);
             const bDate = new Date(b.date);
-            
+
             const aIsValid = !isNaN(aDate.getTime());
             const bIsValid = !isNaN(bDate.getTime());
-            
+
             // Both dates are valid - use numeric comparison
             if (aIsValid && bIsValid) {
               aValue = aDate.getTime();
@@ -298,15 +293,6 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     return sortTransactions(filteredTransactions, sortIndex, sortDirection);
   }, [filteredTransactions, sortIndex, sortDirection]);
 
-  // Reset pagination when the data set changes (handles date filtering, local filtering, etc.)
-  React.useEffect(() => {
-    // Always reset to page 1 when the data set size changes
-    // This handles date filtering, local filtering, and other data changes
-    if (sortedTransactions.length > 0) {
-      setPage(1);
-    }
-  }, [sortedTransactions.length]);
-
   // Apply pagination to sorted transactions
   const paginatedTransactions = React.useMemo(() => {
     const startIdx = ((page || 1) - 1) * perPage;
@@ -320,7 +306,9 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
 
   // Check if all current page transactions are expanded
   const areAllCurrentPageExpanded = React.useMemo(() => {
-    return paginatedTransactions.length > 0 && paginatedTransactions.every(t => expandedTransactions.includes(t.href));
+    return (
+      paginatedTransactions.length > 0 && paginatedTransactions.every((t) => expandedTransactions.includes(t.href))
+    );
   }, [paginatedTransactions, expandedTransactions]);
 
   /**
@@ -328,15 +316,8 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
    * Only affects transactions on the current page
    */
   const handleExpandAll = () => {
-    if (areAllCurrentPageExpanded) {
-      // Collapse all current page transactions
-      const currentPageHrefs = paginatedTransactions.map(t => t.href);
-      setExpandedTransactions(prev => prev.filter(href => !currentPageHrefs.includes(href)));
-    } else {
-      // Expand all current page transactions
-      const currentPageHrefs = paginatedTransactions.map(t => t.href);
-      setExpandedTransactions(prev => Array.from(new Set([...prev, ...currentPageHrefs])));
-    }
+    const currentPageHrefs = paginatedTransactions.map((t) => t.href);
+    dispatch(toggleAllExpanded(currentPageHrefs));
   };
 
   // ===============================
@@ -349,7 +330,15 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
    */
   const handleLabelsChange = (labels: string[]) => {
     console.log('Selected labels changed:', labels);
-    setSelectedLabels(labels);
+    dispatch(setSelectedLabels(labels));
+  };
+
+  /**
+   * Handle description filter changes
+   * @param value - Description filter text
+   */
+  const handleDescriptionFilterChange = (value: string) => {
+    dispatch(setDescriptionFilter(value));
   };
 
   // Transaction type filter handlers
@@ -362,15 +351,15 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     value: string | number | undefined
   ) => {
     const stringValue = String(value);
-    if (selectedTransactionTypes.includes(stringValue)) {
-      setSelectedTransactionTypes(selectedTransactionTypes.filter((type) => type !== stringValue));
-    } else {
-      setSelectedTransactionTypes([...selectedTransactionTypes, stringValue]);
-    }
+    const newSelectedTypes = selectedTransactionTypes.includes(stringValue)
+      ? selectedTransactionTypes.filter((type) => type !== stringValue)
+      : [...selectedTransactionTypes, stringValue];
+    dispatch(setSelectedTransactionTypes(newSelectedTypes));
   };
 
   const handleTransactionTypeRemove = (typeToRemove: string) => {
-    setSelectedTransactionTypes(selectedTransactionTypes.filter((type) => type !== typeToRemove));
+    const newSelectedTypes = selectedTransactionTypes.filter((type) => type !== typeToRemove);
+    dispatch(setSelectedTransactionTypes(newSelectedTypes));
   };
 
   // Account filter handlers
@@ -383,29 +372,44 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     value: string | number | undefined
   ) => {
     const numberValue = Number(value);
-    if (selectedAccounts.includes(numberValue)) {
-      setSelectedAccounts(selectedAccounts.filter((account) => account !== numberValue));
-    } else {
-      setSelectedAccounts([...selectedAccounts, numberValue]);
-    }
+    const newSelectedAccounts = selectedAccounts.includes(numberValue)
+      ? selectedAccounts.filter((account) => account !== numberValue)
+      : [...selectedAccounts, numberValue];
+    dispatch(setSelectedAccounts(newSelectedAccounts));
   };
 
   const handleAccountRemove = (accountToRemove: number) => {
-    setSelectedAccounts(selectedAccounts.filter((account) => account !== accountToRemove));
+    const newSelectedAccounts = selectedAccounts.filter((account) => account !== accountToRemove);
+    dispatch(setSelectedAccounts(newSelectedAccounts));
   };
 
   /**
    * Clear all active filters
    */
   const handleClearAllFilters = () => {
-    setSelectedLabels([]);
-    setSelectedTransactionTypes([]);
-    setSelectedAccounts([]);
+    dispatch(clearAllFilters());
   };
 
   // ===============================
   // INTERACTIVE CLICK HANDLERS
   // ===============================
+
+  /**
+   * Handle opening the add label modal
+   * @param transaction - Transaction to add label to
+   */
+  const handleOpenAddLabelModal = (transaction: ITransaction) => {
+    setSelectedTransactionForLabel(transaction);
+    setIsAddLabelModalOpen(true);
+  };
+
+  /**
+   * Handle closing the add label modal
+   */
+  const handleCloseAddLabelModal = () => {
+    setIsAddLabelModalOpen(false);
+    setSelectedTransactionForLabel(null);
+  };
 
   /**
    * Handle clicking on a label to add/remove it from filters
@@ -415,7 +419,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     const newSelectedLabels = selectedLabels.includes(labelValue)
       ? selectedLabels.filter((label) => label !== labelValue)
       : [...selectedLabels, labelValue];
-    setSelectedLabels(newSelectedLabels);
+    dispatch(setSelectedLabels(newSelectedLabels));
   };
 
   /**
@@ -435,7 +439,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
 
     const ruleLabelsArray = Array.from(ruleLabels);
     const newSelectedLabels = Array.from(new Set([...selectedLabels, ...ruleLabelsArray]));
-    setSelectedLabels(newSelectedLabels);
+    dispatch(setSelectedLabels(newSelectedLabels));
   };
 
   /**
@@ -446,7 +450,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     const newSelectedTypes = selectedTransactionTypes.includes(transactionType)
       ? selectedTransactionTypes.filter((type) => type !== transactionType)
       : [...selectedTransactionTypes, transactionType];
-    setSelectedTransactionTypes(newSelectedTypes);
+    dispatch(setSelectedTransactionTypes(newSelectedTypes));
   };
 
   /**
@@ -457,7 +461,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     const newSelectedAccounts = selectedAccounts.includes(accountNumber)
       ? selectedAccounts.filter((account) => account !== accountNumber)
       : [...selectedAccounts, accountNumber];
-    setSelectedAccounts(newSelectedAccounts);
+    dispatch(setSelectedAccounts(newSelectedAccounts));
   };
 
   // ===============================
@@ -475,10 +479,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
       direction: sortIndex === columnIndex ? sortDirection || undefined : undefined,
     },
     onSort: (_event, index, direction) => {
-      setSortIndex(index);
-      setSortDirection(direction);
-      // Reset pagination to first page when sorting changes
-      setPage(1);
+      dispatch(setSorting({ sortIndex: index, sortDirection: direction }));
     },
     columnIndex,
   });
@@ -494,7 +495,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     startIdx: number | undefined,
     endIdx: number | undefined
   ) => {
-    setPage(newPage);
+    dispatch(setPage(newPage));
   };
 
   const handlePerPageSelect = (
@@ -504,8 +505,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     startIdx: number | undefined,
     endIdx: number | undefined
   ) => {
-    setPerPage(newPerPage);
-    setPage(newPage);
+    dispatch(setPerPage({ perPage: newPerPage, page: newPage }));
   };
 
   // ===============================
@@ -553,6 +553,13 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
             onLabelsChange={handleLabelsChange}
             placeholder="Filter by labels..."
           />
+          <TextInput
+            type="text"
+            placeholder="Filter by description..."
+            value={descriptionFilter}
+            onChange={(_event, value) => handleDescriptionFilterChange(value)}
+            style={{ width: '200px' }}
+          />
           <Select
             id="transaction-type-select"
             isOpen={isTransactionTypeSelectOpen}
@@ -564,7 +571,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                 ref={toggleRef}
                 onClick={handleTransactionTypeToggle}
                 isExpanded={isTransactionTypeSelectOpen}
-                style={{ width: '200px' }}
+                style={{ width: '250px' }}
               >
                 Transaction Type
               </MenuToggle>
@@ -590,7 +597,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                 ref={toggleRef}
                 onClick={handleAccountToggle}
                 isExpanded={isAccountSelectOpen}
-                style={{ width: '200px' }}
+                style={{ width: '250px' }}
               >
                 Account
               </MenuToggle>
@@ -616,7 +623,10 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   const renderSelectedFilters = () => (
     <PageSection>
       <Flex direction={{ default: 'column' }}>
-        {(selectedLabels.length > 0 || selectedTransactionTypes.length > 0 || selectedAccounts.length > 0) && (
+        {(selectedLabels.length > 0 ||
+          selectedTransactionTypes.length > 0 ||
+          selectedAccounts.length > 0 ||
+          descriptionFilter.trim()) && (
           <FlexItem>
             <Content>
               <strong>Active Filters:</strong>
@@ -643,6 +653,27 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                   </Label>
                 </FlexItem>
               ))}
+            </Flex>
+          </FlexItem>
+        )}
+
+        {/* Description Filter */}
+        {descriptionFilter.trim() && (
+          <FlexItem>
+            <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
+              <FlexItem>
+                <Content>Description:</Content>
+              </FlexItem>
+              <FlexItem>
+                <Label
+                  variant="filled"
+                  color="teal"
+                  onClose={() => handleDescriptionFilterChange('')}
+                  closeBtnAriaLabel={`Remove description filter`}
+                >
+                  Contains "{descriptionFilter}"
+                </Label>
+              </FlexItem>
             </Flex>
           </FlexItem>
         )}
@@ -694,7 +725,10 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
         )}
 
         {/* Clear All Filters Button */}
-        {(selectedLabels.length > 0 || selectedTransactionTypes.length > 0 || selectedAccounts.length > 0) && (
+        {(selectedLabels.length > 0 ||
+          selectedTransactionTypes.length > 0 ||
+          selectedAccounts.length > 0 ||
+          descriptionFilter.trim()) && (
           <FlexItem>
             <Button
               variant="link"
@@ -745,6 +779,9 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
             <Th sort={getSortParams(3)}>
               <strong>{columns.amount}</strong>
             </Th>
+            <Th>
+              <strong>{columns.actions}</strong>
+            </Th>
           </Tr>
         </Thead>
         <Tbody>
@@ -757,13 +794,12 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                   expand={{
                     rowIndex,
                     isExpanded: isTransactionExpanded(t),
-                    onToggle: () => setTransactionExpanded(t, !isTransactionExpanded(t)),
+                    onToggle: () =>
+                      dispatch(setTransactionExpanded({ href: t.href, isExpanding: !isTransactionExpanded(t) })),
                   }}
                 />
                 {/* Date Column */}
-                <Td dataLabel={columns.date}>
-                  {safeFormatDateString(t.date)}
-                </Td>
+                <Td dataLabel={columns.date}>{safeFormatDateString(t.date)}</Td>
                 {/* Account Column - Clickable label for filtering */}
                 <Td dataLabel={columns.account}>
                   <Label
@@ -814,11 +850,21 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                     <strong>{t.amount.toFixed(2)}</strong>
                   </Content>
                 </Td>
+                {/* Actions Column */}
+                <Td dataLabel={columns.actions}>
+                  <Button
+                    variant="plain"
+                    onClick={() => handleOpenAddLabelModal(t)}
+                    aria-label="Add label to transaction"
+                  >
+                    <PlusIcon />
+                  </Button>
+                </Td>
               </Tr>
               {/* Expandable Row Content - Shows transaction description */}
               <Tr isExpanded={isTransactionExpanded(t)}>
                 <Td />
-                <Td colSpan={6}>
+                <Td colSpan={7}>
                   <ExpandableRowContent>
                     <Content>{t.description || 'No description'}</Content>
                   </ExpandableRowContent>
@@ -843,6 +889,16 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
         {renderList}
         {renderPagination(PaginationVariant.bottom, false, false, true)}
       </DataView>
+
+      {/* Add Label Modal */}
+      {selectedTransactionForLabel && (
+        <AddLabelModal
+          isOpen={isAddLabelModalOpen}
+          onClose={handleCloseAddLabelModal}
+          transactionHref={selectedTransactionForLabel.href}
+          transactionDescription={selectedTransactionForLabel.description}
+        />
+      )}
     </React.Fragment>
   );
 };

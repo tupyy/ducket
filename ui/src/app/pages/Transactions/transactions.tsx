@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { getTransactions } from '@app/shared/reducers/transaction.reducer';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
+import { setDateRange } from '@app/shared/reducers/transaction-filter.reducer';
 import {
   Card,
   CardBody,
@@ -21,62 +22,61 @@ import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
 const Transactions: React.FunctionComponent = () => {
   const dispatch = useAppDispatch();
   const transactions = useAppSelector((state) => state.transactions);
-  const { filteredTransactions } = useAppSelector((state) => state.transactionFilter);
-
-  // Initialize with last 30 days default date range
-  const defaultDateRange = React.useMemo(() => calculateDateRange('last 30 days'), []);
-  const [dateRange, setDateRange] = React.useState<{ startDate: string; endDate: string }>({
-    startDate: defaultDateRange.startDateValue,
-    endDate: defaultDateRange.endDateValue,
-  });
+  const { filteredTransactions, dateRange } = useAppSelector((state) => state.transactionFilter);
 
   // Calculate transaction summary based on current data
   const transactionSummary = React.useMemo(() => {
     // Always show totals by label key when no local filters are applied in the list component
     // We'll check if there are active filters by comparing source vs filtered transactions
     const hasActiveFilters = filteredTransactions.length !== transactions.transactions.length;
-    
+
     if (hasActiveFilters && filteredTransactions.length > 0) {
       // Show totals of filtered transactions
-      const totalAmount = filteredTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
       const transactionCount = filteredTransactions.length;
-      const debitTotal = filteredTransactions
-        .filter(t => t.kind === 'debit')
-        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
-      const creditTotal = filteredTransactions
-        .filter(t => t.kind === 'credit')
-        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
-      
+      const debitTransactions = filteredTransactions.filter(t => t.kind === 'credit');
+      const creditTransactions = filteredTransactions.filter(t => t.kind === 'debit');
+      const debitTotal = debitTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+      const creditTotal = creditTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
       return {
         type: 'filtered' as const,
         data: [
-          { label: 'Total Transactions', count: transactionCount, amount: totalAmount },
-          { label: 'Total Debits', count: filteredTransactions.filter(t => t.kind === 'debit').length, amount: -debitTotal },
-          { label: 'Total Credits', count: filteredTransactions.filter(t => t.kind === 'credit').length, amount: creditTotal },
+          {
+            label: 'Total Transactions',
+            count: transactionCount,
+            debitAmount: debitTotal,
+            creditAmount: creditTotal
+          },
         ]
       };
     } else {
       // Show totals by label key only
-      const labelKeyTotals: { [key: string]: { count: number; amount: number } } = {};
-      
+      const labelKeyTotals: { [key: string]: { count: number; debitAmount: number; creditAmount: number } } = {};
+
       transactions.transactions.forEach((transaction) => {
         transaction.labels.forEach((label) => {
           if (!labelKeyTotals[label.key]) {
-            labelKeyTotals[label.key] = { count: 0, amount: 0 };
+            labelKeyTotals[label.key] = { count: 0, debitAmount: 0, creditAmount: 0 };
           }
           labelKeyTotals[label.key].count += 1;
-          labelKeyTotals[label.key].amount += transaction.amount;
+
+          if (transaction.kind === 'credit') {
+            labelKeyTotals[label.key].debitAmount += Math.abs(transaction.amount);
+          } else if (transaction.kind === 'debit') {
+            labelKeyTotals[label.key].creditAmount += Math.abs(transaction.amount);
+          }
         });
       });
-      
+
       const data = Object.entries(labelKeyTotals)
         .map(([key, totals]) => ({
           label: key,
           count: totals.count,
-          amount: totals.amount
+          debitAmount: totals.debitAmount,
+          creditAmount: totals.creditAmount
         }))
-        .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)); // Sort by absolute amount descending
-      
+        .sort((a, b) => (Math.abs(b.debitAmount) + Math.abs(b.creditAmount)) - (Math.abs(a.debitAmount) + Math.abs(a.creditAmount))); // Sort by total absolute amount descending
+
       return {
         type: 'byLabelKey' as const,
         data
@@ -86,7 +86,7 @@ const Transactions: React.FunctionComponent = () => {
 
   React.useEffect(() => {
     // Fetch transactions when date range changes (backend filtering)
-    // This includes initial load with default date range (last 30 days)
+    // This includes initial load with the date range from reducer state
     dispatch(getTransactions({
       startDate: dateRange.startDate,
       endDate: dateRange.endDate
@@ -96,8 +96,18 @@ const Transactions: React.FunctionComponent = () => {
   const handleDateChange = (startDate: string, endDate: string) => {
     console.log('Date range changed:', { startDate, endDate });
     console.log('Previous dateRange:', dateRange);
-    setDateRange({ startDate, endDate });
+    dispatch(setDateRange({ startDate, endDate }));
     console.log('New dateRange will be:', { startDate, endDate });
+  };
+
+  // Determine initial time range for TimePicker component
+  const getInitialTimeRange = () => {
+    const defaultDateRange = calculateDateRange('last 30 days');
+    if (dateRange.startDate === defaultDateRange.startDateValue &&
+        dateRange.endDate === defaultDateRange.endDateValue) {
+      return 'last 30 days';
+    }
+    return 'custom';
   };
 
   /**
@@ -116,7 +126,8 @@ const Transactions: React.FunctionComponent = () => {
             <Tr>
               <Th>{transactionSummary.type === 'filtered' ? 'Type' : 'Label Key'}</Th>
               <Th>Count</Th>
-              <Th>Total Amount</Th>
+              <Th>Debit</Th>
+              <Th>Credit</Th>
             </Tr>
           </Thead>
           <Tbody>
@@ -131,16 +142,29 @@ const Transactions: React.FunctionComponent = () => {
                   <Content>{row.count}</Content>
                 </Td>
                 <Td>
-                  <Content 
-                    style={{ 
-                      color: row.amount >= 0 ? 'var(--pf-v6-global--success-color--100)' : 'var(--pf-v6-global--danger-color--100)',
+                  <Content
+                    style={{
+                      color: row.debitAmount > 0 ? 'var(--pf-v6-global--danger-color--100)' : 'var(--pf-v6-global--palette--black-600)',
                       fontWeight: 'bold'
                     }}
                   >
-                    {Math.abs(row.amount).toLocaleString('de-DE', { 
-                      minimumFractionDigits: 2, 
-                      maximumFractionDigits: 2 
-                    })}
+                    {row.debitAmount > 0 ? row.debitAmount.toLocaleString('de-DE', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    }) : '-'}
+                  </Content>
+                </Td>
+                <Td>
+                  <Content
+                    style={{
+                      color: row.creditAmount > 0 ? 'var(--pf-v6-global--success-color--100)' : 'var(--pf-v6-global--palette--black-600)',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    {row.creditAmount > 0 ? row.creditAmount.toLocaleString('de-DE', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    }) : '-'}
                   </Content>
                 </Td>
               </Tr>
@@ -166,7 +190,7 @@ const Transactions: React.FunctionComponent = () => {
       <div style={{ padding: '1rem' }}>
         {/* Transaction Summary Card */}
         {transactions.transactions.length > 0 && renderTransactionSummary()}
-        
+
         {/* Main Transaction List Card */}
         <Card>
           <CardBody>
@@ -179,7 +203,7 @@ const Transactions: React.FunctionComponent = () => {
                       onDateChange={handleDateChange}
                       initialStartDate={dateRange.startDate}
                       initialEndDate={dateRange.endDate}
-                      initialTimeRange="last 30 days"
+                      initialTimeRange={getInitialTimeRange()}
                     />
                   </ToolbarItem>
                 </ToolbarGroup>

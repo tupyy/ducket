@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { PageSection } from '@patternfly/react-core';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
-import { getRules, syncRule, deleteRule } from '@app/shared/reducers/rule.reducer';
+import { getRules, syncRule, syncAllRules, deleteRule } from '@app/shared/reducers/rule.reducer';
 import { RulesList } from '@app/pages/Rules/List';
 import { IRule } from '@app/shared/models/rule';
 import { RuleForm } from './Form';
@@ -35,6 +35,10 @@ const Rules: React.FunctionComponent = () => {
     dispatch(syncRule(ruleName));
   };
 
+  const handleSyncAllRules = () => {
+    dispatch(syncAllRules());
+  };
+
   const handleDeleteRule = (ruleName: string) => {
     dispatch(deleteRule(ruleName));
   };
@@ -61,8 +65,10 @@ const Rules: React.FunctionComponent = () => {
         showCreateRuleFormCB={showCreateForm}
         showEditRuleFormCB={showEditForm}
         onSyncRule={handleSyncRule}
+        onSyncAllRules={handleSyncAllRules}
         onDeleteRule={handleDeleteRule}
         syncing={rules.syncing}
+        syncingAll={rules.syncingAll}
       />
     );
   };
