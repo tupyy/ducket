@@ -7,19 +7,13 @@ import {
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table';
 import { ITransaction } from '@app/shared/models/transaction';
 
-interface LabelTotal {
-  label: string;
-  totalAmount: number;
-  transactionCount: number;
-}
-
 interface LabelTotalTableProps {
   transactions: ITransaction[];
   startDate?: string;
   endDate?: string;
 }
 
-const LabelTotalTable: React.FunctionComponent<LabelTotalTableProps> = ({ transactions, startDate, endDate }) => {
+const LabelTotalTable: React.FunctionComponent<LabelTotalTableProps> = ({ transactions}) => {
   // Compute totals by label
   const labelTotals = React.useMemo(() => {
     const labelMap = new Map<string, { totalAmount: number; transactionCount: number }>();
@@ -56,7 +50,7 @@ const LabelTotalTable: React.FunctionComponent<LabelTotalTableProps> = ({ transa
         <Title headingLevel="h3" size="lg" style={{ marginBottom: '1rem' }}>
           Total Amounts by Label
         </Title>
-        
+
         <div style={{ height: '320px', overflowY: 'auto' }}>
           <Table aria-label="Label totals table" variant="compact">
             <Thead>
@@ -96,4 +90,4 @@ const LabelTotalTable: React.FunctionComponent<LabelTotalTableProps> = ({ transa
   );
 };
 
-export { LabelTotalTable }; 
+export { LabelTotalTable };

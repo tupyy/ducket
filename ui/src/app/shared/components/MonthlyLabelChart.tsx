@@ -4,9 +4,6 @@ import {
   Chart,
   ChartAxis,
   ChartLine,
-  ChartContainer,
-  ChartThemeColor,
-  ChartLegend,
   ChartVoronoiContainer,
   ChartGroup,
 } from '@patternfly/react-charts/victory';
@@ -120,9 +117,13 @@ const MonthlyLabelChart: React.FC<MonthlyLabelChartProps> = ({
 
   // Create legend data from selected labels
   const legendData = React.useMemo(() => {
-    return labelNames.map((labelName) => ({
-      name: labelName,
-    }));
+    return labelNames.map((labelName) => {
+      // Extract key part from "key=value" format, or use full string if no '=' found
+      const labelKey = labelName.includes(':') ? labelName.split('=')[0] : labelName;
+      return {
+        name: labelKey,
+      };
+    });
   }, [labelNames]);
 
   if (loading) {
@@ -179,7 +180,7 @@ const MonthlyLabelChart: React.FC<MonthlyLabelChartProps> = ({
           <Title headingLevel="h3" size="md" style={{ marginBottom: '1rem' }}>
             {title}
           </Title>
-                                       <div style={{ 
+                                       <div style={{
             height: '600px',
             width: '100%'
           }}>
@@ -187,14 +188,14 @@ const MonthlyLabelChart: React.FC<MonthlyLabelChartProps> = ({
           ariaDesc="Monthly label amounts chart"
           ariaTitle={title}
           containerComponent={
-            <ChartVoronoiContainer 
+            <ChartVoronoiContainer
               labels={({ datum }) => `${datum.name}: ${datum.y.toLocaleString('fr-FR', {
                 style: 'currency',
                 currency: 'EUR',
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
-              })}`} 
-              constrainToVisibleArea 
+              })}`}
+              constrainToVisibleArea
             />
           }
           legendData={legendData}
@@ -264,4 +265,4 @@ const MonthlyLabelChart: React.FC<MonthlyLabelChartProps> = ({
   );
 };
 
-export { MonthlyLabelChart }; 
+export { MonthlyLabelChart };

@@ -39,7 +39,7 @@ import {
   clearSorting,
   setTransactionExpanded,
   toggleAllExpanded,
-} from '@app/shared/reducers/transaction-filter.reducer';
+} from './reducers/transaction-filter.reducer';
 
 export interface ITransactionListProps {
   transactions: Array<ITransaction> | [];

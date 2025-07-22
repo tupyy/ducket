@@ -1,20 +1,19 @@
 import * as React from 'react';
-import {Card, PageSection, Title, CardBody, Grid, GridItem, Flex, FlexItem } from '@patternfly/react-core';
-import { TimePicker } from '@app/shared/components/time-picker';
+import { PageSection, Title, Grid, GridItem, Card, CardBody, Flex, FlexItem } from '@patternfly/react-core';
 import { LabelAmountsChart } from '@app/shared/components/LabelAmountsChart';
-import { AccountTransactionTypeChart } from '@app/shared/components/AccountTransactionTypeChart';
 import { MonthlyLabelChart } from '@app/shared/components/MonthlyLabelChart';
 import { LabelFilter } from '@app/shared/components/label-filter';
+import { TimePicker } from '@app/shared/components/time-picker';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
 import { getTransactions } from '@app/shared/reducers/transaction.reducer';
-import { calculateLabelReport, calculateAccountTransactionTypeReport } from '@app/shared/reducers/label-report.reducer';
+import { calculateLabelReport } from '@app/shared/reducers/label-report.reducer';
 import { calculateMonthlyLabelReport } from '@app/shared/reducers/monthly-label-report.reducer';
 import { calculateDateRange, getRelativeTimeRange } from '@app/utils/dateUtils';
 
 const Dashboard: React.FunctionComponent = () => {
   const dispatch = useAppDispatch();
   const { transactions, loading } = useAppSelector((state) => state.transactions);
-  const { labelReportData, accountTransactionTypeData, loading: reportLoading } = useAppSelector((state) => state.labelReport);
+  const { labelReportData, loading: reportLoading } = useAppSelector((state) => state.labelReport);
   const { monthlyLabelReports, loading: monthlyReportLoading } = useAppSelector((state) => state.monthlyLabelReport);
 
   // Initialize with 1 year default date range
@@ -34,20 +33,19 @@ const Dashboard: React.FunctionComponent = () => {
   React.useEffect(() => {
     if (transactions.length > 0) {
       dispatch(calculateLabelReport({ transactions, excludeCredits: true }));
-      dispatch(calculateAccountTransactionTypeReport(transactions));
       dispatch(calculateMonthlyLabelReport({ transactions, excludeCredits: true }));
     }
   }, [dispatch, transactions]);
 
   // Get available labels from transactions for the filter
   const availableLabels = React.useMemo(() => {
-    const labelSet = new Set<string>();
+    const labelKeySet = new Set<string>();
     transactions.forEach((transaction) => {
       transaction.labels.forEach((label) => {
-        labelSet.add(`${label.key}=${label.value}`);
+        labelKeySet.add(label.key);
       });
     });
-    return Array.from(labelSet).sort();
+    return Array.from(labelKeySet).sort();
   }, [transactions]);
 
   const handleLabelFilterChange = (labels: string[]) => {
@@ -92,12 +90,8 @@ const Dashboard: React.FunctionComponent = () => {
           )}
         </GridItem>
 
-        <GridItem span={6}>
+        <GridItem span={12}>
           <LabelAmountsChart data={labelReportData} loading={loading || reportLoading} />
-        </GridItem>
-
-        <GridItem span={6}>
-          <AccountTransactionTypeChart data={accountTransactionTypeData} loading={loading || reportLoading} />
         </GridItem>
 
         <GridItem span={12}>
@@ -112,7 +106,7 @@ const Dashboard: React.FunctionComponent = () => {
                     availableLabels={availableLabels}
                     selectedLabels={selectedTag}
                     onLabelsChange={handleLabelFilterChange}
-                    placeholder="Select a label to view monthly trends..."
+                    placeholder="Select label keys to view monthly trends..."
                   />
                 </FlexItem>
                 <FlexItem>

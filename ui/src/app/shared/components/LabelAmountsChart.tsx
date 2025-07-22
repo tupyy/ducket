@@ -18,25 +18,44 @@ const LabelAmountsChart: React.FC<LabelAmountsChartProps> = ({
   const { theme } = useTheme();
   // Convert LabelReport data to chart format
   const chartData = React.useMemo(() => {
-    return data
-      .map((item) => ({
-        x: item.tag, // Keep as 'tag' for backward compatibility with existing interfaces
-        y: item.amount,
+    // Group data by label key and sum amounts
+    const keyTotals: { [key: string]: number } = {};
+    
+    data.forEach((item) => {
+      // Extract key part from "key:value" or "key=value" format, or use full string if no separator found
+      const labelKey = item.tag.includes(':') ? item.tag.split(':')[0] : 
+                      item.tag.includes('=') ? item.tag.split('=')[0] : 
+                      item.tag;
+      
+      if (keyTotals[labelKey]) {
+        keyTotals[labelKey] += item.amount;
+      } else {
+        keyTotals[labelKey] = item.amount;
+      }
+    });
+    
+    // Convert to chart format and sort by amount
+    return Object.entries(keyTotals)
+      .map(([key, amount]) => ({
+        x: key,
+        y: amount,
       }))
       .sort((a, b) => b.y - a.y)
-      .slice(0, 10); // Show top 10 labels
+      .slice(0, 10); // Show top 10 label keys
   }, [data]);
 
   // Create legend data from label amounts
   const legendData = React.useMemo(() => {
-    return chartData.map((item) => ({
-      name: `${item.x}: ${item.y.toLocaleString('fr-FR', {
-        style: 'currency',
-        currency: 'EUR',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}`,
-    }));
+    return chartData.map((item) => {
+      return {
+        name: `${item.x}: ${item.y.toLocaleString('fr-FR', {
+          style: 'currency',
+          currency: 'EUR',
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`,
+      };
+    });
   }, [chartData]);
 
   return (
@@ -92,4 +111,4 @@ const LabelAmountsChart: React.FC<LabelAmountsChartProps> = ({
   );
 };
 
-export { LabelAmountsChart }; 
+export { LabelAmountsChart };
