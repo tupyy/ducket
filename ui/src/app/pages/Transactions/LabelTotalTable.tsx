@@ -1,19 +1,13 @@
 import * as React from 'react';
-import {
-  Title,
-  Card,
-  CardBody,
-} from '@patternfly/react-core';
+import { Title, Card, CardBody } from '@patternfly/react-core';
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table';
 import { ITransaction } from '@app/shared/models/transaction';
 
 interface LabelTotalTableProps {
   transactions: ITransaction[];
-  startDate?: string;
-  endDate?: string;
 }
 
-const LabelTotalTable: React.FunctionComponent<LabelTotalTableProps> = ({ transactions}) => {
+const LabelTotalTable: React.FunctionComponent<LabelTotalTableProps> = ({ transactions }) => {
   // Compute totals by label
   const labelTotals = React.useMemo(() => {
     const labelMap = new Map<string, { totalAmount: number; transactionCount: number }>();
@@ -65,12 +59,7 @@ const LabelTotalTable: React.FunctionComponent<LabelTotalTableProps> = ({ transa
                 <Tr key={labelTotal.label}>
                   <Td>{labelTotal.label}</Td>
                   <Td>
-                    <span
-                      style={{
-                        color: labelTotal.totalAmount >= 0 ? '#3e8635' : '#c9190b',
-                        fontWeight: 'bold',
-                      }}
-                    >
+                    <span>
                       {labelTotal.totalAmount.toLocaleString('fr-FR', {
                         style: 'currency',
                         currency: 'EUR',
