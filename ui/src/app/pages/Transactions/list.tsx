@@ -17,11 +17,12 @@ import {
 } from '@patternfly/react-core';
 import { DataView, DataViewToolbar } from '@patternfly/react-data-view';
 import { ExpandableRowContent, Table, Tbody, Td, Th, Thead, ThProps, Tr } from '@patternfly/react-table';
-import { PlusIcon, TimesIcon } from '@patternfly/react-icons';
+import { PlusIcon, TimesIcon, CogIcon } from '@patternfly/react-icons';
 import { ILabelTransaction, ITransaction } from '@app/shared/models/transaction';
 import { LabelFilter } from '@app/shared/components/label-filter';
 import { AddLabelModal } from './AddLabelModal';
 import { RemoveLabelModal } from './RemoveLabelModal';
+import { CreateRuleModal } from './CreateRuleModal';
 import { useTheme } from '@app/shared/contexts/ThemeContext';
 import { getAccountColor, getAccountDarkColor } from '@app/utils/colorUtils';
 import { safeFormatDateString } from '@app/utils/dateUtils';
@@ -103,6 +104,10 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   // Modal state for removing labels
   const [isRemoveLabelModalOpen, setIsRemoveLabelModalOpen] = React.useState(false);
   const [labelToRemove, setLabelToRemove] = React.useState<{ transaction: ITransaction; label: ILabelTransaction } | null>(null);
+
+  // Modal state for creating rules
+  const [isCreateRuleModalOpen, setIsCreateRuleModalOpen] = React.useState(false);
+  const [selectedTransactionForRule, setSelectedTransactionForRule] = React.useState<ITransaction | null>(null);
 
   // ===============================
   // COMPUTED VALUES
@@ -452,6 +457,23 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
         // Handle error (could show a toast notification)
       }
     }
+  };
+
+  /**
+   * Handle opening the create rule modal
+   * @param transaction - Transaction to create rule from
+   */
+  const handleOpenCreateRuleModal = (transaction: ITransaction) => {
+    setSelectedTransactionForRule(transaction);
+    setIsCreateRuleModalOpen(true);
+  };
+
+  /**
+   * Handle closing the create rule modal
+   */
+  const handleCloseCreateRuleModal = () => {
+    setIsCreateRuleModalOpen(false);
+    setSelectedTransactionForRule(null);
   };
 
   /**
@@ -896,13 +918,26 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                 </Td>
                 {/* Actions Column */}
                 <Td dataLabel={columns.actions}>
-                  <Button
-                    variant="plain"
-                    onClick={() => handleOpenAddLabelModal(t)}
-                    aria-label="Add label to transaction"
-                  >
-                    <PlusIcon />
-                  </Button>
+                  <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                    <FlexItem>
+                      <Button
+                        variant="plain"
+                        onClick={() => handleOpenAddLabelModal(t)}
+                        aria-label="Add label to transaction"
+                      >
+                        <PlusIcon />
+                      </Button>
+                    </FlexItem>
+                    <FlexItem>
+                      <Button
+                        variant="plain"
+                        onClick={() => handleOpenCreateRuleModal(t)}
+                        aria-label="Create rule from transaction"
+                      >
+                        <CogIcon />
+                      </Button>
+                    </FlexItem>
+                  </Flex>
                 </Td>
               </Tr>
               {/* Expandable Row Content - Shows transaction description */}
@@ -951,6 +986,13 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
         onConfirm={handleConfirmRemoveLabel}
         transaction={labelToRemove?.transaction}
         label={labelToRemove?.label}
+      />
+
+      {/* Create Rule Modal */}
+      <CreateRuleModal
+        isOpen={isCreateRuleModalOpen}
+        onClose={handleCloseCreateRuleModal}
+        transaction={selectedTransactionForRule || undefined}
       />
     </React.Fragment>
   );
