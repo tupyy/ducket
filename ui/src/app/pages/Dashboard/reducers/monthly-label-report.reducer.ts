@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { IMonthlyTagReport, IMonthlyTagSummary } from '@app/shared/models/label';
 import { ITransaction } from '@app/shared/models/transaction';
-import { serializeAxiosError } from './reducer.utils';
+import { serializeAxiosError } from '@app/shared/reducers/reducer.utils';
 
 const initialState = {
   loading: false,

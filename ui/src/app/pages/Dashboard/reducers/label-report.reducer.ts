@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { ITagReport, ITransactionTypeReport, IAccountTransactionTypeReport } from '@app/shared/models/label';
 import { ITransaction } from '@app/shared/models/transaction';
-import { serializeAxiosError } from './reducer.utils';
+import { serializeAxiosError } from '@app/shared/reducers/reducer.utils';
 
 const initialState = {
   loading: false,

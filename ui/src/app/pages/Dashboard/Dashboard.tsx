@@ -6,8 +6,8 @@ import { LabelFilter } from '@app/shared/components/label-filter';
 import { TimePicker } from '@app/shared/components/time-picker';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
 import { getTransactions } from '@app/shared/reducers/transaction.reducer';
-import { calculateLabelReport } from '@app/shared/reducers/label-report.reducer';
-import { calculateMonthlyLabelReport } from '@app/shared/reducers/monthly-label-report.reducer';
+import { calculateLabelReport } from './reducers/label-report.reducer';
+import { calculateMonthlyLabelReport } from './reducers/monthly-label-report.reducer';
 import { calculateDateRange, getRelativeTimeRange } from '@app/utils/dateUtils';
 
 const Dashboard: React.FunctionComponent = () => {
