@@ -20,7 +20,7 @@ import { ExpandableRowContent, Table, Tbody, Td, Th, Thead, ThProps, Tr } from '
 import { PlusIcon } from '@patternfly/react-icons';
 import { ILabelTransaction, ITransaction } from '@app/shared/models/transaction';
 import { LabelFilter } from '@app/shared/components/label-filter';
-import { AddLabelModal } from '@app/shared/components/AddLabelModal';
+import { AddLabelModal } from './AddLabelModal';
 import { useTheme } from '@app/shared/contexts/ThemeContext';
 import { getAccountColor, getAccountDarkColor } from '@app/utils/colorUtils';
 import { safeFormatDateString } from '@app/utils/dateUtils';

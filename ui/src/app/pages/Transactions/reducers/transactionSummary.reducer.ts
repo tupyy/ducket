@@ -11,6 +11,11 @@ export interface ITransactionSummaryData {
 export interface ITransactionSummary {
   type: 'filtered' | 'byLabelKey';
   data: ITransactionSummaryData[];
+  totals: {
+    count: number;
+    debitAmount: number;
+    creditAmount: number;
+  };
 }
 
 export interface ITransactionSummaryState {
@@ -49,6 +54,11 @@ const calculateSummary = (
           creditAmount: creditTotal,
         },
       ],
+      totals: {
+        count: transactionCount,
+        debitAmount: debitTotal,
+        creditAmount: creditTotal,
+      },
     };
   } else {
     // Show totals by label key only
@@ -81,9 +91,20 @@ const calculateSummary = (
           Math.abs(b.debitAmount) + Math.abs(b.creditAmount) - (Math.abs(a.debitAmount) + Math.abs(a.creditAmount))
       ); // Sort by total absolute amount descending
 
+    // Calculate totals from the data
+    const totals = data.reduce(
+      (acc, row) => ({
+        count: acc.count + row.count,
+        debitAmount: acc.debitAmount + row.debitAmount,
+        creditAmount: acc.creditAmount + row.creditAmount,
+      }),
+      { count: 0, debitAmount: 0, creditAmount: 0 }
+    );
+
     return {
       type: 'byLabelKey',
       data,
+      totals,
     };
   }
 };

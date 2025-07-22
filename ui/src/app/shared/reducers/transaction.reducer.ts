@@ -3,6 +3,7 @@ import axios from 'axios';
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { serializeAxiosError } from '@app/shared/reducers/reducer.utils';
 import { ITransaction, ITransactionForm, ITransactionUpdateForm, ITransactions } from '@app/shared/models/transaction';
+import { applyFilters } from '@app/pages/Transactions/reducers/transaction-filter.reducer';
 
 const transactionApiUrl = 'api/v1/transactions';
 
@@ -87,10 +88,22 @@ export const addLabelToTransaction = createAsyncThunk(
       value: params.value,
     };
 
-    const result = axios.post(url, labelData).then(() => {
-      // Refresh transactions after adding label
-      thunkAPI.dispatch(getTransactions());
-    });
+    const result = await axios.post(url, labelData);
+    
+    // Refresh transactions after adding label
+    await thunkAPI.dispatch(getTransactions());
+    
+    // Recalculate filters after transactions are refreshed
+    const state = thunkAPI.getState() as any;
+    const filterState = state.transactionFilter;
+    
+    thunkAPI.dispatch(applyFilters({
+      selectedLabels: filterState.selectedLabels,
+      selectedTransactionTypes: filterState.selectedTransactionTypes,
+      selectedAccounts: filterState.selectedAccounts,
+      descriptionFilter: filterState.descriptionFilter,
+    }));
+    
     return result;
   },
   { serializeError: serializeAxiosError }

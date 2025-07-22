@@ -71,19 +71,19 @@ export const AddLabelModal: React.FunctionComponent<AddLabelModalProps> = ({
     if (addLabelSuccess) {
       handleClose();
     }
-  }, [addLabelSuccess]);
+  });
 
   const validateLabelInput = (input: string) => {
     const trimmedInput = input.trim();
     if (!trimmedInput) {
       return 'Label is required';
     }
-    
+
     const parts = trimmedInput.split('=');
     if (parts.length !== 2 || !parts[0].trim() || !parts[1].trim()) {
       return 'Label must be in format: key=value';
     }
-    
+
     return '';
   };
 
@@ -100,11 +100,13 @@ export const AddLabelModal: React.FunctionComponent<AddLabelModalProps> = ({
     // Submit all selected labels
     for (const labelString of selectedLabels) {
       const [key, value] = labelString.split('=');
-      await dispatch(addLabelToTransaction({
-        transactionHref,
-        key: key.trim(),
-        value: value.trim(),
-      }));
+      await dispatch(
+        addLabelToTransaction({
+          transactionHref,
+          key: key.trim(),
+          value: value.trim(),
+        })
+      );
     }
   };
 
@@ -123,7 +125,7 @@ export const AddLabelModal: React.FunctionComponent<AddLabelModalProps> = ({
 
   const handleLabelSelect = (label: string) => {
     if (!selectedLabels.includes(label)) {
-      setSelectedLabels(prev => [...prev, label]);
+      setSelectedLabels((prev) => [...prev, label]);
     }
     setLabelInputValue('');
     setIsLabelSelectOpen(false);
@@ -133,7 +135,7 @@ export const AddLabelModal: React.FunctionComponent<AddLabelModalProps> = ({
   };
 
   const handleLabelRemove = (labelToRemove: string) => {
-    setSelectedLabels(prev => prev.filter(label => label !== labelToRemove));
+    setSelectedLabels((prev) => prev.filter((label) => label !== labelToRemove));
   };
 
   const handleLabelInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -151,10 +153,7 @@ export const AddLabelModal: React.FunctionComponent<AddLabelModalProps> = ({
   // Get available label options from the store, filtered by input and not already selected
   const availableLabelOptions = labels.labels
     .map((label) => `${label.key}=${label.value}`)
-    .filter((label) => 
-      !selectedLabels.includes(label) && 
-      label.toLowerCase().includes(labelInputValue.toLowerCase())
-    )
+    .filter((label) => !selectedLabels.includes(label) && label.toLowerCase().includes(labelInputValue.toLowerCase()))
     .slice(0, 10); // Limit to 10 suggestions
 
   const toggle = (toggleRef: React.Ref<MenuToggleElement>) => (
@@ -205,13 +204,9 @@ export const AddLabelModal: React.FunctionComponent<AddLabelModalProps> = ({
             {errorMessage}
           </Alert>
         )}
-        
+
         <Form id={formId} onSubmit={handleSubmit}>
-          <FormGroup
-            label="Labels"
-            isRequired
-            fieldId="label-input"
-          >
+          <FormGroup label="Labels" isRequired fieldId="label-input">
             <Flex direction={{ default: 'column' }}>
               <FlexItem>
                 <Dropdown
@@ -228,18 +223,19 @@ export const AddLabelModal: React.FunctionComponent<AddLabelModalProps> = ({
                           {label}
                         </DropdownItem>
                       ))
-                    ) : labelInputValue.trim() && !validateLabelInput(labelInputValue) && !selectedLabels.includes(labelInputValue.trim()) ? (
+                    ) : labelInputValue.trim() &&
+                      !validateLabelInput(labelInputValue) &&
+                      !selectedLabels.includes(labelInputValue.trim()) ? (
                       <DropdownItem onClick={() => handleLabelSelect(labelInputValue.trim())}>
                         Add "{labelInputValue.trim()}"
                       </DropdownItem>
                     ) : (
                       <DropdownItem isDisabled>
-                        {labelInputValue.trim() 
-                          ? selectedLabels.includes(labelInputValue.trim()) 
+                        {labelInputValue.trim()
+                          ? selectedLabels.includes(labelInputValue.trim())
                             ? 'Label already added'
                             : 'Invalid format. Use: key=value'
-                          : 'Type to search existing labels or create new one'
-                        }
+                          : 'Type to search existing labels or create new one'}
                       </DropdownItem>
                     )}
                   </DropdownList>
@@ -265,7 +261,9 @@ export const AddLabelModal: React.FunctionComponent<AddLabelModalProps> = ({
               )}
             </Flex>
             {validationError && (
-              <div style={{ color: 'var(--pf-v6-global--danger-color--100)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+              <div
+                style={{ color: 'var(--pf-v6-global--danger-color--100)', fontSize: '0.875rem', marginTop: '0.25rem' }}
+              >
                 {validationError}
               </div>
             )}
@@ -285,14 +283,10 @@ export const AddLabelModal: React.FunctionComponent<AddLabelModalProps> = ({
         >
           Add {selectedLabels.length} Label{selectedLabels.length !== 1 ? 's' : ''}
         </Button>
-        <Button
-          variant="link"
-          onClick={handleClose}
-          isDisabled={addingLabel}
-        >
+        <Button variant="link" onClick={handleClose} isDisabled={addingLabel}>
           Cancel
         </Button>
       </ModalFooter>
     </Modal>
   );
-}; 
+};
