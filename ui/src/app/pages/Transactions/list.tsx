@@ -16,6 +16,7 @@ import {
   TextInput,
   Spinner,
   Checkbox,
+  Switch,
 } from '@patternfly/react-core';
 import { DataView, DataViewToolbar } from '@patternfly/react-data-view';
 import { ExpandableRowContent, Table, Tbody, Td, Th, Thead, ThProps, Tr } from '@patternfly/react-table';
@@ -35,6 +36,7 @@ import {
   setSelectedTransactionTypes,
   setSelectedAccounts,
   setDescriptionFilter,
+  setShowOnlyUnlabeled,
   clearAllFilters,
   applyFilters,
   setPage,
@@ -91,6 +93,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     selectedTransactionTypes,
     selectedAccounts,
     descriptionFilter,
+    showOnlyUnlabeled,
     page,
     perPage,
     sortDirection,
@@ -227,12 +230,13 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
           selectedTransactionTypes,
           selectedAccounts,
           descriptionFilter,
+          showOnlyUnlabeled,
         })
       );
     };
 
     applyCurrentFilters();
-  }, [transactions, selectedLabels, selectedTransactionTypes, selectedAccounts, descriptionFilter, dispatch]);
+  }, [transactions, selectedLabels, selectedTransactionTypes, selectedAccounts, descriptionFilter, showOnlyUnlabeled, dispatch]);
 
   // ===============================
   // SORTING AND PAGINATION
@@ -399,6 +403,14 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
    */
   const handleDescriptionFilterChange = (value: string) => {
     dispatch(setDescriptionFilter(value));
+  };
+
+  /**
+   * Handle show only unlabeled filter toggle
+   * @param checked - Whether to show only unlabeled transactions
+   */
+  const handleShowOnlyUnlabeledChange = (checked: boolean) => {
+    dispatch(setShowOnlyUnlabeled(checked));
   };
 
   // Transaction type filter handlers
@@ -700,6 +712,13 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
             onChange={(_event, value) => handleDescriptionFilterChange(value)}
             style={{ width: '200px' }}
           />
+          <Switch
+            id="unlabeled-filter-switch"
+            label="Show only unlabeled"
+            isChecked={showOnlyUnlabeled}
+            onChange={(_event, checked) => handleShowOnlyUnlabeledChange(checked)}
+            isDisabled={filtering}
+          />
           <Select
             id="transaction-type-select"
             isOpen={isTransactionTypeSelectOpen}
@@ -798,11 +817,33 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
         {(selectedLabels.length > 0 ||
           selectedTransactionTypes.length > 0 ||
           selectedAccounts.length > 0 ||
-          descriptionFilter.trim()) && (
+          descriptionFilter.trim() ||
+          showOnlyUnlabeled) && (
           <FlexItem>
             <Content>
               <strong>Active Filters:</strong>
             </Content>
+          </FlexItem>
+        )}
+
+        {/* Show Only Unlabeled Filter */}
+        {showOnlyUnlabeled && (
+          <FlexItem>
+            <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
+              <FlexItem>
+                <Content>Filter:</Content>
+              </FlexItem>
+              <FlexItem>
+                <Label
+                  variant="filled"
+                  color="orange"
+                  onClose={() => handleShowOnlyUnlabeledChange(false)}
+                  closeBtnAriaLabel="Remove unlabeled filter"
+                >
+                  Only unlabeled transactions
+                </Label>
+              </FlexItem>
+            </Flex>
           </FlexItem>
         )}
 
@@ -900,7 +941,8 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
         {(selectedLabels.length > 0 ||
           selectedTransactionTypes.length > 0 ||
           selectedAccounts.length > 0 ||
-          descriptionFilter.trim()) && (
+          descriptionFilter.trim() ||
+          showOnlyUnlabeled) && (
           <FlexItem>
             <Button
               variant="link"

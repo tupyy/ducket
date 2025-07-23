@@ -10,6 +10,7 @@ export interface ITransactionFilterState {
   selectedTransactionTypes: string[];
   selectedAccounts: number[];
   descriptionFilter: string;
+  showOnlyUnlabeled: boolean;
   // Date range state
   dateRange: {
     startDate: string;
@@ -39,6 +40,7 @@ const initialState: ITransactionFilterState = {
   selectedTransactionTypes: [],
   selectedAccounts: [],
   descriptionFilter: '',
+  showOnlyUnlabeled: false,
   // Date range state - default to last 30 days
   dateRange: {
     startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -68,18 +70,25 @@ export const applyFilters = createAsyncThunk(
     selectedTransactionTypes: string[];
     selectedAccounts: number[];
     descriptionFilter?: string;
+    showOnlyUnlabeled?: boolean;
   }, { getState }) => {
     // Simulate async operation - you can add actual async logic here if needed
     await new Promise(resolve => setTimeout(resolve, 100));
     
     const state = getState() as { transactionFilter: ITransactionFilterState };
-    const { selectedLabels, selectedTransactionTypes, selectedAccounts, descriptionFilter } = filterParams;
+    const { selectedLabels, selectedTransactionTypes, selectedAccounts, descriptionFilter, showOnlyUnlabeled } = filterParams;
 
     // Start with all source transactions from the store
     let filtered = state.transactionFilter.sourceTransactions;
 
-    // Filter by labels
-    if (selectedLabels.length > 0) {
+    // Filter by unlabeled transactions first if requested
+    const currentShowOnlyUnlabeled = showOnlyUnlabeled !== undefined ? showOnlyUnlabeled : state.transactionFilter.showOnlyUnlabeled;
+    if (currentShowOnlyUnlabeled) {
+      filtered = filtered.filter((transaction) => transaction.labels.length === 0);
+    }
+
+    // Filter by labels (only if not showing unlabeled transactions)
+    if (!currentShowOnlyUnlabeled && selectedLabels.length > 0) {
       filtered = filtered.filter((transaction) =>
         selectedLabels.some((selectedLabel) => {
           // Check if this is a wildcard filter (e.g., "income=*")
@@ -121,6 +130,7 @@ export const applyFilters = createAsyncThunk(
       selectedTransactionTypes,
       selectedAccounts,
       descriptionFilter: currentDescriptionFilter,
+      showOnlyUnlabeled: currentShowOnlyUnlabeled,
     };
   },
   { serializeError: serializeAxiosError }
@@ -138,7 +148,8 @@ export const transactionFilterSlice = createSlice({
         state.selectedLabels.length === 0 &&
         state.selectedTransactionTypes.length === 0 &&
         state.selectedAccounts.length === 0 &&
-        state.descriptionFilter.trim() === ''
+        state.descriptionFilter.trim() === '' &&
+        !state.showOnlyUnlabeled
       ) {
         state.filteredTransactions = action.payload;
       }
@@ -174,11 +185,21 @@ export const transactionFilterSlice = createSlice({
       state.page = 1; // Reset pagination when filters change
     },
 
+    setShowOnlyUnlabeled: (state, action: PayloadAction<boolean>) => {
+      state.showOnlyUnlabeled = action.payload;
+      // Clear selected labels when showing only unlabeled transactions
+      if (action.payload) {
+        state.selectedLabels = [];
+      }
+      state.page = 1; // Reset pagination when filters change
+    },
+
     clearAllFilters: (state) => {
       state.selectedLabels = [];
       state.selectedTransactionTypes = [];
       state.selectedAccounts = [];
       state.descriptionFilter = '';
+      state.showOnlyUnlabeled = false;
       state.page = 1; // Reset pagination when filters change
     },
 
@@ -281,6 +302,7 @@ export const transactionFilterSlice = createSlice({
         state.selectedTransactionTypes = action.payload.selectedTransactionTypes;
         state.selectedAccounts = action.payload.selectedAccounts;
         state.descriptionFilter = action.payload.descriptionFilter;
+        state.showOnlyUnlabeled = action.payload.showOnlyUnlabeled;
         // Reset pagination to first page when filters change
         state.page = 1;
       })
@@ -298,6 +320,7 @@ export const {
   setSelectedTransactionTypes,
   setSelectedAccounts,
   setDescriptionFilter,
+  setShowOnlyUnlabeled,
   clearAllFilters,
   setPage,
   setPerPage,

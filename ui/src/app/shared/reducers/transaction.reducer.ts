@@ -103,6 +103,7 @@ export const addLabelToTransaction = createAsyncThunk(
         selectedTransactionTypes: filterState.selectedTransactionTypes,
         selectedAccounts: filterState.selectedAccounts,
         descriptionFilter: filterState.descriptionFilter,
+        showOnlyUnlabeled: filterState.showOnlyUnlabeled,
       })
     );
 
@@ -139,6 +140,7 @@ export const removeLabelFromTransaction = createAsyncThunk(
         selectedTransactionTypes: filterState.selectedTransactionTypes,
         selectedAccounts: filterState.selectedAccounts,
         descriptionFilter: filterState.descriptionFilter,
+        showOnlyUnlabeled: filterState.showOnlyUnlabeled,
       })
     );
 

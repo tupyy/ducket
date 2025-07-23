@@ -10,6 +10,7 @@ export {
   setSelectedTransactionTypes,
   setSelectedAccounts,
   setDescriptionFilter,
+  setShowOnlyUnlabeled,
   clearAllFilters,
   applyFilters,
   setPage,
