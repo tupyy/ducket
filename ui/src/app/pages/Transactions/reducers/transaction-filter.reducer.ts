@@ -1,5 +1,6 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import { ITransaction } from '@app/shared/models/transaction';
+import { serializeAxiosError } from '@app/shared/reducers/reducer.utils';
 
 export interface ITransactionFilterState {
   sourceTransactions: ITransaction[];
@@ -23,6 +24,9 @@ export interface ITransactionFilterState {
   // Row expansion states
   expandedTransactions: string[];
   allExpanded: boolean;
+  // Async state for filtering
+  filtering: boolean;
+  filterError: string;
 }
 
 const initialState: ITransactionFilterState = {
@@ -47,7 +51,76 @@ const initialState: ITransactionFilterState = {
   // Row expansion states
   expandedTransactions: [],
   allExpanded: false,
+  // Async state for filtering
+  filtering: false,
+  filterError: '',
 };
+
+// Async thunk for applying filters
+export const applyFilters = createAsyncThunk(
+  'transactionFilter/applyFilters',
+  async (filterParams: {
+    selectedLabels: string[];
+    selectedTransactionTypes: string[];
+    selectedAccounts: number[];
+    descriptionFilter?: string;
+  }, { getState }) => {
+    // Simulate async operation - you can add actual async logic here if needed
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    const state = getState() as { transactionFilter: ITransactionFilterState };
+    const { selectedLabels, selectedTransactionTypes, selectedAccounts, descriptionFilter } = filterParams;
+
+    // Start with all source transactions from the store
+    let filtered = state.transactionFilter.sourceTransactions;
+
+    // Filter by labels
+    if (selectedLabels.length > 0) {
+      filtered = filtered.filter((transaction) =>
+        selectedLabels.some((selectedLabel) => {
+          // Check if this is a wildcard filter (e.g., "income=*")
+          if (selectedLabel.endsWith('=*')) {
+            // Extract the key part (everything before "=*")
+            const labelKey = selectedLabel.slice(0, -2);
+            // Match any transaction that has this label key, regardless of value
+            return transaction.labels.some((label) => label.key === labelKey);
+          } else {
+            // Exact match for specific key=value pairs
+            return transaction.labels.some((label) => `${label.key}=${label.value}` === selectedLabel);
+          }
+        })
+      );
+    }
+
+    // Filter by transaction types
+    if (selectedTransactionTypes.length > 0) {
+      filtered = filtered.filter((transaction) => selectedTransactionTypes.includes(transaction.kind));
+    }
+
+    // Filter by accounts
+    if (selectedAccounts.length > 0) {
+      filtered = filtered.filter((transaction) => selectedAccounts.includes(transaction.account));
+    }
+
+    // Filter by description
+    const currentDescriptionFilter = descriptionFilter !== undefined ? descriptionFilter : state.transactionFilter.descriptionFilter;
+    if (currentDescriptionFilter.trim()) {
+      const filterText = currentDescriptionFilter.toLowerCase().trim();
+      filtered = filtered.filter((transaction) =>
+        transaction.description.toLowerCase().includes(filterText)
+      );
+    }
+
+    return {
+      filteredTransactions: filtered,
+      selectedLabels,
+      selectedTransactionTypes,
+      selectedAccounts,
+      descriptionFilter: currentDescriptionFilter,
+    };
+  },
+  { serializeError: serializeAxiosError }
+);
 
 export const transactionFilterSlice = createSlice({
   name: 'transactionFilter',
@@ -55,8 +128,16 @@ export const transactionFilterSlice = createSlice({
   reducers: {
     setSourceTransactions: (state, action: PayloadAction<ITransaction[]>) => {
       state.sourceTransactions = action.payload;
-      // Reset filtered transactions when source changes
-      state.filteredTransactions = action.payload;
+      // Only reset filtered transactions when no filters are active
+      // If filters are active, let applyFilters handle the filtering
+      if (
+        state.selectedLabels.length === 0 &&
+        state.selectedTransactionTypes.length === 0 &&
+        state.selectedAccounts.length === 0 &&
+        state.descriptionFilter.trim() === ''
+      ) {
+        state.filteredTransactions = action.payload;
+      }
       // Reset pagination to first page when source data changes
       state.page = 1;
     },
@@ -95,68 +176,6 @@ export const transactionFilterSlice = createSlice({
       state.selectedAccounts = [];
       state.descriptionFilter = '';
       state.page = 1; // Reset pagination when filters change
-    },
-
-    applyFilters: (state, action: PayloadAction<{
-      selectedLabels: string[];
-      selectedTransactionTypes: string[];
-      selectedAccounts: number[];
-      descriptionFilter?: string;
-    }>) => {
-      const { selectedLabels, selectedTransactionTypes, selectedAccounts, descriptionFilter } = action.payload;
-
-      // Update filter state
-      state.selectedLabels = selectedLabels;
-      state.selectedTransactionTypes = selectedTransactionTypes;
-      state.selectedAccounts = selectedAccounts;
-      if (descriptionFilter !== undefined) {
-        state.descriptionFilter = descriptionFilter;
-      }
-
-      // Start with all source transactions from the store
-      let filtered = state.sourceTransactions;
-
-      // Filter by labels
-      if (selectedLabels.length > 0) {
-        filtered = filtered.filter((transaction) =>
-          selectedLabels.some((selectedLabel) => {
-            // Check if this is a wildcard filter (e.g., "income=*")
-            if (selectedLabel.endsWith('=*')) {
-              // Extract the key part (everything before "=*")
-              const labelKey = selectedLabel.slice(0, -2);
-              // Match any transaction that has this label key, regardless of value
-              return transaction.labels.some((label) => label.key === labelKey);
-            } else {
-              // Exact match for specific key=value pairs
-              return transaction.labels.some((label) => `${label.key}=${label.value}` === selectedLabel);
-            }
-          })
-        );
-      }
-
-      // Filter by transaction types
-      if (selectedTransactionTypes.length > 0) {
-        filtered = filtered.filter((transaction) => selectedTransactionTypes.includes(transaction.kind));
-      }
-
-      // Filter by accounts
-      if (selectedAccounts.length > 0) {
-        filtered = filtered.filter((transaction) => selectedAccounts.includes(transaction.account));
-      }
-
-      // Filter by description
-      if (state.descriptionFilter.trim()) {
-        const filterText = state.descriptionFilter.toLowerCase().trim();
-        filtered = filtered.filter((transaction) =>
-          transaction.description.toLowerCase().includes(filterText)
-        );
-      }
-
-      // Update the filtered transactions in state
-      state.filteredTransactions = filtered;
-
-      // Reset pagination to first page when filters change
-      state.page = 1;
     },
 
     // Pagination actions
@@ -213,6 +232,28 @@ export const transactionFilterSlice = createSlice({
 
     reset: () => initialState,
   },
+  extraReducers: (builder) => {
+    builder
+      .addCase(applyFilters.pending, (state) => {
+        state.filtering = true;
+        state.filterError = '';
+      })
+      .addCase(applyFilters.fulfilled, (state, action) => {
+        state.filtering = false;
+        state.filterError = '';
+        state.filteredTransactions = action.payload.filteredTransactions;
+        state.selectedLabels = action.payload.selectedLabels;
+        state.selectedTransactionTypes = action.payload.selectedTransactionTypes;
+        state.selectedAccounts = action.payload.selectedAccounts;
+        state.descriptionFilter = action.payload.descriptionFilter;
+        // Reset pagination to first page when filters change
+        state.page = 1;
+      })
+      .addCase(applyFilters.rejected, (state, action) => {
+        state.filtering = false;
+        state.filterError = action.error.message || 'Failed to apply filters';
+      });
+  },
 });
 
 export const {
@@ -223,7 +264,6 @@ export const {
   setSelectedAccounts,
   setDescriptionFilter,
   clearAllFilters,
-  applyFilters,
   setPage,
   setPerPage,
   setSorting,

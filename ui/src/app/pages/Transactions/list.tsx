@@ -14,6 +14,7 @@ import {
   MenuToggleElement,
   Button,
   TextInput,
+  Spinner,
 } from '@patternfly/react-core';
 import { DataView, DataViewToolbar } from '@patternfly/react-data-view';
 import { ExpandableRowContent, Table, Tbody, Td, Th, Thead, ThProps, Tr } from '@patternfly/react-table';
@@ -41,7 +42,10 @@ import {
   setTransactionExpanded,
   toggleAllExpanded,
 } from './reducers/transaction-filter.reducer';
-import { removeLabelFromTransaction } from '@app/shared/reducers/transaction.reducer';
+import {
+  clearAddLabelToTransactionSuccess,
+  removeLabelFromTransaction,
+} from '@app/shared/reducers/transaction.reducer';
 import { isKeyOfObject } from '@app/shared/models/label';
 
 export interface ITransactionListProps {
@@ -88,6 +92,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     sortDirection,
     sortIndex,
     expandedTransactions,
+    filtering,
   } = useAppSelector((state) => state.transactionFilter);
 
   // ===============================
@@ -103,7 +108,10 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
 
   // Modal state for removing labels
   const [isRemoveLabelModalOpen, setIsRemoveLabelModalOpen] = React.useState(false);
-  const [labelToRemove, setLabelToRemove] = React.useState<{ transaction: ITransaction; label: ILabelTransaction } | null>(null);
+  const [labelToRemove, setLabelToRemove] = React.useState<{
+    transaction: ITransaction;
+    label: ILabelTransaction;
+  } | null>(null);
 
   // Modal state for creating rules
   const [isCreateRuleModalOpen, setIsCreateRuleModalOpen] = React.useState(false);
@@ -196,18 +204,22 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
 
   // Set source transactions and apply filters whenever transactions change
   React.useEffect(() => {
-    // Set source transactions for the filter reducer
-    dispatch(setSourceTransactions(transactions));
+    const applyCurrentFilters = async () => {
+      // Set source transactions for the filter reducer
+      dispatch(setSourceTransactions(transactions));
 
-    // Apply current filters to new transaction data
-    dispatch(
-      applyFilters({
-        selectedLabels,
-        selectedTransactionTypes,
-        selectedAccounts,
-        descriptionFilter,
-      })
-    );
+      // Apply current filters to new transaction data
+      await dispatch(
+        applyFilters({
+          selectedLabels,
+          selectedTransactionTypes,
+          selectedAccounts,
+          descriptionFilter,
+        })
+      );
+    };
+
+    applyCurrentFilters();
   }, [transactions, selectedLabels, selectedTransactionTypes, selectedAccounts, descriptionFilter, dispatch]);
 
   // ===============================
@@ -410,6 +422,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
    * @param transaction - Transaction to add label to
    */
   const handleOpenAddLabelModal = (transaction: ITransaction) => {
+    dispatch(clearAddLabelToTransactionSuccess());
     setSelectedTransactionForLabel(transaction);
     setIsAddLabelModalOpen(true);
   };
@@ -446,11 +459,13 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   const handleConfirmRemoveLabel = async () => {
     if (labelToRemove) {
       try {
-        await dispatch(removeLabelFromTransaction({
-          transactionHref: labelToRemove.transaction.href,
-          key: labelToRemove.label.key,
-          value: labelToRemove.label.value,
-        }));
+        await dispatch(
+          removeLabelFromTransaction({
+            transactionHref: labelToRemove.transaction.href,
+            key: labelToRemove.label.key,
+            value: labelToRemove.label.value,
+          })
+        );
         handleCloseRemoveLabelModal();
       } catch (error) {
         console.error('Failed to remove label:', error);
@@ -824,6 +839,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                 onClick={handleExpandAll}
                 size="sm"
                 aria-label={areAllCurrentPageExpanded ? 'Collapse all rows' : 'Expand all rows'}
+                isDisabled={filtering}
               >
                 {areAllCurrentPageExpanded ? '▼' : '▶'}
               </Button>
@@ -850,107 +866,122 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
           </Tr>
         </Thead>
         <Tbody>
-          {paginatedTransactions.map((t: ITransaction, rowIndex: number) => (
-            <React.Fragment key={t.href}>
-              {/* Main Transaction Row */}
-              <Tr>
-                {/* Expand/Collapse Button */}
-                <Td
-                  expand={{
-                    rowIndex,
-                    isExpanded: isTransactionExpanded(t),
-                    onToggle: () =>
-                      dispatch(setTransactionExpanded({ href: t.href, isExpanding: !isTransactionExpanded(t) })),
-                  }}
-                />
-                {/* Date Column */}
-                <Td dataLabel={columns.date}>{safeFormatDateString(t.date)}</Td>
-                {/* Account Column - Clickable label for filtering */}
-                <Td dataLabel={columns.account}>
-                  <Label
-                    variant={theme === 'dark' ? 'outline' : 'filled'}
-                    color="purple"
-                    onClick={() => handleAccountClick(t.account)}
-                    style={{
-                      cursor: 'pointer',
-                      color: theme === 'dark' ? getAccountDarkColor(t.account) : 'black',
+          {filtering ? (
+            <Tr>
+              <Td colSpan={7} style={{ textAlign: 'center', padding: '2rem' }}>
+                <Flex direction={{ default: 'column' }} alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsMd' }}>
+                  <FlexItem>
+                    <Spinner size="lg" />
+                  </FlexItem>
+                  <FlexItem>
+                    <Content>Filtering transactions...</Content>
+                  </FlexItem>
+                </Flex>
+              </Td>
+            </Tr>
+          ) : (
+            paginatedTransactions.map((t: ITransaction, rowIndex: number) => (
+              <React.Fragment key={t.href}>
+                {/* Main Transaction Row */}
+                <Tr>
+                  {/* Expand/Collapse Button */}
+                  <Td
+                    expand={{
+                      rowIndex,
+                      isExpanded: isTransactionExpanded(t),
+                      onToggle: () =>
+                        dispatch(setTransactionExpanded({ href: t.href, isExpanding: !isTransactionExpanded(t) })),
                     }}
-                    aria-label={`Filter by account ${t.account}`}
-                  >
-                    {t.account}
-                  </Label>
-                </Td>
-                {/* Transaction Type Column - Clickable label for filtering */}
-                <Td dataLabel={columns.kind}>
-                  <Label
-                    variant={theme === 'dark' ? 'outline' : 'filled'}
-                    color={getTransactionKindColor(t.kind)}
-                    onClick={() => handleTransactionTypeClick(t.kind)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    {t.kind}
-                  </Label>
-                </Td>
-                {/* Labels Column - Clickable labels for filtering */}
-                <Td dataLabel={columns.labels}>
-                  <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                    {t.labels.map((label: ILabelTransaction, idx: number) => (
-                      <FlexItem key={`label-${idx}`}>
-                        <Label
-                          variant={theme === 'dark' ? 'outline' : 'filled'}
-                          color={isKeyOfObject('rule_href', label) ? 'green' : 'red'}
-                          onClick={() => handleLabelClick(`${label.key}=${label.value}`)}
-                          style={{ cursor: 'pointer' }}
-                          aria-label={`Filter by ${label.key}=${label.value} label`}
-                          onClose={!isKeyOfObject('rule_href', label) ? () => handleOpenRemoveLabelModal(t, label) : undefined}
+                  />
+                  {/* Date Column */}
+                  <Td dataLabel={columns.date}>{safeFormatDateString(t.date)}</Td>
+                  {/* Account Column - Clickable label for filtering */}
+                  <Td dataLabel={columns.account}>
+                    <Label
+                      variant={theme === 'dark' ? 'outline' : 'filled'}
+                      color="purple"
+                      onClick={() => handleAccountClick(t.account)}
+                      style={{
+                        cursor: 'pointer',
+                        color: theme === 'dark' ? getAccountDarkColor(t.account) : 'black',
+                      }}
+                      aria-label={`Filter by account ${t.account}`}
+                    >
+                      {t.account}
+                    </Label>
+                  </Td>
+                  {/* Transaction Type Column - Clickable label for filtering */}
+                  <Td dataLabel={columns.kind}>
+                    <Label
+                      variant={theme === 'dark' ? 'outline' : 'filled'}
+                      color={getTransactionKindColor(t.kind)}
+                      onClick={() => handleTransactionTypeClick(t.kind)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {t.kind}
+                    </Label>
+                  </Td>
+                  {/* Labels Column - Clickable labels for filtering */}
+                  <Td dataLabel={columns.labels}>
+                    <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                      {t.labels.map((label: ILabelTransaction, idx: number) => (
+                        <FlexItem key={`label-${idx}`}>
+                          <Label
+                            variant={theme === 'dark' ? 'outline' : 'filled'}
+                            color={isKeyOfObject('rule_href', label) ? 'green' : 'red'}
+                            onClick={() => handleLabelClick(`${label.key}=${label.value}`)}
+                            style={{ cursor: 'pointer' }}
+                            aria-label={`Filter by ${label.key}=${label.value} label`}
+                            onClose={
+                              !isKeyOfObject('rule_href', label) ? () => handleOpenRemoveLabelModal(t, label) : undefined
+                            }
+                          >
+                            {label.key}={label.value}
+                          </Label>
+                        </FlexItem>
+                      ))}
+                    </Flex>
+                  </Td>
+                  {/* Amount Column */}
+                  <Td dataLabel={columns.amount}>
+                    <Content>{t.amount.toFixed(2)}</Content>
+                  </Td>
+                  {/* Actions Column */}
+                  <Td dataLabel={columns.actions}>
+                    <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                      <FlexItem>
+                        <Button
+                          variant="plain"
+                          onClick={() => handleOpenAddLabelModal(t)}
+                          aria-label="Add label to transaction"
                         >
-                          {label.key}={label.value}
-                        </Label>
+                          <PlusIcon />
+                        </Button>
                       </FlexItem>
-                    ))}
-                  </Flex>
-                </Td>
-                {/* Amount Column */}
-                <Td dataLabel={columns.amount}>
-                  <Content>
-                    {t.amount.toFixed(2)}
-                  </Content>
-                </Td>
-                {/* Actions Column */}
-                <Td dataLabel={columns.actions}>
-                  <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                    <FlexItem>
-                      <Button
-                        variant="plain"
-                        onClick={() => handleOpenAddLabelModal(t)}
-                        aria-label="Add label to transaction"
-                      >
-                        <PlusIcon />
-                      </Button>
-                    </FlexItem>
-                    <FlexItem>
-                      <Button
-                        variant="plain"
-                        onClick={() => handleOpenCreateRuleModal(t)}
-                        aria-label="Create rule from transaction"
-                      >
-                        <CogIcon />
-                      </Button>
-                    </FlexItem>
-                  </Flex>
-                </Td>
-              </Tr>
-              {/* Expandable Row Content - Shows transaction description */}
-              <Tr isExpanded={isTransactionExpanded(t)}>
-                <Td />
-                <Td colSpan={7}>
-                  <ExpandableRowContent>
-                    <Content>{t.description || 'No description'}</Content>
-                  </ExpandableRowContent>
-                </Td>
-              </Tr>
-            </React.Fragment>
-          ))}
+                      <FlexItem>
+                        <Button
+                          variant="plain"
+                          onClick={() => handleOpenCreateRuleModal(t)}
+                          aria-label="Create rule from transaction"
+                        >
+                          <CogIcon />
+                        </Button>
+                      </FlexItem>
+                    </Flex>
+                  </Td>
+                </Tr>
+                {/* Expandable Row Content - Shows transaction description */}
+                <Tr isExpanded={isTransactionExpanded(t)}>
+                  <Td />
+                  <Td colSpan={7}>
+                    <ExpandableRowContent>
+                      <Content>{t.description || 'No description'}</Content>
+                    </ExpandableRowContent>
+                  </Td>
+                </Tr>
+              </React.Fragment>
+            ))
+          )}
         </Tbody>
       </Table>
     </React.Fragment>

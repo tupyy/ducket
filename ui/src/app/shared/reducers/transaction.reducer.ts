@@ -89,21 +89,23 @@ export const addLabelToTransaction = createAsyncThunk(
     };
 
     const result = await axios.post(url, labelData);
-    
+
     // Refresh transactions after adding label
     await thunkAPI.dispatch(getTransactions());
-    
+
     // Recalculate filters after transactions are refreshed
     const state = thunkAPI.getState() as any;
     const filterState = state.transactionFilter;
-    
-    thunkAPI.dispatch(applyFilters({
-      selectedLabels: filterState.selectedLabels,
-      selectedTransactionTypes: filterState.selectedTransactionTypes,
-      selectedAccounts: filterState.selectedAccounts,
-      descriptionFilter: filterState.descriptionFilter,
-    }));
-    
+
+    await thunkAPI.dispatch(
+      applyFilters({
+        selectedLabels: filterState.selectedLabels,
+        selectedTransactionTypes: filterState.selectedTransactionTypes,
+        selectedAccounts: filterState.selectedAccounts,
+        descriptionFilter: filterState.descriptionFilter,
+      })
+    );
+
     return result;
   },
   { serializeError: serializeAxiosError }
@@ -123,21 +125,23 @@ export const removeLabelFromTransaction = createAsyncThunk(
     };
 
     const result = await axios.delete(url, { data: labelData });
-    
+
     // Refresh transactions after removing label
     await thunkAPI.dispatch(getTransactions());
-    
+
     // Recalculate filters after transactions are refreshed
     const state = thunkAPI.getState() as any;
     const filterState = state.transactionFilter;
-    
-    thunkAPI.dispatch(applyFilters({
-      selectedLabels: filterState.selectedLabels,
-      selectedTransactionTypes: filterState.selectedTransactionTypes,
-      selectedAccounts: filterState.selectedAccounts,
-      descriptionFilter: filterState.descriptionFilter,
-    }));
-    
+
+    await thunkAPI.dispatch(
+      applyFilters({
+        selectedLabels: filterState.selectedLabels,
+        selectedTransactionTypes: filterState.selectedTransactionTypes,
+        selectedAccounts: filterState.selectedAccounts,
+        descriptionFilter: filterState.descriptionFilter,
+      })
+    );
+
     return result;
   },
   { serializeError: serializeAxiosError }
@@ -161,6 +165,11 @@ export const TransactionManagementSlice = createSlice({
   reducers: {
     reset() {
       return initialState;
+    },
+    clearAddLabelToTransactionSuccess(state) {
+      if (state.addLabelSuccess) {
+        state.addLabelSuccess = false;
+      }
     },
   },
   extraReducers(builder) {
@@ -242,5 +251,5 @@ export const TransactionManagementSlice = createSlice({
   },
 });
 
-export const { reset } = TransactionManagementSlice.actions;
+export const { clearAddLabelToTransactionSuccess, reset } = TransactionManagementSlice.actions;
 export default TransactionManagementSlice.reducer;
