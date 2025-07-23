@@ -7,17 +7,17 @@ import (
 )
 
 // store labels by value because we can have the same label associated with multiple rules
-type Labels map[string][]Label
+type Labels map[int][]Label
 
 // ToEntity converts the database model labels to entity labels.
 func (labels Labels) ToEntity() []entity.Label {
 	tt := []entity.Label{}
-	for k, rows := range labels {
-		label := entity.Label{Value: k}
+	for id, rows := range labels {
+		label := entity.Label{ID: id}
 		for _, r := range rows {
 			label.CreatedAt = r.CreatedAt
 			label.Key = r.Key
-			label.ID = r.ID
+			label.Value = r.Value
 			if r.RuleID != nil {
 				label.Rules = append(label.Rules, *r.RuleID)
 			}
@@ -30,12 +30,12 @@ func (labels Labels) ToEntity() []entity.Label {
 
 // Add appends a label to the collection, grouping by label value.
 func (labels Labels) Add(t Label) {
-	rows, ok := labels[t.Value]
+	rows, ok := labels[t.ID]
 	if !ok {
-		labels[t.Value] = []Label{t}
+		labels[t.ID] = []Label{t}
 		return
 	}
-	labels[t.Value] = append(rows, t)
+	labels[t.ID] = append(rows, t)
 }
 
 type Label struct {
