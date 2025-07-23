@@ -27,6 +27,8 @@ export interface ITransactionFilterState {
   // Async state for filtering
   filtering: boolean;
   filterError: string;
+  // Selection state
+  selectedTransactions: string[];
 }
 
 const initialState: ITransactionFilterState = {
@@ -54,6 +56,8 @@ const initialState: ITransactionFilterState = {
   // Async state for filtering
   filtering: false,
   filterError: '',
+  // Selection state
+  selectedTransactions: [],
 };
 
 // Async thunk for applying filters
@@ -230,6 +234,37 @@ export const transactionFilterSlice = createSlice({
       }
     },
 
+    // Selection actions
+    setTransactionSelected: (state, action: PayloadAction<{ href: string; isSelected: boolean }>) => {
+      const { href, isSelected } = action.payload;
+      const transactionIndex = state.selectedTransactions.findIndex((selectedHref) => selectedHref === href);
+
+      if (isSelected && transactionIndex === -1) {
+        state.selectedTransactions.push(href);
+      } else if (!isSelected && transactionIndex !== -1) {
+        state.selectedTransactions.splice(transactionIndex, 1);
+      }
+    },
+
+    selectAllTransactions: (state, action: PayloadAction<string[]>) => {
+      const currentPageHrefs = action.payload;
+      const areAllCurrentPageSelected = currentPageHrefs.length > 0 &&
+        currentPageHrefs.every(href => state.selectedTransactions.includes(href));
+
+      if (areAllCurrentPageSelected) {
+        // Deselect all current page transactions
+        state.selectedTransactions = state.selectedTransactions.filter(href => !currentPageHrefs.includes(href));
+      } else {
+        // Select all current page transactions
+        const newSelected = Array.from(new Set([...state.selectedTransactions, ...currentPageHrefs]));
+        state.selectedTransactions = newSelected;
+      }
+    },
+
+    clearSelection: (state) => {
+      state.selectedTransactions = [];
+    },
+
     reset: () => initialState,
   },
   extraReducers: (builder) => {
@@ -270,6 +305,9 @@ export const {
   clearSorting,
   setTransactionExpanded,
   toggleAllExpanded,
+  setTransactionSelected,
+  selectAllTransactions,
+  clearSelection,
   reset,
 } = transactionFilterSlice.actions;
 

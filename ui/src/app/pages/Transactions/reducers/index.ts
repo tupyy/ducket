@@ -18,6 +18,9 @@ export {
   clearSorting,
   setTransactionExpanded,
   toggleAllExpanded,
+  setTransactionSelected,
+  selectAllTransactions,
+  clearSelection,
   reset as resetTransactionFilter,
 } from './transaction-filter.reducer';
 

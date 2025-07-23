@@ -15,6 +15,7 @@ import {
   Button,
   TextInput,
   Spinner,
+  Checkbox,
 } from '@patternfly/react-core';
 import { DataView, DataViewToolbar } from '@patternfly/react-data-view';
 import { ExpandableRowContent, Table, Tbody, Td, Th, Thead, ThProps, Tr } from '@patternfly/react-table';
@@ -41,6 +42,9 @@ import {
   setSorting,
   setTransactionExpanded,
   toggleAllExpanded,
+  setTransactionSelected,
+  selectAllTransactions,
+  clearSelection,
 } from './reducers/transaction-filter.reducer';
 import {
   clearAddLabelToTransactionSuccess,
@@ -93,6 +97,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     sortIndex,
     expandedTransactions,
     filtering,
+    selectedTransactions,
   } = useAppSelector((state) => state.transactionFilter);
 
   // ===============================
@@ -197,6 +202,13 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
    * @returns Whether the transaction is expanded
    */
   const isTransactionExpanded = (t: ITransaction) => expandedTransactions.includes(t.href);
+
+  /**
+   * Check if a transaction is currently selected
+   * @param t - Transaction to check
+   * @returns Whether the transaction is selected
+   */
+  const isTransactionSelected = (t: ITransaction) => selectedTransactions.includes(t.href);
 
   // ===============================
   // EFFECTS
@@ -334,6 +346,13 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     );
   }, [paginatedTransactions, expandedTransactions]);
 
+  // Check if all current page transactions are selected
+  const areAllCurrentPageSelected = React.useMemo(() => {
+    return (
+      paginatedTransactions.length > 0 && paginatedTransactions.every((t) => selectedTransactions.includes(t.href))
+    );
+  }, [paginatedTransactions, selectedTransactions]);
+
   /**
    * Handle expand all / collapse all functionality
    * Only affects transactions on the current page
@@ -341,6 +360,24 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   const handleExpandAll = () => {
     const currentPageHrefs = paginatedTransactions.map((t) => t.href);
     dispatch(toggleAllExpanded(currentPageHrefs));
+  };
+
+  /**
+   * Handle select all / deselect all functionality
+   * Only affects transactions on the current page
+   */
+  const handleSelectAll = () => {
+    const currentPageHrefs = paginatedTransactions.map((t) => t.href);
+    dispatch(selectAllTransactions(currentPageHrefs));
+  };
+
+  /**
+   * Handle individual transaction selection
+   * @param transaction - Transaction to select/deselect
+   * @param isSelected - Whether to select or deselect
+   */
+  const handleTransactionSelect = (transaction: ITransaction, isSelected: boolean) => {
+    dispatch(setTransactionSelected({ href: transaction.href, isSelected }));
   };
 
   // ===============================
@@ -489,6 +526,29 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   const handleCloseCreateRuleModal = () => {
     setIsCreateRuleModalOpen(false);
     setSelectedTransactionForRule(null);
+  };
+
+  /**
+   * Handle opening the bulk label modal
+   */
+  const handleOpenBulkLabelModal = () => {
+    setSelectedTransactionForLabel(null); // Clear single transaction
+    setIsAddLabelModalOpen(true);
+  };
+
+  /**
+   * Handle closing the bulk label modal
+   */
+  const handleCloseBulkLabelModal = () => {
+    setIsAddLabelModalOpen(false);
+    setSelectedTransactionForLabel(null);
+  };
+
+  /**
+   * Handle clearing selection
+   */
+  const handleClearSelection = () => {
+    dispatch(clearSelection());
   };
 
   /**
@@ -703,6 +763,38 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   const renderSelectedFilters = () => (
     <PageSection>
       <Flex direction={{ default: 'column' }}>
+        {/* Bulk Actions Section */}
+        {selectedTransactions.length > 0 && (
+          <FlexItem>
+            <Flex direction={{ default: 'row' }} alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsMd' }}>
+              <FlexItem>
+                <Content>
+                  <strong>{selectedTransactions.length} transaction{selectedTransactions.length !== 1 ? 's' : ''} selected</strong>
+                </Content>
+              </FlexItem>
+              <FlexItem>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleOpenBulkLabelModal}
+                  icon={<PlusIcon />}
+                >
+                  Add Labels to Selected
+                </Button>
+              </FlexItem>
+              <FlexItem>
+                <Button
+                  variant="link"
+                  size="sm"
+                  onClick={handleClearSelection}
+                >
+                  Clear Selection
+                </Button>
+              </FlexItem>
+            </Flex>
+          </FlexItem>
+        )}
+
         {(selectedLabels.length > 0 ||
           selectedTransactionTypes.length > 0 ||
           selectedAccounts.length > 0 ||
@@ -832,6 +924,14 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
       <Table aria-label="transaction-list">
         <Thead>
           <Tr>
+            {/* Select All Checkbox */}
+            <Th
+              select={{
+                onSelect: (_event, isSelected) => handleSelectAll(),
+                isSelected: areAllCurrentPageSelected,
+                isDisabled: filtering,
+              }}
+            />
             {/* Expand All Button */}
             <Th>
               <Button
@@ -868,7 +968,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
         <Tbody>
           {filtering ? (
             <Tr>
-              <Td colSpan={7} style={{ textAlign: 'center', padding: '2rem' }}>
+              <Td colSpan={8} style={{ textAlign: 'center', padding: '2rem' }}>
                 <Flex direction={{ default: 'column' }} alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsMd' }}>
                   <FlexItem>
                     <Spinner size="lg" />
@@ -883,7 +983,16 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
             paginatedTransactions.map((t: ITransaction, rowIndex: number) => (
               <React.Fragment key={t.href}>
                 {/* Main Transaction Row */}
-                <Tr>
+                <Tr isRowSelected={isTransactionSelected(t)}>
+                  {/* Selection Checkbox */}
+                  <Td
+                    select={{
+                      rowIndex,
+                      onSelect: (_event, isSelected) => handleTransactionSelect(t, isSelected),
+                      isSelected: isTransactionSelected(t),
+                      isDisabled: filtering,
+                    }}
+                  />
                   {/* Expand/Collapse Button */}
                   <Td
                     expand={{
@@ -973,7 +1082,8 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                 {/* Expandable Row Content - Shows transaction description */}
                 <Tr isExpanded={isTransactionExpanded(t)}>
                   <Td />
-                  <Td colSpan={7}>
+                  <Td />
+                  <Td colSpan={6}>
                     <ExpandableRowContent>
                       <Content>{t.description || 'No description'}</Content>
                     </ExpandableRowContent>
@@ -1000,15 +1110,15 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
         {renderPagination(PaginationVariant.bottom, false, false, true)}
       </DataView>
 
-      {/* Add Label Modal */}
-      {selectedTransactionForLabel && (
-        <AddLabelModal
-          isOpen={isAddLabelModalOpen}
-          onClose={handleCloseAddLabelModal}
-          transactionHref={selectedTransactionForLabel.href}
-          transactionDescription={selectedTransactionForLabel.description}
-        />
-      )}
+      {/* Add Label Modal - Handles both single and bulk operations */}
+      <AddLabelModal
+        isOpen={isAddLabelModalOpen}
+        onClose={handleCloseAddLabelModal}
+        transactionHref={selectedTransactionForLabel?.href}
+        transactionHrefs={selectedTransactionForLabel ? undefined : selectedTransactions}
+        transactionDescription={selectedTransactionForLabel?.description}
+        onSuccess={selectedTransactionForLabel ? undefined : handleClearSelection}
+      />
 
       {/* Remove Label Confirmation Modal */}
       <RemoveLabelModal

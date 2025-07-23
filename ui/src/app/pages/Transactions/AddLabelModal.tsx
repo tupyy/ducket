@@ -30,15 +30,19 @@ import { getLabels } from '@app/shared/reducers/label.reducer';
 interface AddLabelModalProps {
   isOpen: boolean;
   onClose: () => void;
-  transactionHref: string;
+  transactionHref?: string;
+  transactionHrefs?: string[];
   transactionDescription?: string;
+  onSuccess?: () => void;
 }
 
 export const AddLabelModal: React.FunctionComponent<AddLabelModalProps> = ({
   isOpen,
   onClose,
   transactionHref,
+  transactionHrefs,
   transactionDescription = '',
+  onSuccess,
 }) => {
   const dispatch = useAppDispatch();
   const { addingLabel, addLabelSuccess, errorMessage } = useAppSelector((state) => state.transactions);
@@ -48,6 +52,13 @@ export const AddLabelModal: React.FunctionComponent<AddLabelModalProps> = ({
   const [isLabelSelectOpen, setIsLabelSelectOpen] = useState(false);
   const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
   const [validationError, setValidationError] = useState('');
+
+  // Determine if this is a bulk operation
+  const isBulkOperation = Boolean(transactionHrefs?.length);
+  const transactionCount = isBulkOperation ? transactionHrefs!.length : 1;
+  const targetTransactionHrefs = isBulkOperation 
+    ? transactionHrefs! 
+    : (transactionHref ? [transactionHref] : []);
 
   // Load available labels when modal opens
   React.useEffect(() => {
@@ -70,8 +81,9 @@ export const AddLabelModal: React.FunctionComponent<AddLabelModalProps> = ({
   React.useEffect(() => {
     if (addLabelSuccess) {
       handleClose();
+      onSuccess?.();
     }
-  });
+  }, [addLabelSuccess, onSuccess]);
 
   const validateLabelInput = (input: string) => {
     const trimmedInput = input.trim();
@@ -97,16 +109,23 @@ export const AddLabelModal: React.FunctionComponent<AddLabelModalProps> = ({
       return;
     }
 
-    // Submit all selected labels
-    for (const labelString of selectedLabels) {
-      const [key, value] = labelString.split('=');
-      await dispatch(
-        addLabelToTransaction({
-          transactionHref,
-          key: key.trim(),
-          value: value.trim(),
-        })
-      );
+    if (targetTransactionHrefs.length === 0) {
+      setValidationError('No transactions selected');
+      return;
+    }
+
+    // Submit all selected labels to all target transactions
+    for (const href of targetTransactionHrefs) {
+      for (const labelString of selectedLabels) {
+        const [key, value] = labelString.split('=');
+        await dispatch(
+          addLabelToTransaction({
+            transactionHref: href,
+            key: key.trim(),
+            value: value.trim(),
+          })
+        );
+      }
     }
   };
 
@@ -193,9 +212,13 @@ export const AddLabelModal: React.FunctionComponent<AddLabelModalProps> = ({
       aria-describedby="add-labels-modal-description"
     >
       <ModalHeader
-        title="Add Custom Labels"
+        title={isBulkOperation ? `Add Labels to ${transactionCount} Transactions` : "Add Custom Labels"}
         labelId="add-labels-modal-title"
-        description={transactionDescription ? `Transaction: ${transactionDescription}` : undefined}
+        description={
+          isBulkOperation 
+            ? `Add labels to ${transactionCount} selected transaction${transactionCount !== 1 ? 's' : ''}`
+            : transactionDescription ? `Transaction: ${transactionDescription}` : undefined
+        }
         descriptorId="add-labels-modal-description"
       />
       <ModalBody>
@@ -268,7 +291,11 @@ export const AddLabelModal: React.FunctionComponent<AddLabelModalProps> = ({
               </div>
             )}
             <div style={{ color: 'var(--pf-v6-global--Color--200)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-              Enter labels in key=value format (e.g., category=food, type=expense). You can add multiple labels.
+              Enter labels in key=value format (e.g., category=food, type=expense). 
+              {isBulkOperation 
+                ? ` These labels will be added to all ${transactionCount} selected transactions.`
+                : ' You can add multiple labels.'
+              }
             </div>
           </FormGroup>
         </Form>
@@ -282,6 +309,7 @@ export const AddLabelModal: React.FunctionComponent<AddLabelModalProps> = ({
           isDisabled={addingLabel || selectedLabels.length === 0}
         >
           Add {selectedLabels.length} Label{selectedLabels.length !== 1 ? 's' : ''}
+          {isBulkOperation ? ` to ${transactionCount} Transaction${transactionCount !== 1 ? 's' : ''}` : ''}
         </Button>
         <Button variant="link" onClick={handleClose} isDisabled={addingLabel}>
           Cancel
