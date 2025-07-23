@@ -64,9 +64,6 @@ func (ras *RuleApplierService) ApplyAllRulesToAllTransactions(ctx context.Contex
 		hasMatches := false
 		updatedTransaction := transaction
 
-		// Clear existing labels to reapply all rules
-		updatedTransaction.Labels = []entity.LabelAssociation{}
-
 		for ruleName, regex := range compiledRules {
 			rule := ruleMap[ruleName]
 

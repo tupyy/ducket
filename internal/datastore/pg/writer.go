@@ -230,7 +230,7 @@ func (w *Writer) WriteRelationships(ctx context.Context, relationships []entity.
 	}
 
 	if hasTransactionLabelRuleRelationship {
-		sql, args, err := qInsertTransactionLabelRule.ToSql()
+		sql, args, err := qInsertTransactionLabelRule.Suffix("ON CONFLICT DO NOTHING").ToSql()
 		if err != nil {
 			return fmt.Errorf(errUnableToWriteRelationship, err)
 		}
@@ -240,7 +240,7 @@ func (w *Writer) WriteRelationships(ctx context.Context, relationships []entity.
 	}
 
 	if hasTransactionLabelRelationship {
-		sql, args, err := qInsertTransactionLabel.ToSql()
+		sql, args, err := qInsertTransactionLabel.Suffix("ON CONFLICT DO NOTHING").ToSql()
 		if err != nil {
 			return fmt.Errorf(errUnableToWriteRelationship, err)
 		}
@@ -250,7 +250,7 @@ func (w *Writer) WriteRelationships(ctx context.Context, relationships []entity.
 	}
 
 	if hasLabelRuleRelationship {
-		sql, args, err := qInsertLabelRule.ToSql()
+		sql, args, err := qInsertLabelRule.Suffix("ON CONFLICT DO NOTHING").ToSql()
 		if err != nil {
 			return fmt.Errorf(errUnableToWriteRelationship, err)
 		}
