@@ -40,7 +40,7 @@ WORKDIR /app
 COPY --from=backend-builder /app/finante .
 
 # Copy database migrations
-COPY --from=backend-builder /app/pkg/migrations/sql ./migrations/
+COPY --from=backend-builder /app/internal/datastore/pg/migrations/sql ./migrations/
 
 # Copy built frontend from frontend builder
 COPY --from=frontend-builder /app/ui/dist ./ui/dist
