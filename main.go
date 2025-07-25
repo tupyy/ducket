@@ -29,6 +29,7 @@ func main() {
 	registerLoggingFlags(rootCmd, cfg)
 
 	rootCmd.AddCommand(cmd.NewServeCommand(cfg))
+	rootCmd.AddCommand(cmd.NewMigrateCommand(cfg))
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
