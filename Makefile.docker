@@ -1,5 +1,5 @@
 # Podman Container Management Makefile for Finante
-.PHONY: help build run stop logs clean restart rebuild dev network db-start db-stop
+.PHONY: help build run stop logs clean restart rebuild dev network db-start db-stop tag push deploy-image db-migrate
 
 # Podman network and container names
 NETWORK_NAME = finante-network
@@ -7,6 +7,10 @@ DB_CONTAINER = finante-db
 APP_CONTAINER = finante-app
 DB_IMAGE = postgres:17-alpine
 APP_IMAGE = finante:latest
+
+# Remote registry configuration
+REGISTRY = quay.io/ctupangiu/finance
+REMOTE_TAG ?= latest
 
 # Database configuration
 DB_NAME = finante
@@ -28,6 +32,17 @@ network: ## Create Podman network for containers
 # Build the application image
 podman-build: ## Build the Finante application container
 	podman build -f Containerfile -t $(APP_IMAGE) .
+
+# Tag image for remote registry
+tag: ## Tag the local image for remote registry
+	podman tag $(APP_IMAGE) $(REGISTRY):$(REMOTE_TAG)
+
+# Push image to remote registry
+push: tag ## Push the container image to quay.io/ctupangiu/finance
+	podman push $(REGISTRY):$(REMOTE_TAG)
+
+# Build and push in one command
+deploy-image: podman-build push ## Build and push the container image to remote registry
 
 # Start database container
 db-start: network ## Start PostgreSQL database container
@@ -52,8 +67,18 @@ db-start: network ## Start PostgreSQL database container
 db-stop: ## Stop PostgreSQL database container
 	@podman stop $(DB_CONTAINER) 2>/dev/null || true
 
+# Run database migrations
+db-migrate: db-start ## Run database migrations in container
+	@echo "⏳ Running database migrations..."
+	@podman run --rm \
+		--network $(NETWORK_NAME) \
+		-e LOG_LEVEL=info \
+		$(APP_IMAGE) \
+		./finante migrate --migration-folder=./migrations --db-conn-uri="postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_CONTAINER):5432/$(DB_NAME)?sslmode=disable"
+	@echo "✅ Database migrations completed"
+
 # Start application container
-podman-run: network db-start build ## Start the Finante application container
+podman-run: network db-start build db-migrate ## Start the Finante application container
 	@if [ ! "$$(podman ps -q -f name=$(APP_CONTAINER))" ]; then \
 		if [ "$$(podman ps -aq -f status=exited -f name=$(APP_CONTAINER))" ]; then \
 			podman rm $(APP_CONTAINER); \
@@ -66,14 +91,13 @@ podman-run: network db-start build ## Start the Finante application container
 			-e SERVER_PORT=8080 \
 			-e SERVER_GIN_MODE=release \
 			-e LOG_LEVEL=info \
-			-v $$(pwd)/uploads:/app/uploads \
-			-v $$(pwd)/logs:/app/logs \
-			$(APP_IMAGE); \
+			$(APP_IMAGE) \
+			./finante serve --server-port=8080 --server-gin-mode=release --db-conn-uri="postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_CONTAINER):5432/$(DB_NAME)?sslmode=disable"; \
 		echo "✅ Application started at http://localhost:8080"; \
 	fi
 
 # Start in development mode
-dev: network db-start build ## Start in development mode with debug logging
+dev: network db-start build db-migrate ## Start in development mode with debug logging
 	@if [ ! "$$(podman ps -q -f name=$(APP_CONTAINER))" ]; then \
 		if [ "$$(podman ps -aq -f status=exited -f name=$(APP_CONTAINER))" ]; then \
 			podman rm $(APP_CONTAINER); \
@@ -83,13 +107,13 @@ dev: network db-start build ## Start in development mode with debug logging
 			--network $(NETWORK_NAME) \
 			-p 8080:8080 \
 			-p 2345:2345 \
-			-e DB_CONN_URI="postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_CONTAINER):5432/$(DB_NAME)?sslmode=disable" \
 			-e SERVER_PORT=8080 \
 			-e SERVER_GIN_MODE=debug \
 			-e LOG_LEVEL=debug \
 			-v $$(pwd)/uploads:/app/uploads \
 			-v $$(pwd)/logs:/app/logs \
-			$(APP_IMAGE); \
+			$(APP_IMAGE) \
+			./finante serve --server-port=8080 --server-gin-mode=debug --db-conn-uri="postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_CONTAINER):5432/$(DB_NAME)?sslmode=disable"; \
 		echo "✅ Application started in development mode at http://localhost:8080"; \
 	fi
 

@@ -1,7 +1,7 @@
 # Include container management targets
 include Makefile.docker
 
-.PHONY: help tools build check run logs container-help
+.PHONY: help tools build check run logs container-help container-push container-deploy-image container-migrate
 
 help: help.all
 build: build.local
@@ -175,6 +175,10 @@ container-db-shell:
 #help container-db-backup: backup database
 container-db-backup:
 	@$(MAKE) -f Makefile.docker db-backup
+
+#help container-migrate: run database migrations in container
+container-migrate:
+	@$(MAKE) -f Makefile.docker db-migrate
 
 # Quick development workflow aliases
 #help dev: start development environment (alias for container-dev)
