@@ -29,7 +29,7 @@ func NewMigrateCommand(config *config.Config) *cobra.Command {
 			undo := zap.ReplaceGlobals(logger)
 			defer undo()
 
-			zap.S().Info("starting database migration", "db_uri", config.Database.URI, "migration_path", migrationPath)
+			zap.S().Infow("starting database migration", "db_uri", config.Database.URI, "migration_path", migrationPath)
 
 			// Connect to database using stdlib sql interface
 			db, err := sql.Open("pgx", config.Database.URI)
