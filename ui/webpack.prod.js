@@ -10,6 +10,11 @@ const TerserJSPlugin = require('terser-webpack-plugin');
 module.exports = merge(common('production'), {
   mode: 'production',
   devtool: 'source-map',
+  output: {
+    filename: 'static/[name].bundle.js',
+    chunkFilename: 'static/[name].chunk.js',
+    publicPath: '/static/',
+  },
   optimization: {
     minimizer: [
       new TerserJSPlugin({}),
@@ -22,8 +27,8 @@ module.exports = merge(common('production'), {
   },
   plugins: [
     new MiniCssExtractPlugin({
-      filename: '[name].css',
-      chunkFilename: '[name].bundle.css',
+      filename: 'static/[name].css',
+      chunkFilename: 'static/[name].bundle.css',
     }),
   ],
   module: {

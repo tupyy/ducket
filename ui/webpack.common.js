@@ -109,6 +109,7 @@ module.exports = (env) => {
       filename: '[name].bundle.js',
       path: path.resolve(__dirname, 'dist'),
       publicPath: ASSET_PATH,
+      clean: true,
     },
     plugins: [
       new HtmlWebpackPlugin({

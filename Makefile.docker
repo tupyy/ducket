@@ -92,7 +92,7 @@ podman-run: network db-start build db-migrate ## Start the Finante application c
 			-e SERVER_GIN_MODE=release \
 			-e LOG_LEVEL=info \
 			$(APP_IMAGE) \
-			./finante serve --server-port=8080 --server-gin-mode=release --db-conn-uri="postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_CONTAINER):5432/$(DB_NAME)?sslmode=disable"; \
+			./finante serve --server-port=8080 --server-gin-mode=release --server-mode=prod --statics-folder=./ui/dist --db-conn-uri="postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_CONTAINER):5432/$(DB_NAME)?sslmode=disable"; \
 		echo "✅ Application started at http://localhost:8080"; \
 	fi
 
@@ -113,7 +113,7 @@ dev: network db-start build db-migrate ## Start in development mode with debug l
 			-v $$(pwd)/uploads:/app/uploads \
 			-v $$(pwd)/logs:/app/logs \
 			$(APP_IMAGE) \
-			./finante serve --server-port=8080 --server-gin-mode=debug --db-conn-uri="postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_CONTAINER):5432/$(DB_NAME)?sslmode=disable"; \
+			./finante serve --server-port=8080 --server-gin-mode=debug --server-mode=dev --statics-folder=./ui/dist --db-conn-uri="postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_CONTAINER):5432/$(DB_NAME)?sslmode=disable"; \
 		echo "✅ Application started in development mode at http://localhost:8080"; \
 	fi
 

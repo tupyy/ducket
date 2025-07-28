@@ -1,6 +1,6 @@
 # Multi-stage build for Finante application
 # Stage 1: Build React frontend
-FROM docker.io/node:18-alpine AS frontend-builder
+FROM docker.io/node:22-alpine AS frontend-builder
 
 WORKDIR /app/ui
 
@@ -56,4 +56,4 @@ USER finante
 EXPOSE 8080
 
 # Default command
-CMD ["./finante", "serve", "--server-port=8080", "--server-gin-mode=release"] 
+CMD ["./finante", "serve", "--server-port=8080", "--server-gin-mode=release", "--server-mode=prod", "--statics-folder=./ui/dist"] 

@@ -106,3 +106,9 @@ func WithMode(mode string) RunnableServerConfigOption {
 		r.Mode = mode
 	}
 }
+
+func WithStaticsFolder(staticsFolder string) RunnableServerConfigOption {
+	return func(r *RunnableServerConfig) {
+		r.StaticsFolder = staticsFolder
+	}
+}

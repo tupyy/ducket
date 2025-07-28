@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	v1 "git.tls.tupangiu.ro/cosmin/finante/api/v1"
@@ -41,6 +42,10 @@ func NewServeCommand(config *config.Config) *cobra.Command {
 
 			zap.S().Info("using configuration", "config", helpers.Flatten(config.DebugMap()))
 
+			if config.Mode == "prod" && config.StaticsFolder == "" {
+				return fmt.Errorf("statics folder should be provided in prod mod")
+			}
+
 			// init datastore
 			dt, err := pg.NewPostgresDatastore(context.Background(), config.Database.URI)
 			if err != nil {
@@ -62,6 +67,7 @@ func NewServeCommand(config *config.Config) *cobra.Command {
 						return nil
 					}),
 					server.WithMode(config.Mode),
+					server.WithStaticsFolder(config.StaticsFolder),
 				),
 			)
 
@@ -97,4 +103,5 @@ func registerServerFlags(flagSet *pflag.FlagSet, config *config.Config) {
 	flagSet.IntVar(&config.ServerPort, "server-port", config.ServerPort, "port on which the server is listening")
 	flagSet.StringVar(&config.GinMode, "server-gin-mode", config.GinMode, "gin mode: either release or debug. It applies only on server-type web")
 	flagSet.StringVar(&config.Mode, "server-mode", config.Mode, "server mod: dev or prod")
+	flagSet.StringVar(&config.StaticsFolder, "statics-folder", config.StaticsFolder, "path to statics")
 }

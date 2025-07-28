@@ -34,6 +34,7 @@ func (c *Config) ToOption() ConfigOption {
 		to.ServerPort = c.ServerPort
 		to.GinMode = c.GinMode
 		to.Mode = c.Mode
+		to.StaticsFolder = c.StaticsFolder
 		to.LogFormat = c.LogFormat
 		to.LogLevel = c.LogLevel
 	}
@@ -46,6 +47,7 @@ func (c Config) DebugMap() map[string]any {
 	debugMap["ServerPort"] = helpers.DebugValue(c.ServerPort, false)
 	debugMap["GinMode"] = helpers.DebugValue(c.GinMode, false)
 	debugMap["Mode"] = helpers.DebugValue(c.Mode, false)
+	debugMap["StaticsFolder"] = helpers.DebugValue(c.StaticsFolder, false)
 	debugMap["LogFormat"] = helpers.DebugValue(c.LogFormat, false)
 	debugMap["LogLevel"] = helpers.DebugValue(c.LogLevel, false)
 	return debugMap
@@ -92,6 +94,13 @@ func WithGinMode(ginMode string) ConfigOption {
 func WithMode(mode string) ConfigOption {
 	return func(c *Config) {
 		c.Mode = mode
+	}
+}
+
+// WithStaticsFolder returns an option that can set StaticsFolder on a Config
+func WithStaticsFolder(staticsFolder string) ConfigOption {
+	return func(c *Config) {
+		c.StaticsFolder = staticsFolder
 	}
 }
 

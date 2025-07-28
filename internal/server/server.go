@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
 	"syscall"
 	"time"
 
@@ -35,6 +36,7 @@ type RunnableServerConfig struct {
 	GinMode            string
 	ApiVersion         string
 	Mode               string
+	StaticsFolder      string
 }
 
 type runnableServer struct {
@@ -51,9 +53,9 @@ func NewRunnableServer(cfg *RunnableServerConfig) Server {
 
 	if cfg.Mode == ProductionServer {
 		// Serve static files from ui/dist directory (for frontend)
-		engine.Static("/static", "./ui/dist/static")
-		engine.StaticFile("/", "./ui/dist/index.html")
-		engine.StaticFile("/favicon.ico", "./ui/dist/favicon.ico")
+		engine.Static("/static", cfg.StaticsFolder)
+		engine.StaticFile("/", path.Join(cfg.StaticsFolder, "index.html"))
+		engine.StaticFile("/favicon.ico", path.Join(cfg.StaticsFolder, "favicon.ico"))
 
 		// Serve index.html for any non-API routes (SPA routing support)
 		engine.NoRoute(func(c *gin.Context) {
@@ -62,7 +64,7 @@ func NewRunnableServer(cfg *RunnableServerConfig) Server {
 				c.JSON(404, gin.H{"error": "API endpoint not found"})
 				return
 			}
-			c.File("./ui/dist/index.html")
+			c.File(path.Join(cfg.StaticsFolder, "index.html"))
 		})
 	}
 

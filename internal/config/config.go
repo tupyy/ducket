@@ -5,8 +5,9 @@ type Config struct {
 	Database   *Database `debugmap:"visible"`
 	ServerPort int       `debugmap:"visible" default:"8080"`
 
-	GinMode string `debugmap:"visible"`
-	Mode    string `debugmap:"visible" default:"dev"`
+	GinMode       string `debugmap:"visible"`
+	Mode          string `debugmap:"visible" default:"dev"`
+	StaticsFolder string `debugmap:"visible"`
 
 	// Log
 	LogFormat string `debugmap:"visible"`
