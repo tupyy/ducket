@@ -10,6 +10,9 @@ import (
 	"go.uber.org/zap"
 )
 
+// GetLabels handles GET /labels requests to retrieve all available labels.
+// It fetches all labels from the database through the label service and returns
+// them as JSON. Returns HTTP 500 if there's an error retrieving the labels.
 func (s *ServerImpl) GetLabels(c *gin.Context) {
 	dt := dtContext.MustFromContext(c)
 

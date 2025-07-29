@@ -21,6 +21,10 @@ const (
 	queryDateFormat = "02/01/2006"
 )
 
+// GetTransaction handles GET /transactions/{id} requests to retrieve a specific transaction by ID.
+// It fetches the transaction from the database through the transaction service.
+// Returns HTTP 404 if the transaction is not found, HTTP 500 for server errors,
+// or HTTP 201 with the transaction data on success.
 func (s *ServerImpl) GetTransaction(c *gin.Context, id int64) {
 	dt := dtContext.MustFromContext(c)
 
@@ -40,6 +44,10 @@ func (s *ServerImpl) GetTransaction(c *gin.Context, id int64) {
 	c.JSON(http.StatusCreated, outbound.FromEntity(*transaction))
 }
 
+// GetTransactions handles GET /transactions requests to retrieve a filtered list of transactions.
+// It supports optional query parameters for date filtering (startDate and endDate in DD/MM/YYYY format).
+// Defaults to the current month if no dates are provided. Returns HTTP 400 for invalid parameters,
+// HTTP 500 for server errors, or HTTP 200 with the transaction list on success.
 func (s *ServerImpl) GetTransactions(c *gin.Context, params v1.GetTransactionsParams) {
 	now := time.Now()
 	start, err := parseTimestamp(c.Query("startDate"), time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC))
@@ -81,6 +89,11 @@ func (s *ServerImpl) GetTransactions(c *gin.Context, params v1.GetTransactionsPa
 	c.JSON(http.StatusOK, t)
 }
 
+// CreateTransaction handles POST /transactions requests to create a new transaction.
+// It validates the request body as a CreateTransactionForm, checks for duplicate transactions
+// by hash, then creates the transaction through the transaction service. Returns HTTP 400
+// for validation errors or duplicate transactions, HTTP 500 for server errors, or HTTP 201
+// with the created transaction on success.
 func (s *ServerImpl) CreateTransaction(c *gin.Context) {
 	var form inbound.CreateTransactionForm
 	if err := c.ShouldBindJSON(&form); err != nil {
@@ -131,6 +144,10 @@ func (s *ServerImpl) CreateTransaction(c *gin.Context) {
 	c.JSON(http.StatusCreated, outbound.FromEntity(t))
 }
 
+// UpdateTransaction handles PUT /transactions/{id} requests to update an existing transaction or create one if it doesn't exist.
+// It validates the request body as a CreateTransactionForm, then attempts to update the transaction.
+// If the transaction doesn't exist, it creates a new one with the provided ID. Returns HTTP 400
+// for validation errors, HTTP 500 for server errors, HTTP 201 for creation, or HTTP 200 for successful update.
 func (s *ServerImpl) UpdateTransaction(c *gin.Context, id int64) {
 	var form inbound.CreateTransactionForm
 	if err := c.ShouldBindJSON(&form); err != nil {
@@ -175,6 +192,9 @@ func (s *ServerImpl) UpdateTransaction(c *gin.Context, id int64) {
 	c.JSON(http.StatusOK, outbound.FromEntity(updatedTransaction))
 }
 
+// DeleteTransaction handles DELETE /transactions/{id} requests to remove a transaction by its ID.
+// It permanently deletes the transaction from the database through the transaction service.
+// Returns HTTP 400 if the deletion fails or HTTP 204 on successful deletion.
 func (s *ServerImpl) DeleteTransaction(c *gin.Context, id int64) {
 	dt := dtContext.MustFromContext(c)
 	tSrv := services.NewTransactionService(dt)
@@ -210,6 +230,10 @@ func (s *ServerImpl) GetTransactionLabels(c *gin.Context, id int64) {
 	c.JSON(http.StatusOK, response)
 }
 
+// AddTransactionLabel handles POST /transactions/{id}/labels requests to add a label to a transaction.
+// It validates the request body as a LabelForm, retrieves the transaction, adds the label to it,
+// and updates the transaction. Returns HTTP 400 for validation errors, HTTP 404 if the transaction
+// is not found, HTTP 500 for server errors, or HTTP 200 with the updated transaction on success.
 func (s *ServerImpl) AddTransactionLabel(c *gin.Context, id int64) {
 	var form inbound.LabelForm
 	if err := c.ShouldBindJSON(&form); err != nil {
@@ -281,6 +305,10 @@ func (s *ServerImpl) RemoveTransactionLabels(c *gin.Context, id int64) {
 	c.JSON(http.StatusOK, outbound.FromEntity(updated))
 }
 
+// RemoveTransactionLabel handles DELETE /transactions/{id}/labels/{labelId} requests to remove a specific label from a transaction.
+// It retrieves the transaction, finds and removes the label with the specified ID, then updates the transaction.
+// Returns HTTP 404 if the transaction or label is not found, HTTP 500 for server errors,
+// or HTTP 200 with the updated transaction on success.
 func (s *ServerImpl) RemoveTransactionLabel(c *gin.Context, id int64, labelId int) {
 	dt := dtContext.MustFromContext(c)
 

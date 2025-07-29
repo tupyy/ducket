@@ -12,6 +12,9 @@ const (
 	queryDateFormat = "02/01/2006"
 )
 
+// CreateTransactionForm represents the HTTP request body structure for creating new transactions.
+// It contains all the required fields to create a transaction including kind, date, content,
+// amount, and account information. The date must be in DD/MM/YYYY format.
 type CreateTransactionForm struct {
 	Kind    string  `form:"kind" json:"kind" binding:"required"`
 	Date    string  `form:"date" json:"date" binding:"required"`
@@ -20,7 +23,9 @@ type CreateTransactionForm struct {
 	Account int64   `form:"account" json:"account" binding:"required"`
 }
 
-// Entity converts a TransactionForm to an entity.Transaction for business logic processing.
+// Entity converts a CreateTransactionForm to an entity.Transaction for business logic processing.
+// This method transforms the HTTP request data into the internal domain model representation,
+// parsing the date string and creating a properly formatted transaction entity.
 func (t CreateTransactionForm) Entity() (entity.Transaction, error) {
 	date, err := time.Parse(queryDateFormat, t.Date)
 	if err != nil {

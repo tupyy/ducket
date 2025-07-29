@@ -3,6 +3,7 @@ package v1
 import (
 	"net/http"
 
+	v1 "git.tls.tupangiu.ro/cosmin/finante/api/v1"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1/inbound"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1/outbound"
@@ -13,8 +14,9 @@ import (
 	"go.uber.org/zap"
 )
 
-// RulesHandlers registers all rule-related HTTP handlers with the provided router group.
-// This includes endpoints for CRUD operations on rules.
+// GetRules handles GET /rules requests to retrieve all available rules.
+// It fetches all rules from the database through the rule service and returns
+// them as JSON. Returns HTTP 500 if there's an error retrieving the rules.
 func (s *ServerImpl) GetRules(c *gin.Context) {
 	dt := dtContext.MustFromContext(c)
 
@@ -29,15 +31,19 @@ func (s *ServerImpl) GetRules(c *gin.Context) {
 	c.JSON(http.StatusOK, outbound.NewRules(rules))
 }
 
+// CreateRule handles POST /rules requests to create a new rule.
+// It validates the request body as a RuleForm, checks business validation rules,
+// then creates the rule through the rule service. Returns HTTP 400 for validation
+// errors or HTTP 201 on successful creation.
 func (s *ServerImpl) CreateRule(c *gin.Context) {
-	var form inbound.RuleForm
+	var form v1.RuleForm
 	if err := c.ShouldBindJSON(&form); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	validator := validator.New()
-	validator.RegisterStructValidation(inbound.RuleFormValidation, inbound.RuleForm{})
+	validator.RegisterStructValidation(inbound.RuleFormValidation, v1.RuleForm{})
 
 	if err := validator.Struct(form); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -55,6 +61,10 @@ func (s *ServerImpl) CreateRule(c *gin.Context) {
 	c.JSON(http.StatusCreated, form)
 }
 
+// UpdateRule handles PUT /rules/{id} requests to update an existing rule or create one if it doesn't exist.
+// It validates the request body as an UpdateRuleForm, then attempts to update the rule.
+// If the rule doesn't exist, it creates a new one. Returns HTTP 400 for validation errors,
+// HTTP 500 for server errors, HTTP 201 for creation, or HTTP 200 for successful update.
 func (s *ServerImpl) UpdateRule(c *gin.Context, id string) {
 	var form inbound.UpdateRuleForm
 	if err := c.ShouldBindJSON(&form); err != nil {
@@ -102,17 +112,14 @@ func (s *ServerImpl) UpdateRule(c *gin.Context, id string) {
 	c.JSON(http.StatusOK, ruleToCreate)
 }
 
+// DeleteRule handles DELETE /rules/{id} requests to remove a rule by its ID.
+// It validates that the rule name is not longer than 20 characters, then deletes
+// the rule through the rule service. Returns HTTP 400 for validation errors or
+// HTTP 204 on successful deletion.
 func (s *ServerImpl) DeleteRule(c *gin.Context, id string) {
-	name := c.Param("id")
-
-	if len(name) > 20 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "name must be have less than 20 chars"})
-		return
-	}
-
 	dt := dtContext.MustFromContext(c)
 	ruleSrv := services.NewRuleService(dt)
-	if err := ruleSrv.DeleteRule(c.Request.Context(), name); err != nil {
+	if err := ruleSrv.DeleteRule(c.Request.Context(), id); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -120,6 +127,10 @@ func (s *ServerImpl) DeleteRule(c *gin.Context, id string) {
 	c.JSON(http.StatusNoContent, gin.H{})
 }
 
+// ProcessRules handles POST /rules/process requests to apply all rules to all transactions.
+// It runs the rule applier service to automatically label transactions based on all
+// configured rules. This is a bulk operation that processes all transactions.
+// Returns HTTP 500 if the operation fails or HTTP 200 on success.
 func (s *ServerImpl) ProcessRules(c *gin.Context) {
 	dt := dtContext.MustFromContext(c)
 
@@ -145,18 +156,12 @@ func (s *ServerImpl) ProcessRules(c *gin.Context) {
 	})
 }
 
+// ProcessRule handles POST /rules/{id}/process requests to apply a specific rule to all transactions.
+// It validates the rule name (max 20 characters), retrieves the rule, and applies it to all
+// transactions in the system. Returns HTTP 400 for validation errors, HTTP 404 if the rule
+// doesn't exist, HTTP 500 for server errors, or HTTP 200 on successful processing.
 func (s *ServerImpl) ProcessRule(c *gin.Context, id string) {
-	ruleName := c.Param("id")
-
-	if len(ruleName) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "rule name is required"})
-		return
-	}
-
-	if len(ruleName) > 20 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "rule name must have less than 20 chars"})
-		return
-	}
+	ruleName := id
 
 	dt := dtContext.MustFromContext(c)
 

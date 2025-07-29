@@ -3,10 +3,14 @@ package inbound
 import (
 	"regexp"
 
+	v1 "git.tls.tupangiu.ro/cosmin/finante/api/v1"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
 	"github.com/go-playground/validator/v10"
 )
 
+// RuleForm represents the HTTP request body structure for creating new rules.
+// It contains the rule name, regex pattern, and associated labels that will be
+// applied to transactions matching the pattern.
 type RuleForm struct {
 	Name    string            `form:"name" json:"name" binding:"required"`
 	Pattern string            `form:"pattern" json:"pattern" binding:"required"`
@@ -14,7 +18,9 @@ type RuleForm struct {
 }
 
 // FormToEntity converts a RuleForm to an entity.Rule for business logic processing.
-func FormToEntity(r RuleForm) entity.Rule {
+// This method transforms the HTTP request data into the internal domain model representation,
+// converting the labels map into a slice of entity.Label structures.
+func FormToEntity(r v1.RuleForm) entity.Rule {
 	labels := make([]entity.Label, 0, len(r.Labels))
 	for key, value := range r.Labels {
 		labels = append(labels, entity.Label{
@@ -49,6 +55,9 @@ func RuleFormValidation(sl validator.StructLevel) {
 	}
 }
 
+// UpdateRuleForm represents the HTTP request body structure for updating existing rules.
+// It contains the updated regex pattern and labels, but excludes the rule name which
+// is provided in the URL path parameter and cannot be changed.
 type UpdateRuleForm struct {
 	Pattern string            `form:"pattern" json:"pattern" binding:"required"`
 	Labels  map[string]string `form:"labels" json:"labels" binding:"required"`

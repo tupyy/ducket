@@ -11,6 +11,9 @@ const (
 	apiV1 = "/api/v1"
 )
 
+// TransactionLabelAssociation represents a label attached to a transaction in API responses.
+// It includes the label's key-value pair, HREF for the label resource, and optional
+// reference to the rule that applied this label.
 type TransactionLabelAssociation struct {
 	Href    string `json:"href"`
 	Key     string `json:"key"`
@@ -18,6 +21,9 @@ type TransactionLabelAssociation struct {
 	RuleRef string `json:"rule_href,omitempty"`
 }
 
+// Transaction represents a financial transaction in API responses.
+// It contains all transaction details including labels, formatted for client consumption
+// with HREF links for related resources and RFC3339 formatted dates.
 type Transaction struct {
 	ID          int                           `json:"id"`
 	Href        string                        `json:"href"`
@@ -30,7 +36,7 @@ type Transaction struct {
 }
 
 // FromEntity converts an entity.Transaction to an outbound Transaction model
-// suitable for API responses.
+// suitable for API responses, including proper HREF generation and date formatting.
 func FromEntity(t entity.Transaction) Transaction {
 	transaction := Transaction{
 		ID:          int(t.ID),
@@ -58,6 +64,9 @@ func FromEntity(t entity.Transaction) Transaction {
 	return transaction
 }
 
+// Transactions represents a paginated collection of transactions in API responses.
+// It includes metadata about the total count, date range filter applied, and the
+// actual transaction items in the response.
 type Transactions struct {
 	Total        int           `json:"total"`
 	StartingDate string        `json:"start"`

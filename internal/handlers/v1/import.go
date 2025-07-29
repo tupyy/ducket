@@ -16,8 +16,11 @@ const (
 	maxFileSize = 10 << 20 // 10MB
 )
 
-// ImportHandlers registers the file import HTTP handlers with the provided router group.
-// This includes the endpoint for uploading and processing transaction files.
+// ImportTransactions handles POST /import requests for uploading and processing transaction files.
+// It accepts multipart form data containing Excel (.xlsx, .xls) or CSV files up to 10MB each.
+// The method validates file types and sizes, then processes each file through the import service
+// to extract and store transaction data. Returns HTTP 400 for validation errors or HTTP 500
+// for processing errors, otherwise returns HTTP 200 with import results.
 func (s *ServerImpl) ImportTransactions(c *gin.Context) {
 	// Parse multipart form
 	err := c.Request.ParseMultipartForm(maxFileSize)
