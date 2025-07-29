@@ -27,7 +27,7 @@ import { LabelFilter } from '@app/shared/components/label-filter';
 import { AddLabelModal } from './AddLabelModal';
 import { RemoveLabelModal } from './RemoveLabelModal';
 import { CreateRuleModal } from './CreateRuleModal';
-import { EditInfoModal } from './EditInfoModal';
+import { TransactionDetailsModal } from './TransactionDetailsModal';
 import { useTheme } from '@app/shared/contexts/ThemeContext';
 import { getAccountColor, getAccountDarkColor } from '@app/utils/colorUtils';
 import { safeFormatDateString } from '@app/utils/dateUtils';
@@ -116,9 +116,12 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   const [isTransactionTypeSelectOpen, setIsTransactionTypeSelectOpen] = React.useState(false);
   const [isAccountSelectOpen, setIsAccountSelectOpen] = React.useState(false);
 
-  // Modal state for adding labels
-  const [isAddLabelModalOpen, setIsAddLabelModalOpen] = React.useState(false);
-  const [selectedTransactionForLabel, setSelectedTransactionForLabel] = React.useState<ITransaction | null>(null);
+  // Modal state for unified transaction details (labels + info)
+  const [isTransactionDetailsModalOpen, setIsTransactionDetailsModalOpen] = React.useState(false);
+  const [selectedTransactionForDetails, setSelectedTransactionForDetails] = React.useState<ITransaction | null>(null);
+
+  // Modal state for bulk label operations
+  const [isBulkLabelModalOpen, setIsBulkLabelModalOpen] = React.useState(false);
 
   // Modal state for removing labels
   const [isRemoveLabelModalOpen, setIsRemoveLabelModalOpen] = React.useState(false);
@@ -130,10 +133,6 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   // Modal state for creating rules
   const [isCreateRuleModalOpen, setIsCreateRuleModalOpen] = React.useState(false);
   const [selectedTransactionForRule, setSelectedTransactionForRule] = React.useState<ITransaction | null>(null);
-
-  // Modal state for editing transaction info
-  const [isEditInfoModalOpen, setIsEditInfoModalOpen] = React.useState(false);
-  const [selectedTransactionForInfo, setSelectedTransactionForInfo] = React.useState<ITransaction | null>(null);
 
   // ===============================
   // COMPUTED VALUES
@@ -477,21 +476,55 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   // ===============================
 
   /**
+   * Handle opening the unified transaction details modal
+   * @param transaction - Transaction to edit details for
+   */
+  const handleOpenTransactionDetailsModal = (transaction: ITransaction) => {
+    setSelectedTransactionForDetails(transaction);
+    setIsTransactionDetailsModalOpen(true);
+  };
+
+  /**
+   * Handle closing the unified transaction details modal
+   */
+  const handleCloseTransactionDetailsModal = () => {
+    setIsTransactionDetailsModalOpen(false);
+    setSelectedTransactionForDetails(null);
+  };
+
+  /**
+   * Handle opening the edit info modal
+   * @param transaction - Transaction to edit info for
+   */
+  const handleOpenEditInfoModal = (transaction: ITransaction) => {
+    // Redirect to unified modal
+    handleOpenTransactionDetailsModal(transaction);
+  };
+
+  /**
+   * Handle closing the edit info modal
+   */
+  const handleCloseEditInfoModal = () => {
+    // Redirect to unified modal
+    handleCloseTransactionDetailsModal();
+  };
+
+  /**
    * Handle opening the add label modal
    * @param transaction - Transaction to add label to
    */
   const handleOpenAddLabelModal = (transaction: ITransaction) => {
     dispatch(clearAddLabelToTransactionSuccess());
-    setSelectedTransactionForLabel(transaction);
-    setIsAddLabelModalOpen(true);
+    // Redirect to unified modal
+    handleOpenTransactionDetailsModal(transaction);
   };
 
   /**
    * Handle closing the add label modal
    */
   const handleCloseAddLabelModal = () => {
-    setIsAddLabelModalOpen(false);
-    setSelectedTransactionForLabel(null);
+    // Redirect to unified modal
+    handleCloseTransactionDetailsModal();
   };
 
   /**
@@ -551,23 +584,6 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   };
 
   /**
-   * Handle opening the edit info modal
-   * @param transaction - Transaction to edit info for
-   */
-  const handleOpenEditInfoModal = (transaction: ITransaction) => {
-    setSelectedTransactionForInfo(transaction);
-    setIsEditInfoModalOpen(true);
-  };
-
-  /**
-   * Handle closing the edit info modal
-   */
-  const handleCloseEditInfoModal = () => {
-    setIsEditInfoModalOpen(false);
-    setSelectedTransactionForInfo(null);
-  };
-
-  /**
    * Handle saving transaction info
    * @param transactionHref - Transaction href to update
    * @param info - New info value
@@ -586,16 +602,15 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
    * Handle opening the bulk label modal
    */
   const handleOpenBulkLabelModal = () => {
-    setSelectedTransactionForLabel(null); // Clear single transaction
-    setIsAddLabelModalOpen(true);
+    dispatch(clearAddLabelToTransactionSuccess());
+    setIsBulkLabelModalOpen(true);
   };
 
   /**
    * Handle closing the bulk label modal
    */
   const handleCloseBulkLabelModal = () => {
-    setIsAddLabelModalOpen(false);
-    setSelectedTransactionForLabel(null);
+    setIsBulkLabelModalOpen(false);
   };
 
   /**
@@ -1143,13 +1158,13 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                   <Td dataLabel={columns.actions}>
                     <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
                       <FlexItem>
-                        <Tooltip content="Add label to transaction">
+                        <Tooltip content="Edit transaction details (labels & info)">
                           <Button
                             variant="plain"
-                            onClick={() => handleOpenAddLabelModal(t)}
-                            aria-label="Add label to transaction"
+                            onClick={() => handleOpenTransactionDetailsModal(t)}
+                            aria-label="Edit transaction details"
                           >
-                            <PlusIcon />
+                            <PenIcon />
                           </Button>
                         </Tooltip>
                       </FlexItem>
@@ -1161,17 +1176,6 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                             aria-label="Create rule from transaction"
                           >
                             <CogIcon />
-                          </Button>
-                        </Tooltip>
-                      </FlexItem>
-                      <FlexItem>
-                        <Tooltip content="Edit transaction info">
-                          <Button
-                            variant="plain"
-                            onClick={() => handleOpenEditInfoModal(t)}
-                            aria-label="Edit transaction info"
-                          >
-                            <PenIcon />
                           </Button>
                         </Tooltip>
                       </FlexItem>
@@ -1222,14 +1226,20 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
         {renderPagination(PaginationVariant.bottom, false, false, true)}
       </DataView>
 
-      {/* Add Label Modal - Handles both single and bulk operations */}
+      {/* Unified Transaction Details Modal */}
+      <TransactionDetailsModal
+        isOpen={isTransactionDetailsModalOpen}
+        onClose={handleCloseTransactionDetailsModal}
+        transaction={selectedTransactionForDetails || undefined}
+        onSuccess={handleClearSelection}
+      />
+
+      {/* Bulk Add Label Modal */}
       <AddLabelModal
-        isOpen={isAddLabelModalOpen}
-        onClose={handleCloseAddLabelModal}
-        transactionHref={selectedTransactionForLabel?.href}
-        transactionHrefs={selectedTransactionForLabel ? undefined : selectedTransactions}
-        transactionDescription={selectedTransactionForLabel?.description}
-        onSuccess={selectedTransactionForLabel ? undefined : handleClearSelection}
+        isOpen={isBulkLabelModalOpen}
+        onClose={handleCloseBulkLabelModal}
+        transactionHrefs={selectedTransactions}
+        onSuccess={handleClearSelection}
       />
 
       {/* Remove Label Confirmation Modal */}
@@ -1246,16 +1256,6 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
         isOpen={isCreateRuleModalOpen}
         onClose={handleCloseCreateRuleModal}
         transaction={selectedTransactionForRule || undefined}
-      />
-
-      {/* Edit Transaction Info Modal */}
-      <EditInfoModal
-        isOpen={isEditInfoModalOpen}
-        onClose={handleCloseEditInfoModal}
-        transaction={selectedTransactionForInfo || undefined}
-        onSave={handleSaveTransactionInfo}
-        loading={updatingInfo}
-        error={errorMessage}
       />
     </React.Fragment>
   );
