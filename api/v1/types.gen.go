@@ -76,13 +76,16 @@ type Rules struct {
 
 // Transaction defines model for Transaction.
 type Transaction struct {
-	Account     *int64                         `json:"account,omitempty"`
-	Amount      *float32                       `json:"amount,omitempty"`
-	Date        *time.Time                     `json:"date,omitempty"`
-	Description *string                        `json:"description,omitempty"`
-	Href        *string                        `json:"href,omitempty"`
-	Kind        *string                        `json:"kind,omitempty"`
-	Labels      *[]TransactionLabelAssociation `json:"labels,omitempty"`
+	Account     *int64     `json:"account,omitempty"`
+	Amount      *float32   `json:"amount,omitempty"`
+	Date        *time.Time `json:"date,omitempty"`
+	Description *string    `json:"description,omitempty"`
+	Href        *string    `json:"href,omitempty"`
+
+	// Info Additional transaction information
+	Info   *string                        `json:"info,omitempty"`
+	Kind   *string                        `json:"kind,omitempty"`
+	Labels *[]TransactionLabelAssociation `json:"labels,omitempty"`
 }
 
 // TransactionForm defines model for TransactionForm.
@@ -105,6 +108,12 @@ type TransactionForm struct {
 
 // TransactionFormKind Transaction type
 type TransactionFormKind string
+
+// TransactionInfoForm defines model for TransactionInfoForm.
+type TransactionInfoForm struct {
+	// Info Additional transaction information
+	Info *string `json:"info,omitempty"`
+}
 
 // TransactionLabelAssociation defines model for TransactionLabelAssociation.
 type TransactionLabelAssociation struct {
@@ -150,6 +159,9 @@ type CreateTransactionJSONRequestBody = TransactionForm
 
 // ImportTransactionsMultipartRequestBody defines body for ImportTransactions for multipart/form-data ContentType.
 type ImportTransactionsMultipartRequestBody ImportTransactionsMultipartBody
+
+// PatchTransactionInfoJSONRequestBody defines body for PatchTransactionInfo for application/json ContentType.
+type PatchTransactionInfoJSONRequestBody = TransactionInfoForm
 
 // UpdateTransactionJSONRequestBody defines body for UpdateTransaction for application/json ContentType.
 type UpdateTransactionJSONRequestBody = TransactionForm

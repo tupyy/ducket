@@ -18,6 +18,8 @@ const initialState = {
   deleteSuccess: false,
   addingLabel: false,
   addLabelSuccess: false,
+  updatingInfo: false,
+  updateInfoSuccess: false,
   transactions: [] as Array<ITransaction>,
   totalItems: 0,
 };
@@ -119,15 +121,49 @@ export const removeLabelFromTransaction = createAsyncThunk(
     const transactionId = params.transactionHref.split('/').pop();
     const url = `${transactionApiUrl}/${transactionId}/labels`;
 
-    // DELETE request with label data in the body
-    const labelData = {
+    const deleteData = {
       key: params.key,
       value: params.value,
     };
 
-    const result = await axios.delete(url, { data: labelData });
+    const result = await axios.delete(url, { data: deleteData });
 
     // Refresh transactions after removing label
+    await thunkAPI.dispatch(getTransactions());
+
+    // Recalculate filters after transactions are refreshed
+    const state = thunkAPI.getState() as any;
+    const filterState = state.transactionFilter;
+
+    await thunkAPI.dispatch(
+      applyFilters({
+        selectedLabels: filterState.selectedLabels,
+        selectedTransactionTypes: filterState.selectedTransactionTypes,
+        selectedAccounts: filterState.selectedAccounts,
+        descriptionFilter: filterState.descriptionFilter,
+        showOnlyUnlabeled: filterState.showOnlyUnlabeled,
+      })
+    );
+
+    return result;
+  },
+  { serializeError: serializeAxiosError }
+);
+
+export const updateTransactionInfo = createAsyncThunk(
+  'transactions/updateInfo',
+  async (params: { transactionHref: string; info: string }, thunkAPI) => {
+    // Extract transaction ID from href (assuming href is like "/api/v1/transactions/123")
+    const transactionId = params.transactionHref.split('/').pop();
+    const url = `${transactionApiUrl}/${transactionId}`;
+
+    const updateData = {
+      info: params.info,
+    };
+
+    const result = await axios.patch(url, updateData);
+
+    // Refresh transactions after updating info
     await thunkAPI.dispatch(getTransactions());
 
     // Recalculate filters after transactions are refreshed
@@ -210,6 +246,11 @@ export const TransactionManagementSlice = createSlice({
         state.addLabelSuccess = false;
         state.errorMessage = '';
       })
+      .addCase(updateTransactionInfo.pending, (state) => {
+        state.updatingInfo = true;
+        state.updateInfoSuccess = false;
+        state.errorMessage = '';
+      })
       .addCase(createTransaction.fulfilled, (state) => {
         state.creating = false;
         state.errorMessage = '';
@@ -228,6 +269,11 @@ export const TransactionManagementSlice = createSlice({
       .addCase(addLabelToTransaction.fulfilled, (state) => {
         state.addingLabel = false;
         state.addLabelSuccess = true;
+        state.errorMessage = '';
+      })
+      .addCase(updateTransactionInfo.fulfilled, (state) => {
+        state.updatingInfo = false;
+        state.updateInfoSuccess = true;
         state.errorMessage = '';
       })
       .addCase(createTransaction.rejected, (state, action) => {
@@ -249,6 +295,11 @@ export const TransactionManagementSlice = createSlice({
         state.addingLabel = false;
         state.errorMessage = action.error.message || 'error adding label to transaction';
         state.addLabelSuccess = false;
+      })
+      .addCase(updateTransactionInfo.rejected, (state, action) => {
+        state.updatingInfo = false;
+        state.errorMessage = action.error.message || 'error updating transaction info';
+        state.updateInfoSuccess = false;
       });
   },
 });

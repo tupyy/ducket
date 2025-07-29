@@ -12,6 +12,7 @@ export interface ITransaction {
   amount: number;
   account: number;
   description: string;
+  info?: string;
   labels: ILabelTransaction[];
 }
 

@@ -20,12 +20,13 @@ import {
 } from '@patternfly/react-core';
 import { DataView, DataViewToolbar } from '@patternfly/react-data-view';
 import { ExpandableRowContent, Table, Tbody, Td, Th, Thead, ThProps, Tr } from '@patternfly/react-table';
-import { PlusIcon, TimesIcon, CogIcon } from '@patternfly/react-icons';
+import { PlusIcon, TimesIcon, CogIcon, PenIcon } from '@patternfly/react-icons';
 import { ILabelTransaction, ITransaction } from '@app/shared/models/transaction';
 import { LabelFilter } from '@app/shared/components/label-filter';
 import { AddLabelModal } from './AddLabelModal';
 import { RemoveLabelModal } from './RemoveLabelModal';
 import { CreateRuleModal } from './CreateRuleModal';
+import { EditInfoModal } from './EditInfoModal';
 import { useTheme } from '@app/shared/contexts/ThemeContext';
 import { getAccountColor, getAccountDarkColor } from '@app/utils/colorUtils';
 import { safeFormatDateString } from '@app/utils/dateUtils';
@@ -51,6 +52,7 @@ import {
 import {
   clearAddLabelToTransactionSuccess,
   removeLabelFromTransaction,
+  updateTransactionInfo,
 } from '@app/shared/reducers/transaction.reducer';
 import { isKeyOfObject } from '@app/shared/models/label';
 
@@ -103,6 +105,9 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     selectedTransactions,
   } = useAppSelector((state) => state.transactionFilter);
 
+  // Get transaction update state
+  const { updatingInfo, errorMessage } = useAppSelector((state) => state.transactions);
+
   // ===============================
   // LOCAL UI STATE (NON-PERSISTENT)
   // ===============================
@@ -124,6 +129,10 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   // Modal state for creating rules
   const [isCreateRuleModalOpen, setIsCreateRuleModalOpen] = React.useState(false);
   const [selectedTransactionForRule, setSelectedTransactionForRule] = React.useState<ITransaction | null>(null);
+
+  // Modal state for editing transaction info
+  const [isEditInfoModalOpen, setIsEditInfoModalOpen] = React.useState(false);
+  const [selectedTransactionForInfo, setSelectedTransactionForInfo] = React.useState<ITransaction | null>(null);
 
   // ===============================
   // COMPUTED VALUES
@@ -538,6 +547,38 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   const handleCloseCreateRuleModal = () => {
     setIsCreateRuleModalOpen(false);
     setSelectedTransactionForRule(null);
+  };
+
+  /**
+   * Handle opening the edit info modal
+   * @param transaction - Transaction to edit info for
+   */
+  const handleOpenEditInfoModal = (transaction: ITransaction) => {
+    setSelectedTransactionForInfo(transaction);
+    setIsEditInfoModalOpen(true);
+  };
+
+  /**
+   * Handle closing the edit info modal
+   */
+  const handleCloseEditInfoModal = () => {
+    setIsEditInfoModalOpen(false);
+    setSelectedTransactionForInfo(null);
+  };
+
+  /**
+   * Handle saving transaction info
+   * @param transactionHref - Transaction href to update
+   * @param info - New info value
+   */
+  const handleSaveTransactionInfo = async (transactionHref: string, info: string) => {
+    try {
+      await dispatch(updateTransactionInfo({ transactionHref, info }));
+      handleCloseEditInfoModal();
+    } catch (error) {
+      console.error('Failed to update transaction info:', error);
+      // Error handling is managed by the reducer
+    }
   };
 
   /**
@@ -1118,16 +1159,38 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                           <CogIcon />
                         </Button>
                       </FlexItem>
+                      <FlexItem>
+                        <Button
+                          variant="plain"
+                          onClick={() => handleOpenEditInfoModal(t)}
+                          aria-label="Edit transaction info"
+                        >
+                          <PenIcon />
+                        </Button>
+                      </FlexItem>
                     </Flex>
                   </Td>
                 </Tr>
-                {/* Expandable Row Content - Shows transaction description */}
+                {/* Expandable Row Content - Shows transaction description and info */}
                 <Tr isExpanded={isTransactionExpanded(t)}>
                   <Td />
                   <Td />
                   <Td colSpan={6}>
                     <ExpandableRowContent>
-                      <Content>{t.description || 'No description'}</Content>
+                      <Flex direction={{ default: 'column' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                        <FlexItem>
+                          <Content>
+                            <strong>Description:</strong> {t.description || 'No description'}
+                          </Content>
+                        </FlexItem>
+                        {t.info && (
+                          <FlexItem>
+                            <Content>
+                              <strong>Info:</strong> {t.info}
+                            </Content>
+                          </FlexItem>
+                        )}
+                      </Flex>
                     </ExpandableRowContent>
                   </Td>
                 </Tr>
@@ -1176,6 +1239,16 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
         isOpen={isCreateRuleModalOpen}
         onClose={handleCloseCreateRuleModal}
         transaction={selectedTransactionForRule || undefined}
+      />
+
+      {/* Edit Transaction Info Modal */}
+      <EditInfoModal
+        isOpen={isEditInfoModalOpen}
+        onClose={handleCloseEditInfoModal}
+        transaction={selectedTransactionForInfo || undefined}
+        onSave={handleSaveTransactionInfo}
+        loading={updatingInfo}
+        error={errorMessage}
       />
     </React.Fragment>
   );

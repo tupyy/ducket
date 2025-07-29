@@ -49,6 +49,9 @@ type ServerInterface interface {
 	// Get transaction by id
 	// (GET /transactions/{id})
 	GetTransaction(c *gin.Context, id int64)
+	// Update transaction info
+	// (PATCH /transactions/{id})
+	PatchTransactionInfo(c *gin.Context, id int64)
 	// Update transaction
 	// (PUT /transactions/{id})
 	UpdateTransaction(c *gin.Context, id int64)
@@ -307,6 +310,30 @@ func (siw *ServerInterfaceWrapper) GetTransaction(c *gin.Context) {
 	siw.Handler.GetTransaction(c, id)
 }
 
+// PatchTransactionInfo operation middleware
+func (siw *ServerInterfaceWrapper) PatchTransactionInfo(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PatchTransactionInfo(c, id)
+}
+
 // UpdateTransaction operation middleware
 func (siw *ServerInterfaceWrapper) UpdateTransaction(c *gin.Context) {
 
@@ -475,6 +502,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.POST(options.BaseURL+"/transactions/import", wrapper.ImportTransactions)
 	router.DELETE(options.BaseURL+"/transactions/:id", wrapper.DeleteTransaction)
 	router.GET(options.BaseURL+"/transactions/:id", wrapper.GetTransaction)
+	router.PATCH(options.BaseURL+"/transactions/:id", wrapper.PatchTransactionInfo)
 	router.PUT(options.BaseURL+"/transactions/:id", wrapper.UpdateTransaction)
 	router.DELETE(options.BaseURL+"/transactions/:id/labels", wrapper.RemoveTransactionLabels)
 	router.GET(options.BaseURL+"/transactions/:id/labels", wrapper.GetTransactionLabels)

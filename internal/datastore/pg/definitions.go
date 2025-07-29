@@ -22,6 +22,7 @@ const (
 	colTransactionAccount = "account"
 	colTransactionID      = "transaction_id"
 	colHash               = "hash"
+	colTransactionInfo    = "info"
 	colLabelID            = "label_id"
 
 	// Rule table
@@ -87,7 +88,7 @@ var (
 	countTransactionsWithFilter = psql.Select("COUNT(*)").From(transactionsLabelsTable)
 
 	// insertTransaction inserts a new transaction record.
-	// Example SQL: INSERT INTO transactions (date, account, hash, kind, content, amount) VALUES ($1, $2, $3, $4, $5, $6)
+	// Example SQL: INSERT INTO transactions (date, account, hash, kind, content, amount, info) VALUES ($1, $2, $3, $4, $5, $6, $7)
 	insertTransaction = psql.Insert(transactionTable).
 				Columns(
 			colDate,
@@ -96,6 +97,7 @@ var (
 			colTransactionType,
 			colTransactionContent,
 			colTransactionAmount,
+			colTransactionInfo,
 		)
 
 	// insertTransactionLabel creates an association between a transaction and a label.
@@ -121,6 +123,7 @@ var (
 		colTransactionContent,
 		colTransactionAmount,
 		colHash,
+		colTransactionInfo,
 		colLabelID,
 		colLabelKey,
 		colLabelValue,

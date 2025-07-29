@@ -230,3 +230,25 @@ func (t *TransactionService) Delete(ctx context.Context, id int64) error {
 		return w.DeleteTransaction(ctx, id)
 	})
 }
+
+// UpdateInfo updates only the info field of an existing transaction.
+func (t *TransactionService) UpdateInfo(ctx context.Context, id int64, info string) (entity.Transaction, error) {
+	// First check if transaction exists
+	transaction, err := t.GetTransactionById(ctx, int(id))
+	if err != nil {
+		return entity.Transaction{}, err
+	}
+
+	// Update the info field
+	transaction.Info = &info
+
+	// Write the updated transaction
+	if err := t.dt.WriteTx(ctx, func(ctx context.Context, w *pg.Writer) error {
+		_, err := w.WriteTransaction(ctx, *transaction)
+		return err
+	}); err != nil {
+		return entity.Transaction{}, err
+	}
+
+	return *transaction, nil
+}

@@ -206,6 +206,41 @@ func (s *ServerImpl) DeleteTransaction(c *gin.Context, id int64) {
 	c.JSON(http.StatusNoContent, gin.H{})
 }
 
+// PatchTransactionInfo handles PATCH /transactions/{id} requests to update the info field of a transaction.
+// It validates the request body as an UpdateTransactionInfoForm, then updates only the info field
+// through the transaction service. Returns HTTP 400 for validation errors, HTTP 404 if the transaction
+// is not found, HTTP 500 for server errors, or HTTP 200 with the updated transaction on success.
+func (s *ServerImpl) PatchTransactionInfo(c *gin.Context, id int64) {
+	var form inbound.UpdateTransactionInfoForm
+	if err := c.ShouldBindJSON(&form); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	validator := validator.New()
+	validator.RegisterStructValidation(inbound.UpdateTransactionInfoFormValidation, inbound.UpdateTransactionInfoForm{})
+	if err := validator.Struct(form); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	dt := dtContext.MustFromContext(c)
+	tSrv := services.NewTransactionService(dt)
+
+	updatedTransaction, err := tSrv.UpdateInfo(c.Request.Context(), id, form.Info)
+	if err != nil {
+		switch err.(type) {
+		case *services.ErrResourceNotFound:
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, outbound.FromEntity(updatedTransaction))
+}
+
 // Transaction Labels endpoints
 
 // GET /api/v1/transactions/{id}/labels - Get all labels for a transaction

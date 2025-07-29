@@ -28,6 +28,7 @@ type Transaction struct {
 	RawContent string
 	Hash       string
 	Amount     float32
+	Info       *string
 	Labels     []LabelAssociation
 }
 

@@ -32,6 +32,7 @@ type Transaction struct {
 	Account     int64                         `json:"account"`
 	Description string                        `json:"description"`
 	Amount      float32                       `json:"amount"`
+	Info        *string                       `json:"info,omitempty"`
 	Labels      []TransactionLabelAssociation `json:"labels"`
 }
 
@@ -46,6 +47,7 @@ func FromEntity(t entity.Transaction) Transaction {
 		Description: t.RawContent,
 		Account:     t.Account,
 		Amount:      t.Amount,
+		Info:        t.Info,
 		Labels:      make([]TransactionLabelAssociation, 0, len(t.Labels)),
 	}
 

@@ -221,6 +221,52 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+    patch:
+      tags:
+        - transactions
+      summary: Update transaction info
+      description: Update the info field of an existing transaction
+      operationId: patchTransactionInfo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Transaction ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionInfoForm'
+      responses:
+        '200':
+          description: Transaction info updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '400':
+          description: Bad request - invalid ID or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Transaction not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
     delete:
       tags:
         - transactions
@@ -724,6 +770,10 @@ components:
           type: number
           format: float
           example: 45.67
+        info:
+          type: string
+          description: Additional transaction information
+          example: "Additional notes about this transaction"
         labels:
           type: array
           items:
@@ -881,6 +931,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Rule'
+
+    TransactionInfoForm:
+      type: object
+      properties:
+        info:
+          type: string
+          description: Additional transaction information
+          example: "Additional notes about this transaction"
 
     ErrorResponse:
       type: object

@@ -153,6 +153,7 @@ func (w *Writer) WriteTransaction(ctx context.Context, transaction entity.Transa
 			transaction.Kind,
 			transaction.RawContent,
 			transaction.Amount,
+			transaction.Info,
 		).Suffix("RETURNING id").ToSql()
 		if err != nil {
 			return 0, fmt.Errorf(errUnableToWriteTransaction, err)
@@ -177,6 +178,7 @@ func (w *Writer) WriteTransaction(ctx context.Context, transaction entity.Transa
 			Set(colTransactionContent, transaction.RawContent).
 			Set(colTransactionAmount, transaction.Amount).
 			Set(colTransactionType, transaction.Kind).
+			Set(colTransactionInfo, transaction.Info).
 			Where(sq.Eq{colID: transactionID}).
 			ToSql()
 		if err != nil {

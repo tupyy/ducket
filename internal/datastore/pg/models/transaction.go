@@ -31,6 +31,7 @@ func (tt Transactions) ToEntity() []entity.Transaction {
 			transaction.Amount = vv.Amount
 			transaction.Hash = vv.Hash
 			transaction.Kind = entity.TransactionKind(vv.Kind)
+			transaction.Info = vv.Info
 			if vv.LabelID != nil {
 				transaction.Labels = append(transaction.Labels, entity.LabelAssociation{
 					Label: entity.Label{
@@ -56,6 +57,7 @@ type Transaction struct {
 	Content    string
 	Amount     float32
 	Hash       string
+	Info       *string `db:"info"`
 	LabelID    *int    `db:"label_id"`
 	LabelKey   *string `db:"key"`
 	LabelValue *string `db:"value"`

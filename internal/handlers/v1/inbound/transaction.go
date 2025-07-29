@@ -50,3 +50,20 @@ func CreateTransactionFormValidation(sl validator.StructLevel) {
 		sl.ReportError(form.Date, "date", "date", "format invalid. shoudl be 02/01/2006", "")
 	}
 }
+
+// UpdateTransactionInfoForm represents the HTTP request body structure for updating transaction info.
+// It contains only the info field that can be updated via PATCH endpoint.
+type UpdateTransactionInfoForm struct {
+	Info string `form:"info" json:"info"`
+}
+
+// UpdateTransactionInfoFormValidation provides custom validation logic for UpdateTransactionInfoForm structures.
+// It implements the validator.StructLevel interface for validation rules.
+func UpdateTransactionInfoFormValidation(sl validator.StructLevel) {
+	form := sl.Current().Interface().(UpdateTransactionInfoForm)
+
+	// Info field can be empty or up to a reasonable length
+	if len(form.Info) > 1000 {
+		sl.ReportError(form.Info, "info", "info", "max length is 1000 characters", "")
+	}
+}
