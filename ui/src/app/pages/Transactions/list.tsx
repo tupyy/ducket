@@ -17,6 +17,7 @@ import {
   Spinner,
   Checkbox,
   Switch,
+  Tooltip,
 } from '@patternfly/react-core';
 import { DataView, DataViewToolbar } from '@patternfly/react-data-view';
 import { ExpandableRowContent, Table, Tbody, Td, Th, Thead, ThProps, Tr } from '@patternfly/react-table';
@@ -1142,31 +1143,37 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
                   <Td dataLabel={columns.actions}>
                     <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
                       <FlexItem>
-                        <Button
-                          variant="plain"
-                          onClick={() => handleOpenAddLabelModal(t)}
-                          aria-label="Add label to transaction"
-                        >
-                          <PlusIcon />
-                        </Button>
+                        <Tooltip content="Add label to transaction">
+                          <Button
+                            variant="plain"
+                            onClick={() => handleOpenAddLabelModal(t)}
+                            aria-label="Add label to transaction"
+                          >
+                            <PlusIcon />
+                          </Button>
+                        </Tooltip>
                       </FlexItem>
                       <FlexItem>
-                        <Button
-                          variant="plain"
-                          onClick={() => handleOpenCreateRuleModal(t)}
-                          aria-label="Create rule from transaction"
-                        >
-                          <CogIcon />
-                        </Button>
+                        <Tooltip content="Create rule from transaction">
+                          <Button
+                            variant="plain"
+                            onClick={() => handleOpenCreateRuleModal(t)}
+                            aria-label="Create rule from transaction"
+                          >
+                            <CogIcon />
+                          </Button>
+                        </Tooltip>
                       </FlexItem>
                       <FlexItem>
-                        <Button
-                          variant="plain"
-                          onClick={() => handleOpenEditInfoModal(t)}
-                          aria-label="Edit transaction info"
-                        >
-                          <PenIcon />
-                        </Button>
+                        <Tooltip content="Edit transaction info">
+                          <Button
+                            variant="plain"
+                            onClick={() => handleOpenEditInfoModal(t)}
+                            aria-label="Edit transaction info"
+                          >
+                            <PenIcon />
+                          </Button>
+                        </Tooltip>
                       </FlexItem>
                     </Flex>
                   </Td>
