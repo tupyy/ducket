@@ -134,9 +134,25 @@ func NewTransaction(t entity.Transaction) Transaction {
 	}
 }
 
-// FromEntityRule converts an entity.Rule to a v1.Rule for API responses.
+// NewTransactions creates a new v1.Transactions response structure with the given
+// total count, time range, and transaction data.
+func NewTransactions(total int, start, end time.Time) Transactions {
+	startDate := types.Date{Time: start}
+	endDate := types.Date{Time: end}
+	totalPtr := total
+	items := make([]Transaction, 0, total)
+
+	return Transactions{
+		Start: &startDate,
+		End:   &endDate,
+		Total: &totalPtr,
+		Items: &items,
+	}
+}
+
+// NewRule converts an entity.Rule to a v1.Rule for API responses.
 // This method transforms the internal domain model into the HTTP response format.
-func FromEntityRule(rule entity.Rule) Rule {
+func NewRule(rule entity.Rule) Rule {
 	href := fmt.Sprintf("/api/v1/rules/%s", rule.Name)
 	pattern := rule.Pattern
 
@@ -165,14 +181,14 @@ func NewRules(rules []entity.Rule) Rules {
 		Total: len(rules),
 	}
 	for _, rr := range rules {
-		r.Rules = append(r.Rules, FromEntityRule(rr))
+		r.Rules = append(r.Rules, NewRule(rr))
 	}
 	return r
 }
 
-// FromEntityLabel converts an entity.Label to a v1.Label for API responses.
+// NewLabel converts an entity.Label to a v1.Label for API responses.
 // This method transforms the internal domain model into the HTTP response format.
-func FromEntityLabel(l entity.Label) Label {
+func NewLabel(l entity.Label) Label {
 	href := fmt.Sprintf("/api/v1/labels/%d", l.ID)
 
 	rules := make([]Rule, 0, len(l.Rules))
@@ -200,24 +216,8 @@ func NewLabels(labels []entity.Label) Labels {
 	}
 
 	for _, label := range labels {
-		mlabels.Labels = append(mlabels.Labels, FromEntityLabel(label))
+		mlabels.Labels = append(mlabels.Labels, NewLabel(label))
 	}
 
 	return mlabels
-}
-
-// NewTransactions creates a new v1.Transactions response structure with the given
-// total count, time range, and transaction data.
-func NewTransactions(total int, start, end time.Time) Transactions {
-	startDate := types.Date{Time: start}
-	endDate := types.Date{Time: end}
-	totalPtr := total
-	items := make([]Transaction, 0, total)
-
-	return Transactions{
-		Start: &startDate,
-		End:   &endDate,
-		Total: &totalPtr,
-		Items: &items,
-	}
 }

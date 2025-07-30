@@ -90,8 +90,7 @@ func (s *ServerImpl) GetTransactions(c *gin.Context, params v1.GetTransactionsPa
 
 	t := v1.NewTransactions(len(transactions), startDate, endDate)
 	for _, transaction := range transactions {
-		converted := v1.NewTransaction(transaction)
-		*t.Items = append(*t.Items, converted)
+		*t.Items = append(*t.Items, v1.NewTransaction(transaction))
 	}
 
 	c.JSON(http.StatusOK, t)
@@ -124,19 +123,6 @@ func (s *ServerImpl) CreateTransaction(c *gin.Context) {
 
 	dt := dtContext.MustFromContext(c)
 	tSrv := services.NewTransactionService(dt)
-
-	existingTransaction, err := tSrv.GetTransaction(c.Request.Context(), tEntity.Hash)
-	if err != nil {
-		if _, ok := err.(*services.ErrResourceNotFound); !ok {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-	}
-
-	if existingTransaction != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("transaction %d already exists", existingTransaction.ID)})
-		return
-	}
 
 	t, err := tSrv.Create(c.Request.Context(), tEntity)
 	if err != nil {
@@ -196,7 +182,7 @@ func (s *ServerImpl) UpdateTransaction(c *gin.Context, id int64) {
 		}
 		return
 	}
-	fmt.Printf("%+v\n", updatedTransaction)
+
 	c.JSON(http.StatusOK, v1.NewTransaction(updatedTransaction))
 }
 
@@ -273,8 +259,7 @@ func (s *ServerImpl) GetTransactionLabels(c *gin.Context, id int64) {
 		}
 	}
 
-	response := v1.NewLabels(labels)
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, v1.NewLabels(labels))
 }
 
 // AddTransactionLabel handles POST /transactions/{id}/labels requests to add a label to a transaction.
