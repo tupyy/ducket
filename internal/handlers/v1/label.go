@@ -3,7 +3,7 @@ package v1
 import (
 	"net/http"
 
-	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1/outbound"
+	v1 "git.tls.tupangiu.ro/cosmin/finante/api/v1"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/services"
 	dtContext "git.tls.tupangiu.ro/cosmin/finante/pkg/context"
 	"github.com/gin-gonic/gin"
@@ -24,5 +24,5 @@ func (s *ServerImpl) GetLabels(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, outbound.NewLabels(labels))
+	c.JSON(http.StatusOK, v1.NewLabels(labels))
 }

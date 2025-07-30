@@ -5,8 +5,7 @@ import (
 
 	v1 "git.tls.tupangiu.ro/cosmin/finante/api/v1"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
-	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1/inbound"
-	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1/outbound"
+
 	"git.tls.tupangiu.ro/cosmin/finante/internal/services"
 	dtContext "git.tls.tupangiu.ro/cosmin/finante/pkg/context"
 	"github.com/gin-gonic/gin"
@@ -28,7 +27,7 @@ func (s *ServerImpl) GetRules(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, outbound.NewRules(rules))
+	c.JSON(http.StatusOK, v1.NewRules(rules))
 }
 
 // CreateRule handles POST /rules requests to create a new rule.
@@ -43,7 +42,7 @@ func (s *ServerImpl) CreateRule(c *gin.Context) {
 	}
 
 	validator := validator.New()
-	validator.RegisterStructValidation(inbound.RuleFormValidation, v1.RuleForm{})
+	validator.RegisterStructValidation(v1.RuleFormValidation, v1.RuleForm{})
 
 	if err := validator.Struct(form); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -52,7 +51,7 @@ func (s *ServerImpl) CreateRule(c *gin.Context) {
 
 	dt := dtContext.MustFromContext(c)
 	ruleSrv := services.NewRuleService(dt)
-	if err := ruleSrv.Create(c.Request.Context(), inbound.FormToEntity(form)); err != nil {
+	if err := ruleSrv.Create(c.Request.Context(), form.Entity()); err != nil {
 		zap.S().Errorw("failed to create rule", "error", err.Error(), "form", form)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -66,14 +65,14 @@ func (s *ServerImpl) CreateRule(c *gin.Context) {
 // If the rule doesn't exist, it creates a new one. Returns HTTP 400 for validation errors,
 // HTTP 500 for server errors, HTTP 201 for creation, or HTTP 200 for successful update.
 func (s *ServerImpl) UpdateRule(c *gin.Context, id string) {
-	var form inbound.UpdateRuleForm
+	var form v1.RuleForm
 	if err := c.ShouldBindJSON(&form); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	validator := validator.New()
-	validator.RegisterStructValidation(inbound.UpdateRuleFormValidation, inbound.UpdateRuleForm{})
+	validator.RegisterStructValidation(v1.RuleFormValidation, v1.RuleForm{})
 
 	if err := validator.Struct(form); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -83,15 +82,9 @@ func (s *ServerImpl) UpdateRule(c *gin.Context, id string) {
 	dt := dtContext.MustFromContext(c)
 	ruleSrv := services.NewRuleService(dt)
 
-	labels := make([]entity.Label, 0, len(form.Labels))
-	for key, value := range form.Labels {
-		labels = append(labels, entity.Label{
-			Key:   key,
-			Value: value,
-		})
-	}
-
-	ruleToCreate := entity.NewRule(id, form.Pattern, labels...)
+	// Convert form to entity, but override the name with the ID from the URL
+	ruleEntity := form.Entity()
+	ruleToCreate := entity.NewRule(id, ruleEntity.Pattern, ruleEntity.Labels...)
 	err := ruleSrv.Update(c.Request.Context(), ruleToCreate)
 	if err != nil {
 		switch err.(type) {

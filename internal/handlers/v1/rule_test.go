@@ -11,7 +11,6 @@ import (
 	v1 "git.tls.tupangiu.ro/cosmin/finante/api/v1"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/datastore/pg"
 	v1Impl "git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1"
-	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1/inbound"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	. "github.com/onsi/ginkgo/v2"
@@ -103,7 +102,7 @@ var _ = Describe("RuleHandlers", func() {
 		})
 
 		It("should validate rule name length", func() {
-			form := inbound.RuleForm{
+			form := v1.RuleForm{
 				Name:    "this_is_a_very_long_rule_name_that_exceeds_the_twenty_character_limit",
 				Pattern: ".*test.*",
 				Labels:  map[string]string{"category": "food"},
@@ -124,7 +123,7 @@ var _ = Describe("RuleHandlers", func() {
 		})
 
 		It("should validate regex pattern", func() {
-			form := inbound.RuleForm{
+			form := v1.RuleForm{
 				Name:    "test_rule",
 				Pattern: "[invalid_regex", // Invalid regex pattern
 				Labels:  map[string]string{"category": "food"},
@@ -145,7 +144,7 @@ var _ = Describe("RuleHandlers", func() {
 		})
 
 		It("should validate empty labels", func() {
-			form := inbound.RuleForm{
+			form := v1.RuleForm{
 				Name:    "test_rule",
 				Pattern: ".*test.*",
 				Labels:  map[string]string{},
@@ -168,7 +167,8 @@ var _ = Describe("RuleHandlers", func() {
 
 	Context("PUT /api/v1/rules/:id", func() {
 		It("should create rule even if the rule does not exists", func() {
-			form := inbound.UpdateRuleForm{
+			form := v1.RuleForm{
+				Name:    "test-rule",
 				Pattern: ".*updated.*",
 				Labels:  map[string]string{"category": "food"},
 			}
@@ -183,7 +183,7 @@ var _ = Describe("RuleHandlers", func() {
 		})
 
 		It("should validate form data for updates", func() {
-			form := inbound.UpdateRuleForm{
+			form := v1.RuleForm{
 				Pattern: ".*updated.*",
 				Labels:  map[string]string{}, // Empty labels should fail validation
 			}
@@ -216,13 +216,13 @@ var _ = Describe("RuleHandlers", func() {
 
 	Context("FormToEntity conversion", func() {
 		It("should convert RuleForm to entity.Rule correctly", func() {
-			form := inbound.RuleForm{
+			form := v1.RuleForm{
 				Name:    "test_rule",
 				Pattern: ".*test.*",
 				Labels:  map[string]string{"category": "food"},
 			}
 
-			ruleEntity := inbound.FormToEntity(form)
+			ruleEntity := form.Entity()
 			Expect(ruleEntity.Name).To(Equal("test_rule"))
 			Expect(ruleEntity.Pattern).To(Equal(".*test.*"))
 			Expect(ruleEntity.Labels).To(HaveLen(1))
@@ -231,27 +231,27 @@ var _ = Describe("RuleHandlers", func() {
 		})
 
 		It("should validate regex during form validation", func() {
-			form := inbound.RuleForm{
+			form := v1.RuleForm{
 				Name:    "test_rule",
 				Pattern: "[invalid_regex", // Invalid regex
 				Labels:  map[string]string{"category": "food"},
 			}
 
 			validator := validator.New()
-			validator.RegisterStructValidation(inbound.RuleFormValidation, inbound.RuleForm{})
+			validator.RegisterStructValidation(v1.RuleFormValidation, v1.RuleForm{})
 
 			err := validator.Struct(form)
 			Expect(err).ToNot(BeNil())
 		})
 
 		It("should handle multiple labels correctly", func() {
-			form := inbound.RuleForm{
+			form := v1.RuleForm{
 				Name:    "multi_label_rule",
 				Pattern: ".*multi.*",
 				Labels:  map[string]string{"category": "food", "type": "essential"},
 			}
 
-			ruleEntity := inbound.FormToEntity(form)
+			ruleEntity := form.Entity()
 			Expect(ruleEntity.Name).To(Equal("multi_label_rule"))
 			Expect(ruleEntity.Pattern).To(Equal(".*multi.*"))
 			Expect(ruleEntity.Labels).To(HaveLen(2))
@@ -266,55 +266,14 @@ var _ = Describe("RuleHandlers", func() {
 		})
 
 		It("should validate label length", func() {
-			form := inbound.RuleForm{
+			form := v1.RuleForm{
 				Name:    "test_rule",
 				Pattern: ".*test.*",
 				Labels:  map[string]string{"category": "this_is_a_very_long_label_value_that_exceeds_the_twenty_character_limit"},
 			}
 
 			validator := validator.New()
-			validator.RegisterStructValidation(inbound.RuleFormValidation, inbound.RuleForm{})
-
-			err := validator.Struct(form)
-			Expect(err).ToNot(BeNil())
-		})
-	})
-
-	Context("UpdateRuleForm validation", func() {
-		It("should validate pattern correctly", func() {
-			form := inbound.UpdateRuleForm{
-				Pattern: ".*valid.*",
-				Labels:  map[string]string{"category": "food"},
-			}
-
-			validator := validator.New()
-			validator.RegisterStructValidation(inbound.UpdateRuleFormValidation, inbound.UpdateRuleForm{})
-
-			err := validator.Struct(form)
-			Expect(err).To(BeNil())
-		})
-
-		It("should reject invalid regex pattern", func() {
-			form := inbound.UpdateRuleForm{
-				Pattern: "[invalid",
-				Labels:  map[string]string{"category": "food"},
-			}
-
-			validator := validator.New()
-			validator.RegisterStructValidation(inbound.UpdateRuleFormValidation, inbound.UpdateRuleForm{})
-
-			err := validator.Struct(form)
-			Expect(err).ToNot(BeNil())
-		})
-
-		It("should reject empty labels", func() {
-			form := inbound.UpdateRuleForm{
-				Pattern: ".*valid.*",
-				Labels:  map[string]string{},
-			}
-
-			validator := validator.New()
-			validator.RegisterStructValidation(inbound.UpdateRuleFormValidation, inbound.UpdateRuleForm{})
+			validator.RegisterStructValidation(v1.RuleFormValidation, v1.RuleForm{})
 
 			err := validator.Struct(form)
 			Expect(err).ToNot(BeNil())

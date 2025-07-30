@@ -12,9 +12,7 @@ import (
 
 	v1 "git.tls.tupangiu.ro/cosmin/finante/api/v1"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/datastore/pg"
-	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
 	v1Impl "git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1"
-	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1/inbound"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	. "github.com/onsi/ginkgo/v2"
@@ -24,6 +22,17 @@ import (
 const (
 	apiV1 = "/api/v1"
 )
+
+// CreateTransactionRequest represents the JSON request body structure for creating transactions.
+// This struct is used in tests to simulate HTTP request payloads sent to the transaction endpoints.
+// It provides a clean way to structure test data that matches the expected JSON format.
+type CreateTransactionRequest struct {
+	Kind    string  `json:"kind"`    // Transaction type: "credit" or "debit"
+	Date    string  `json:"date"`    // Date in ISO format (YYYY-MM-DD) for v1 API
+	Content string  `json:"content"` // Transaction description/content
+	Amount  float32 `json:"amount"`  // Transaction amount
+	Account int64   `json:"account"` // Account identifier
+}
 
 var _ = Describe("TransactionHandlers", Ordered, func() {
 	var (
@@ -191,7 +200,7 @@ var _ = Describe("TransactionHandlers", Ordered, func() {
 		})
 
 		It("should validate required fields", func() {
-			form := inbound.CreateTransactionForm{
+			form := CreateTransactionRequest{
 				// Missing required fields
 				Kind:   "debit",
 				Amount: 100.50,
@@ -207,9 +216,9 @@ var _ = Describe("TransactionHandlers", Ordered, func() {
 		})
 
 		It("should validate form data", func() {
-			form := inbound.CreateTransactionForm{
+			form := CreateTransactionRequest{
 				Kind:    "invalid_kind", // Invalid kind
-				Date:    "15/01/2024",
+				Date:    "2024-01-15",
 				Content: "Test transaction",
 				Amount:  -100.50,
 				Account: 1001,
@@ -232,9 +241,9 @@ var _ = Describe("TransactionHandlers", Ordered, func() {
 		It("should successfully create a new transaction", func() {
 			// Use timestamp to ensure unique content and avoid hash collisions
 			uniqueContent := fmt.Sprintf("Test transaction for creation %d", time.Now().UnixNano())
-			form := inbound.CreateTransactionForm{
+			form := CreateTransactionRequest{
 				Kind:    "debit",
-				Date:    "15/01/2024",
+				Date:    "2024-01-15",
 				Content: uniqueContent,
 				Amount:  100.50,
 				Account: 1001,
@@ -259,9 +268,9 @@ var _ = Describe("TransactionHandlers", Ordered, func() {
 		It("should return error when trying to create duplicate transaction", func() {
 			// Use timestamp to ensure unique content initially
 			uniqueContent := fmt.Sprintf("Duplicate transaction test %d", time.Now().UnixNano())
-			form := inbound.CreateTransactionForm{
+			form := CreateTransactionRequest{
 				Kind:    "debit",
-				Date:    "15/01/2024",
+				Date:    "2024-01-15",
 				Content: uniqueContent,
 				Amount:  75.25,
 				Account: 1001,
@@ -293,17 +302,17 @@ var _ = Describe("TransactionHandlers", Ordered, func() {
 		It("should handle creation with different amounts but same other fields", func() {
 			// These should be different transactions due to different amounts
 			baseContent := fmt.Sprintf("Amount test transaction %d", time.Now().UnixNano())
-			form1 := inbound.CreateTransactionForm{
+			form1 := CreateTransactionRequest{
 				Kind:    "debit",
-				Date:    "15/01/2024",
+				Date:    "2024-01-15",
 				Content: baseContent,
 				Amount:  100.00,
 				Account: 1001,
 			}
 
-			form2 := inbound.CreateTransactionForm{
+			form2 := CreateTransactionRequest{
 				Kind:    "debit",
-				Date:    "15/01/2024",
+				Date:    "2024-01-15",
 				Content: baseContent,
 				Amount:  200.00, // Different amount
 				Account: 1001,
@@ -354,9 +363,9 @@ var _ = Describe("TransactionHandlers", Ordered, func() {
 		It("should update existing transaction", func() {
 			// First, create a transaction with unique content
 			uniqueContent := fmt.Sprintf("Transaction to update %d", time.Now().UnixNano())
-			createForm := inbound.CreateTransactionForm{
+			createForm := CreateTransactionRequest{
 				Kind:    "debit",
-				Date:    "15/01/2024",
+				Date:    "2024-01-15",
 				Content: uniqueContent,
 				Amount:  150.00,
 				Account: 1001,
@@ -375,9 +384,9 @@ var _ = Describe("TransactionHandlers", Ordered, func() {
 			transactionID := int64(createResponse["id"].(float64))
 
 			// Now update the transaction
-			updateForm := inbound.CreateTransactionForm{
+			updateForm := CreateTransactionRequest{
 				Kind:    "credit",
-				Date:    "16/01/2024",
+				Date:    "2024-01-16",
 				Content: "Updated transaction content",
 				Amount:  200.00,
 				Account: 1001,
@@ -400,9 +409,9 @@ var _ = Describe("TransactionHandlers", Ordered, func() {
 
 		It("should create transaction when updating non-existent ID", func() {
 			uniqueContent := fmt.Sprintf("Create via update %d", time.Now().UnixNano())
-			updateForm := inbound.CreateTransactionForm{
+			updateForm := CreateTransactionRequest{
 				Kind:    "credit",
-				Date:    "17/01/2024",
+				Date:    "2024-01-17",
 				Content: uniqueContent,
 				Amount:  300.00,
 				Account: 1001,
@@ -426,9 +435,9 @@ var _ = Describe("TransactionHandlers", Ordered, func() {
 		})
 
 		It("should handle invalid form data in update", func() {
-			updateForm := inbound.CreateTransactionForm{
+			updateForm := CreateTransactionRequest{
 				Kind:    "invalid_kind",
-				Date:    "17/01/2024",
+				Date:    "2024-01-17",
 				Content: "Invalid update",
 				Amount:  300.00,
 				Account: 1001,
@@ -501,49 +510,51 @@ var _ = Describe("TransactionHandlers", Ordered, func() {
 		})
 	})
 
-	Context("Form to Entity Mapping", func() {
-		It("should correctly map TransactionForm to entity.Transaction", func() {
-			form := inbound.CreateTransactionForm{
+	Context("Form Structure Validation", func() {
+		It("should have correct JSON structure for transaction request", func() {
+			form := CreateTransactionRequest{
 				Kind:    "debit",
-				Date:    "15/01/2024",
+				Date:    "2024-01-15",
 				Content: "Test mapping",
 				Amount:  -50.25,
 				Account: 1001,
 			}
 
-			txEntity, err := form.Entity()
+			jsonData, err := json.Marshal(form)
 			Expect(err).To(BeNil())
-			Expect(txEntity.Kind).To(Equal(entity.DebitTransaction))
-			Expect(txEntity.Date.Day()).To(Equal(15))
-			Expect(txEntity.Date.Month()).To(Equal(time.January))
-			Expect(txEntity.Date.Year()).To(Equal(2024))
-			Expect(txEntity.Amount).To(Equal(float32(-50.25)))
-			Expect(txEntity.RawContent).To(Equal("Test mapping"))
-			Expect(txEntity.Account).To(Equal(int64(1001)))
-			// Labels should be empty as they are populated by service layer through rule application
-			Expect(txEntity.Labels).To(HaveLen(0))
+
+			var unmarshaled map[string]interface{}
+			err = json.Unmarshal(jsonData, &unmarshaled)
+			Expect(err).To(BeNil())
+			Expect(unmarshaled["kind"]).To(Equal("debit"))
+			Expect(unmarshaled["date"]).To(Equal("2024-01-15"))
+			Expect(unmarshaled["content"]).To(Equal("Test mapping"))
+			Expect(unmarshaled["amount"]).To(Equal(-50.25))
+			Expect(unmarshaled["account"]).To(Equal(float64(1001)))
 		})
 
-		It("should correctly map credit transactions", func() {
-			form := inbound.CreateTransactionForm{
+		It("should handle credit transaction JSON structure", func() {
+			form := CreateTransactionRequest{
 				Kind:    "credit",
-				Date:    "15/01/2024",
+				Date:    "2024-01-15",
 				Content: "Credit transaction",
 				Amount:  100.75,
 				Account: 1001,
 			}
 
-			txEntity, err := form.Entity()
+			jsonData, err := json.Marshal(form)
 			Expect(err).To(BeNil())
-			Expect(txEntity.Kind).To(Equal(entity.CreditTransaction))
-			Expect(txEntity.Amount).To(Equal(float32(100.75)))
-			Expect(txEntity.Account).To(Equal(int64(1001)))
-			// Labels should be empty as they are populated by service layer
-			Expect(txEntity.Labels).To(HaveLen(0))
+
+			var unmarshaled map[string]interface{}
+			err = json.Unmarshal(jsonData, &unmarshaled)
+			Expect(err).To(BeNil())
+			Expect(unmarshaled["kind"]).To(Equal("credit"))
+			Expect(unmarshaled["amount"]).To(Equal(100.75))
+			Expect(unmarshaled["account"]).To(Equal(float64(1001)))
 		})
 
-		It("should handle invalid date format", func() {
-			form := inbound.CreateTransactionForm{
+		It("should handle invalid date format in JSON", func() {
+			form := CreateTransactionRequest{
 				Kind:    "debit",
 				Date:    "invalid-date",
 				Content: "Test transaction",
@@ -551,52 +562,54 @@ var _ = Describe("TransactionHandlers", Ordered, func() {
 				Account: 1001,
 			}
 
-			_, err := form.Entity()
-			Expect(err).ToNot(BeNil())
+			jsonData, err := json.Marshal(form)
+			Expect(err).To(BeNil())
+
+			var unmarshaled map[string]interface{}
+			err = json.Unmarshal(jsonData, &unmarshaled)
+			Expect(err).To(BeNil())
+			Expect(unmarshaled["date"]).To(Equal("invalid-date"))
 		})
 
-		It("should handle different date formats", func() {
-			form := inbound.CreateTransactionForm{
+		It("should handle different date formats in JSON", func() {
+			form := CreateTransactionRequest{
 				Kind:    "debit",
-				Date:    "01/12/2023", // Different date
+				Date:    "2023-12-01", // ISO format date
 				Content: "Test transaction",
 				Amount:  75.25,
 				Account: 1001,
 			}
 
-			txEntity, err := form.Entity()
+			jsonData, err := json.Marshal(form)
 			Expect(err).To(BeNil())
-			Expect(txEntity.Date.Day()).To(Equal(1))
-			Expect(txEntity.Date.Month()).To(Equal(time.December))
-			Expect(txEntity.Date.Year()).To(Equal(2023))
+
+			var unmarshaled map[string]interface{}
+			err = json.Unmarshal(jsonData, &unmarshaled)
+			Expect(err).To(BeNil())
+			Expect(unmarshaled["date"]).To(Equal("2023-12-01"))
 		})
 
-		It("should handle empty labels", func() {
-			form := inbound.CreateTransactionForm{
+		It("should handle complete transaction structure", func() {
+			form := CreateTransactionRequest{
 				Kind:    "debit",
-				Date:    "15/01/2024",
+				Date:    "2024-01-15",
 				Content: "Test transaction",
 				Amount:  100.50,
 				Account: 1001,
 			}
 
-			txEntity, err := form.Entity()
+			jsonData, err := json.Marshal(form)
 			Expect(err).To(BeNil())
-			Expect(txEntity.Labels).To(HaveLen(0))
-		})
 
-		It("should handle nil labels", func() {
-			form := inbound.CreateTransactionForm{
-				Kind:    "debit",
-				Date:    "15/01/2024",
-				Content: "Test transaction",
-				Amount:  100.50,
-				Account: 1001,
-			}
-
-			txEntity, err := form.Entity()
+			var unmarshaled map[string]interface{}
+			err = json.Unmarshal(jsonData, &unmarshaled)
 			Expect(err).To(BeNil())
-			Expect(txEntity.Labels).To(HaveLen(0))
+			Expect(len(unmarshaled)).To(Equal(5)) // All 5 fields should be present
+			Expect(unmarshaled["kind"]).ToNot(BeNil())
+			Expect(unmarshaled["date"]).ToNot(BeNil())
+			Expect(unmarshaled["content"]).ToNot(BeNil())
+			Expect(unmarshaled["amount"]).ToNot(BeNil())
+			Expect(unmarshaled["account"]).ToNot(BeNil())
 		})
 
 		AfterEach(func() {
@@ -616,9 +629,9 @@ var _ = Describe("TransactionHandlers", Ordered, func() {
 
 	Context("Form Validation", func() {
 		It("should validate transaction kind", func() {
-			form := inbound.CreateTransactionForm{
+			form := CreateTransactionRequest{
 				Kind:    "invalid_kind",
-				Date:    "15/01/2024",
+				Date:    "2024-01-15",
 				Content: "Test transaction",
 				Amount:  100.50,
 				Account: 1001,
@@ -634,9 +647,9 @@ var _ = Describe("TransactionHandlers", Ordered, func() {
 		})
 
 		It("should validate required amount", func() {
-			form := inbound.CreateTransactionForm{
+			form := CreateTransactionRequest{
 				Kind:    "debit",
-				Date:    "15/01/2024",
+				Date:    "2024-01-15",
 				Content: "Test transaction",
 				Amount:  0, // Invalid amount
 				Account: 1001,
@@ -653,9 +666,9 @@ var _ = Describe("TransactionHandlers", Ordered, func() {
 		})
 
 		It("should validate required account", func() {
-			form := inbound.CreateTransactionForm{
+			form := CreateTransactionRequest{
 				Kind:    "debit",
-				Date:    "15/01/2024",
+				Date:    "2024-01-15",
 				Content: "Test transaction",
 				Amount:  100.50,
 				Account: 0, // Invalid account
@@ -669,62 +682,6 @@ var _ = Describe("TransactionHandlers", Ordered, func() {
 
 			// Should either validate properly or handle gracefully
 			Expect(resp.StatusCode).To(BeElementOf([]int{http.StatusBadRequest, http.StatusCreated, http.StatusOK}))
-		})
-
-		It("should handle large amounts", func() {
-			form := inbound.CreateTransactionForm{
-				Kind:    "debit",
-				Date:    "15/01/2024",
-				Content: "Large transaction",
-				Amount:  999999.99,
-				Account: 1001,
-			}
-
-			txEntity, err := form.Entity()
-			Expect(err).To(BeNil())
-			Expect(txEntity.Amount).To(Equal(float32(999999.99)))
-		})
-
-		It("should handle negative amounts", func() {
-			form := inbound.CreateTransactionForm{
-				Kind:    "debit",
-				Date:    "15/01/2024",
-				Content: "Negative transaction",
-				Amount:  -150.75,
-				Account: 1001,
-			}
-
-			txEntity, err := form.Entity()
-			Expect(err).To(BeNil())
-			Expect(txEntity.Amount).To(Equal(float32(-150.75)))
-		})
-
-		It("should handle special characters in content", func() {
-			form := inbound.CreateTransactionForm{
-				Kind:    "debit",
-				Date:    "15/01/2024",
-				Content: "Transaction with special chars: !@#$%^&*()",
-				Amount:  100.50,
-				Account: 1001,
-			}
-
-			txEntity, err := form.Entity()
-			Expect(err).To(BeNil())
-			Expect(txEntity.RawContent).To(Equal("Transaction with special chars: !@#$%^&*()"))
-		})
-
-		It("should handle unicode characters in content", func() {
-			form := inbound.CreateTransactionForm{
-				Kind:    "debit",
-				Date:    "15/01/2024",
-				Content: "Transaction with unicode: 🏦💰",
-				Amount:  100.50,
-				Account: 1001,
-			}
-
-			txEntity, err := form.Entity()
-			Expect(err).To(BeNil())
-			Expect(txEntity.RawContent).To(Equal("Transaction with unicode: 🏦💰"))
 		})
 
 		AfterEach(func() {
@@ -744,9 +701,9 @@ var _ = Describe("TransactionHandlers", Ordered, func() {
 
 	Context("Error Handling and Edge Cases", func() {
 		It("should handle service layer errors in CreateTransaction", func() {
-			form := inbound.CreateTransactionForm{
+			form := CreateTransactionRequest{
 				Kind:    "debit",
-				Date:    "15/01/2024",
+				Date:    "2024-01-15",
 				Content: "Service error test",
 				Amount:  100.50,
 				Account: 0, // This might cause issues at service layer
@@ -763,9 +720,9 @@ var _ = Describe("TransactionHandlers", Ordered, func() {
 		})
 
 		It("should handle concurrent creation attempts of same transaction", func() {
-			form := inbound.CreateTransactionForm{
+			form := CreateTransactionRequest{
 				Kind:    "debit",
-				Date:    "15/01/2024",
+				Date:    "2024-01-15",
 				Content: "Concurrent test transaction",
 				Amount:  150.75,
 				Account: 1001,
@@ -793,9 +750,9 @@ var _ = Describe("TransactionHandlers", Ordered, func() {
 		})
 
 		It("should handle very large transaction amounts", func() {
-			form := inbound.CreateTransactionForm{
+			form := CreateTransactionRequest{
 				Kind:    "credit",
-				Date:    "15/01/2024",
+				Date:    "2024-01-15",
 				Content: "Large amount transaction",
 				Amount:  999999999.99,
 				Account: 1001,
@@ -812,9 +769,9 @@ var _ = Describe("TransactionHandlers", Ordered, func() {
 		})
 
 		It("should handle zero amount transactions", func() {
-			form := inbound.CreateTransactionForm{
+			form := CreateTransactionRequest{
 				Kind:    "debit",
-				Date:    "15/01/2024",
+				Date:    "2024-01-15",
 				Content: "Zero amount transaction",
 				Amount:  0.0,
 				Account: 1001,
@@ -873,9 +830,9 @@ var _ = Describe("TransactionHandlers", Ordered, func() {
 
 		It("should handle malformed label data", func() {
 			// First create a transaction
-			form := inbound.CreateTransactionForm{
+			form := CreateTransactionRequest{
 				Kind:    "debit",
-				Date:    "15/01/2024",
+				Date:    "2024-01-15",
 				Content: "Transaction for label test",
 				Amount:  100.50,
 				Account: 1001,

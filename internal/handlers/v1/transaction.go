@@ -3,13 +3,11 @@ package v1
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	v1 "git.tls.tupangiu.ro/cosmin/finante/api/v1"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
-	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1/inbound"
-	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1/outbound"
+
 	"git.tls.tupangiu.ro/cosmin/finante/internal/services"
 	dtContext "git.tls.tupangiu.ro/cosmin/finante/pkg/context"
 	"github.com/gin-gonic/gin"
@@ -41,7 +39,7 @@ func (s *ServerImpl) GetTransaction(c *gin.Context, id int64) {
 			return
 		}
 	}
-	c.JSON(http.StatusCreated, outbound.FromEntity(*transaction))
+	c.JSON(http.StatusCreated, v1.NewTransaction(*transaction))
 }
 
 // GetTransactions handles GET /transactions requests to retrieve a filtered list of transactions.
@@ -49,23 +47,32 @@ func (s *ServerImpl) GetTransaction(c *gin.Context, id int64) {
 // Defaults to the current month if no dates are provided. Returns HTTP 400 for invalid parameters,
 // HTTP 500 for server errors, or HTTP 200 with the transaction list on success.
 func (s *ServerImpl) GetTransactions(c *gin.Context, params v1.GetTransactionsParams) {
-	now := time.Now()
-	start, err := parseTimestamp(c.Query("startDate"), time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC))
-	if err != nil {
-		zap.S().Warnw("failed to parse starting date timestamp. defaults to first day of the current month", "error", err, "url", c.Request.URL)
+	startDate := time.Date(time.Now().Year(), time.Now().Month(), 1, 0, 0, 0, 0, time.UTC)
+	if params.StartDate != nil {
+		start, err := parseTimestamp(*params.StartDate)
+		if err != nil {
+			zap.S().Warnw("failed to parse starting date timestamp. defaults to first day of the current month", "error", err, "url", c.Request.URL)
+		} else {
+			startDate = start
+		}
 	}
 
-	end, err := parseTimestamp(c.Query("endDate"), time.Date(now.Year(), now.Month(), 31, 0, 0, 0, 0, time.UTC))
-	if err != nil {
-		zap.S().Warnw("failed to parse ending date timestamp. defaults to end of current month", "error", err, "url", c.Request.URL)
+	endDate := time.Date(time.Now().Year(), time.Now().Month(), 31, 0, 0, 0, 0, time.UTC)
+	if params.EndDate != nil {
+		end, err := parseTimestamp(*params.EndDate)
+		if err != nil {
+			zap.S().Warnw("failed to parse ending date timestamp. defaults to end of current month", "error", err, "url", c.Request.URL)
+		} else {
+			endDate = end
+		}
 	}
 
 	// Validate that start date is before end date
-	if start.After(end) {
+	if startDate.After(endDate) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":     "startDate must be before endDate",
-			"startDate": start.Format(time.RFC3339),
-			"endDate":   end.Format(time.RFC3339),
+			"startDate": startDate.Format(time.RFC3339),
+			"endDate":   endDate.Format(time.RFC3339),
 		})
 		return
 	}
@@ -73,17 +80,18 @@ func (s *ServerImpl) GetTransactions(c *gin.Context, params v1.GetTransactionsPa
 	dt := dtContext.MustFromContext(c)
 	srv := services.NewTransactionService(dt)
 	transactions, err := srv.GetTransactions(c.Request.Context(), services.NewTransactionFilterWithOptions(
-		services.WithStart(&start),
-		services.WithEnd(&end),
+		services.WithStart(&startDate),
+		services.WithEnd(&endDate),
 	))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	t := outbound.NewTransactions(len(transactions), start, end)
+	t := v1.NewTransactions(len(transactions), startDate, endDate)
 	for _, transaction := range transactions {
-		t.Items = append(t.Items, outbound.FromEntity(transaction))
+		converted := v1.NewTransaction(transaction)
+		*t.Items = append(*t.Items, converted)
 	}
 
 	c.JSON(http.StatusOK, t)
@@ -95,14 +103,14 @@ func (s *ServerImpl) GetTransactions(c *gin.Context, params v1.GetTransactionsPa
 // for validation errors or duplicate transactions, HTTP 500 for server errors, or HTTP 201
 // with the created transaction on success.
 func (s *ServerImpl) CreateTransaction(c *gin.Context) {
-	var form inbound.CreateTransactionForm
+	var form v1.TransactionForm
 	if err := c.ShouldBindJSON(&form); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	validator := validator.New()
-	validator.RegisterStructValidation(inbound.CreateTransactionFormValidation, inbound.CreateTransactionForm{})
+	validator.RegisterStructValidation(v1.CreateTransactionFormValidation, v1.TransactionForm{})
 	if err := validator.Struct(form); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -141,7 +149,7 @@ func (s *ServerImpl) CreateTransaction(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, outbound.FromEntity(t))
+	c.JSON(http.StatusCreated, v1.NewTransaction(t))
 }
 
 // UpdateTransaction handles PUT /transactions/{id} requests to update an existing transaction or create one if it doesn't exist.
@@ -149,14 +157,14 @@ func (s *ServerImpl) CreateTransaction(c *gin.Context) {
 // If the transaction doesn't exist, it creates a new one with the provided ID. Returns HTTP 400
 // for validation errors, HTTP 500 for server errors, HTTP 201 for creation, or HTTP 200 for successful update.
 func (s *ServerImpl) UpdateTransaction(c *gin.Context, id int64) {
-	var form inbound.CreateTransactionForm
+	var form v1.TransactionForm
 	if err := c.ShouldBindJSON(&form); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	validator := validator.New()
-	validator.RegisterStructValidation(inbound.CreateTransactionFormValidation, inbound.CreateTransactionForm{})
+	validator.RegisterStructValidation(v1.CreateTransactionFormValidation, v1.TransactionForm{})
 
 	if err := validator.Struct(form); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -182,14 +190,14 @@ func (s *ServerImpl) UpdateTransaction(c *gin.Context, id int64) {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
-			c.JSON(http.StatusCreated, outbound.FromEntity(newTransaction))
+			c.JSON(http.StatusCreated, v1.NewTransaction(newTransaction))
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		}
 		return
 	}
 	fmt.Printf("%+v\n", updatedTransaction)
-	c.JSON(http.StatusOK, outbound.FromEntity(updatedTransaction))
+	c.JSON(http.StatusOK, v1.NewTransaction(updatedTransaction))
 }
 
 // DeleteTransaction handles DELETE /transactions/{id} requests to remove a transaction by its ID.
@@ -211,14 +219,14 @@ func (s *ServerImpl) DeleteTransaction(c *gin.Context, id int64) {
 // through the transaction service. Returns HTTP 400 for validation errors, HTTP 404 if the transaction
 // is not found, HTTP 500 for server errors, or HTTP 200 with the updated transaction on success.
 func (s *ServerImpl) PatchTransactionInfo(c *gin.Context, id int64) {
-	var form inbound.UpdateTransactionInfoForm
+	var form v1.TransactionInfoForm
 	if err := c.ShouldBindJSON(&form); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	validator := validator.New()
-	validator.RegisterStructValidation(inbound.UpdateTransactionInfoFormValidation, inbound.UpdateTransactionInfoForm{})
+	validator.RegisterStructValidation(v1.UpdateTransactionInfoFormValidation, v1.TransactionInfoForm{})
 	if err := validator.Struct(form); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -227,7 +235,11 @@ func (s *ServerImpl) PatchTransactionInfo(c *gin.Context, id int64) {
 	dt := dtContext.MustFromContext(c)
 	tSrv := services.NewTransactionService(dt)
 
-	updatedTransaction, err := tSrv.UpdateInfo(c.Request.Context(), id, form.Info)
+	info := ""
+	if form.Info != nil {
+		info = *form.Info
+	}
+	updatedTransaction, err := tSrv.UpdateInfo(c.Request.Context(), id, info)
 	if err != nil {
 		switch err.(type) {
 		case *services.ErrResourceNotFound:
@@ -238,7 +250,7 @@ func (s *ServerImpl) PatchTransactionInfo(c *gin.Context, id int64) {
 		return
 	}
 
-	c.JSON(http.StatusOK, outbound.FromEntity(updatedTransaction))
+	c.JSON(http.StatusOK, v1.NewTransaction(updatedTransaction))
 }
 
 // Transaction Labels endpoints
@@ -261,7 +273,7 @@ func (s *ServerImpl) GetTransactionLabels(c *gin.Context, id int64) {
 		}
 	}
 
-	response := outbound.NewLabels(labels)
+	response := v1.NewLabels(labels)
 	c.JSON(http.StatusOK, response)
 }
 
@@ -270,7 +282,7 @@ func (s *ServerImpl) GetTransactionLabels(c *gin.Context, id int64) {
 // and updates the transaction. Returns HTTP 400 for validation errors, HTTP 404 if the transaction
 // is not found, HTTP 500 for server errors, or HTTP 200 with the updated transaction on success.
 func (s *ServerImpl) AddTransactionLabel(c *gin.Context, id int64) {
-	var form inbound.LabelForm
+	var form v1.LabelForm
 	if err := c.ShouldBindJSON(&form); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -299,7 +311,7 @@ func (s *ServerImpl) AddTransactionLabel(c *gin.Context, id int64) {
 	}
 
 	transaction.Labels = append(transaction.Labels, entity.LabelAssociation{
-		Label: form.ToEntity(),
+		Label: form.Entity(),
 	})
 
 	updated, err := tSrv.Update(c.Request.Context(), *transaction)
@@ -308,7 +320,7 @@ func (s *ServerImpl) AddTransactionLabel(c *gin.Context, id int64) {
 		return
 	}
 
-	c.JSON(http.StatusOK, outbound.FromEntity(updated))
+	c.JSON(http.StatusOK, v1.NewTransaction(updated))
 }
 
 // DELETE /api/v1/transactions/{id}/labels - Remove all labels from a transaction
@@ -337,7 +349,7 @@ func (s *ServerImpl) RemoveTransactionLabels(c *gin.Context, id int64) {
 		return
 	}
 
-	c.JSON(http.StatusOK, outbound.FromEntity(updated))
+	c.JSON(http.StatusOK, v1.NewTransaction(updated))
 }
 
 // RemoveTransactionLabel handles DELETE /transactions/{id}/labels/{labelId} requests to remove a specific label from a transaction.
@@ -389,19 +401,12 @@ func (s *ServerImpl) RemoveTransactionLabel(c *gin.Context, id int64, labelId in
 		return
 	}
 
-	c.JSON(http.StatusOK, outbound.FromEntity(updated))
+	c.JSON(http.StatusOK, v1.NewTransaction(updated))
 }
 
 // parseTimestamp parses a timestamp string (milliseconds since epoch) and returns the corresponding time.
 // Used for parsing query parameters that represent timestamps from the frontend.
-func parseTimestamp(sTimestamp string, defaultTime time.Time) (time.Time, error) {
-	if sTimestamp == "" {
-		return defaultTime, nil
-	}
-	timestamp, err := strconv.ParseInt(sTimestamp, 10, 64)
-	if err != nil {
-		return defaultTime, err
-	}
+func parseTimestamp(timestamp int64) (time.Time, error) {
 	// Convert milliseconds to seconds for time.Unix
 	return time.Unix(timestamp/1000, (timestamp%1000)*1000000), nil
 }
