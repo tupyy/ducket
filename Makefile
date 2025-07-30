@@ -126,67 +126,17 @@ postgres.migrate.test:
 # Container targets #
 #####################
 
-#help container-help: show container management help (from Makefile.docker)
-container-help:
-	@$(MAKE) -f Makefile.docker help
+# Build the application image
+podman.build: ## Build the Finante application container
+	podman build -f Containerfile -t $(APP_IMAGE) .
 
-# Container aliases for convenience
-#help container-build: build application container image
-container-build:
-	@$(MAKE) -f Makefile.docker build
+# Tag image for remote registry
+tag: ## Tag the local image for remote registry
+	podman tag $(APP_IMAGE) $(REGISTRY):$(REMOTE_TAG)
 
-#help container-run: start application and database containers
-container-run:
-	@$(MAKE) -f Makefile.docker podman-run
+# Push image to remote registry
+push: tag ## Push the container image to quay.io/ctupangiu/finance
+	podman push $(REGISTRY):$(REMOTE_TAG)
 
-#help container-dev: start containers in development mode
-container-dev:
-	@$(MAKE) -f Makefile.docker dev
-
-#help container-stop: stop application container
-container-stop:
-	@$(MAKE) -f Makefile.docker stop
-
-#help container-down: stop all containers
-container-down:
-	@$(MAKE) -f Makefile.docker down
-
-#help container-logs: follow application logs
-container-logs:
-	@$(MAKE) -f Makefile.docker logs
-
-#help container-health: check container health status
-container-health:
-	@$(MAKE) -f Makefile.docker health
-
-#help container-clean: remove all containers and volumes
-container-clean:
-	@$(MAKE) -f Makefile.docker clean
-
-#help container-setup: quick setup (build and start containers)
-container-setup:
-	@$(MAKE) -f Makefile.docker setup
-
-# Database container operations
-#help container-db-shell: connect to database shell
-container-db-shell:
-	@$(MAKE) -f Makefile.docker db-shell
-
-#help container-db-backup: backup database
-container-db-backup:
-	@$(MAKE) -f Makefile.docker db-backup
-
-#help container-migrate: run database migrations in container
-container-migrate:
-	@$(MAKE) -f Makefile.docker db-migrate
-
-# Quick development workflow aliases
-#help dev: start development environment (alias for container-dev)
-dev: container-dev
-
-#help prod: start production environment (alias for container-run)
-prod: container-run
-
-#help deploy: full deployment setup (alias for container-setup)
-deploy: container-setup
-
+# Build and push in one command
+deploy.image: podman.build push ## Build and push the container image to remote registry

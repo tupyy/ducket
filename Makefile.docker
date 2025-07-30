@@ -29,20 +29,6 @@ help: ## Show this help message
 network: ## Create Podman network for containers
 	@podman network inspect $(NETWORK_NAME) >/dev/null 2>&1 || podman network create $(NETWORK_NAME)
 
-# Build the application image
-podman-build: ## Build the Finante application container
-	podman build -f Containerfile -t $(APP_IMAGE) .
-
-# Tag image for remote registry
-tag: ## Tag the local image for remote registry
-	podman tag $(APP_IMAGE) $(REGISTRY):$(REMOTE_TAG)
-
-# Push image to remote registry
-push: tag ## Push the container image to quay.io/ctupangiu/finance
-	podman push $(REGISTRY):$(REMOTE_TAG)
-
-# Build and push in one command
-deploy-image: podman-build push ## Build and push the container image to remote registry
 
 # Start database container
 db-start: network ## Start PostgreSQL database container
