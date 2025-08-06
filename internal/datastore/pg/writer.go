@@ -279,9 +279,14 @@ func (w *Writer) DeleteRelationships(ctx context.Context, relationships []entity
 	for _, r := range relationships {
 		switch r.Kind {
 		case entity.RelationshipLabelRule:
-			query := deleteLabelRuleRelationship.Where(sq.And{sq.Eq{colRuleID: r.RuleID}, sq.Eq{colLabelID: r.LabelID}})
-			if err := execQuery(query); err != nil {
-				return fmt.Errorf(errUnableToDeleteRelationship, err)
+			queries := []sq.DeleteBuilder{}
+			queries = append(queries, deleteLabelRuleRelationship.Where(sq.And{sq.Eq{colRuleID: r.RuleID}, sq.Eq{colLabelID: r.LabelID}}))
+			queries = append(queries, deleteTransactionLabelRuleRelationship.Where(sq.And{sq.Eq{colRuleID: r.RuleID}, sq.Eq{colLabelID: r.LabelID}}))
+
+			for _, q := range queries {
+				if err := execQuery(q); err != nil {
+					return fmt.Errorf(errUnableToDeleteRelationship, err)
+				}
 			}
 		case entity.RelationshipLabelTransaction:
 			query := deleteTransactionLabelRuleRelationship.Where(sq.And{sq.Eq{colTransactionID: r.TransactionID}, sq.Eq{colLabelID: r.LabelID}})

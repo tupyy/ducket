@@ -672,6 +672,60 @@ var _ = Describe("Writer", Ordered, func() {
 			Expect(count).To(Equal(0))
 		})
 
+		It("delete label-rule relationships cleans up both rules_labels and transactions_labels tables", func() {
+			// Get label IDs
+			var labelID int
+			err := pgPool.QueryRow(context.TODO(), "SELECT id FROM labels WHERE key = 'category' AND value = 'food'").Scan(&labelID)
+			Expect(err).To(BeNil())
+
+			// Create a rule-label relationship
+			sql, args, err := psql.Insert("rules_labels").
+				Columns("rule_id", "label_id").
+				Values("rule1", labelID).
+				ToSql()
+			Expect(err).To(BeNil())
+			_, err = pgPool.Exec(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			// Create transaction-label relationships that were created by the rule
+			sql, args, err = insertTransactionLabel.
+				Values(1, labelID, "rule1").
+				Values(2, labelID, "rule1").
+				ToSql()
+			Expect(err).To(BeNil())
+			_, err = pgPool.Exec(context.TODO(), sql, args...)
+			Expect(err).To(BeNil())
+
+			// Verify both relationships exist
+			var rulesLabelsCount, transactionsLabelsCount int
+			err = pgPool.QueryRow(context.TODO(), "SELECT count(*) FROM rules_labels WHERE rule_id = 'rule1' AND label_id = $1", labelID).Scan(&rulesLabelsCount)
+			Expect(err).To(BeNil())
+			Expect(rulesLabelsCount).To(Equal(1))
+
+			err = pgPool.QueryRow(context.TODO(), "SELECT count(*) FROM transactions_labels WHERE rule_id = 'rule1' AND label_id = $1", labelID).Scan(&transactionsLabelsCount)
+			Expect(err).To(BeNil())
+			Expect(transactionsLabelsCount).To(Equal(2))
+
+			// Delete the rule-label relationship - this should clean up both tables
+			relationships := []entity.Relationship{
+				{Kind: entity.RelationshipLabelRule, LabelID: labelID, RuleID: "rule1"},
+			}
+
+			err = dt.WriteTx(context.TODO(), func(ctx context.Context, w *pg.Writer) error {
+				return w.DeleteRelationships(ctx, relationships)
+			})
+			Expect(err).To(BeNil())
+
+			// Verify both tables are cleaned up
+			err = pgPool.QueryRow(context.TODO(), "SELECT count(*) FROM rules_labels WHERE rule_id = 'rule1' AND label_id = $1", labelID).Scan(&rulesLabelsCount)
+			Expect(err).To(BeNil())
+			Expect(rulesLabelsCount).To(Equal(0))
+
+			err = pgPool.QueryRow(context.TODO(), "SELECT count(*) FROM transactions_labels WHERE rule_id = 'rule1' AND label_id = $1", labelID).Scan(&transactionsLabelsCount)
+			Expect(err).To(BeNil())
+			Expect(transactionsLabelsCount).To(Equal(0))
+		})
+
 		AfterEach(func() {
 			_, err := pgPool.Exec(context.TODO(), "DELETE FROM transactions;")
 			Expect(err).To(BeNil())
