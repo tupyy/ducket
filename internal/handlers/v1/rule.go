@@ -65,14 +65,14 @@ func (s *ServerImpl) CreateRule(c *gin.Context) {
 // If the rule doesn't exist, it creates a new one. Returns HTTP 400 for validation errors,
 // HTTP 500 for server errors, HTTP 201 for creation, or HTTP 200 for successful update.
 func (s *ServerImpl) UpdateRule(c *gin.Context, id string) {
-	var form v1.RuleForm
+	var form v1.UpdateRuleForm
 	if err := c.ShouldBindJSON(&form); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	validator := validator.New()
-	validator.RegisterStructValidation(v1.RuleFormValidation, v1.RuleForm{})
+	validator.RegisterStructValidation(v1.RuleFormValidation, v1.UpdateRuleForm{})
 
 	if err := validator.Struct(form); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -83,7 +83,7 @@ func (s *ServerImpl) UpdateRule(c *gin.Context, id string) {
 	ruleSrv := services.NewRuleService(dt)
 
 	// Convert form to entity, but override the name with the ID from the URL
-	ruleEntity := form.Entity()
+	ruleEntity := form.Entity(id)
 	ruleToCreate := entity.NewRule(id, ruleEntity.Pattern, ruleEntity.Labels...)
 	err := ruleSrv.Update(c.Request.Context(), ruleToCreate)
 	if err != nil {

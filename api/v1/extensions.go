@@ -57,6 +57,17 @@ func (r RuleForm) Entity() entity.Rule {
 	return entity.NewRule(r.Name, r.Pattern, labels...)
 }
 
+func (r UpdateRuleForm) Entity(name string) entity.Rule {
+	labels := make([]entity.Label, 0, len(r.Labels))
+	for key, value := range r.Labels {
+		labels = append(labels, entity.Label{
+			Key:   key,
+			Value: value,
+		})
+	}
+	return entity.NewRule(name, r.Pattern, labels...)
+}
+
 // RuleFormValidation provides custom validation logic for RuleForm structures.
 // It implements the validator.StructLevel interface for complex validation rules.
 func RuleFormValidation(sl validator.StructLevel) {
@@ -65,6 +76,24 @@ func RuleFormValidation(sl validator.StructLevel) {
 	if form.Name == "" || len(form.Name) > 255 {
 		sl.ReportError(form.Name, "name", "name", "lt 255", "")
 	}
+
+	if _, err := regexp.Compile(form.Pattern); err != nil {
+		sl.ReportError(form.Pattern, "pattern", "pattern", "must compile", "")
+	}
+
+	if len(form.Labels) == 0 {
+		sl.ReportError(form.Labels, "labels", "labels", "ge 0", "")
+	}
+
+	for _, l := range form.Labels {
+		if len(l) > 20 {
+			sl.ReportError(form.Labels, "label", "label", "lt 20", "")
+		}
+	}
+}
+
+func UpdateRuleFormValidation(sl validator.StructLevel) {
+	form := sl.Current().Interface().(UpdateRuleForm)
 
 	if _, err := regexp.Compile(form.Pattern); err != nil {
 		sl.ReportError(form.Pattern, "pattern", "pattern", "must compile", "")

@@ -133,6 +133,15 @@ type Transactions struct {
 	Total *int                `json:"total,omitempty"`
 }
 
+// UpdateRuleForm defines model for UpdateRuleForm.
+type UpdateRuleForm struct {
+	// Labels Map of labels to apply when pattern matches
+	Labels map[string]string `json:"labels"`
+
+	// Pattern Regular expression pattern to match transaction content
+	Pattern string `json:"pattern"`
+}
+
 // GetTransactionsParams defines parameters for GetTransactions.
 type GetTransactionsParams struct {
 	// StartDate Start date as milliseconds since epoch
@@ -152,7 +161,7 @@ type ImportTransactionsMultipartBody struct {
 type CreateRuleJSONRequestBody = RuleForm
 
 // UpdateRuleJSONRequestBody defines body for UpdateRule for application/json ContentType.
-type UpdateRuleJSONRequestBody = RuleForm
+type UpdateRuleJSONRequestBody = UpdateRuleForm
 
 // CreateTransactionJSONRequestBody defines body for CreateTransaction for application/json ContentType.
 type CreateTransactionJSONRequestBody = TransactionForm

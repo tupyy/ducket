@@ -549,7 +549,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RuleForm'
+              $ref: '#/components/schemas/UpdateRuleForm'
       responses:
         '200':
           description: Rule updated successfully
@@ -883,6 +883,25 @@ components:
           maxLength: 20
           description: Rule name (max 20 characters)
           example: "grocery-rule"
+        pattern:
+          type: string
+          description: Regular expression pattern to match transaction content
+          example: "(?i).*(grocery|supermarket).*"
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+          description: Map of labels to apply when pattern matches
+          example:
+            category: "groceries"
+            type: "expense"
+    
+    UpdateRuleForm:
+      type: object
+      required:
+        - pattern
+        - labels
+      properties:
         pattern:
           type: string
           description: Regular expression pattern to match transaction content
