@@ -72,7 +72,7 @@ func (s *ServerImpl) UpdateRule(c *gin.Context, id string) {
 	}
 
 	validator := validator.New()
-	validator.RegisterStructValidation(v1.RuleFormValidation, v1.UpdateRuleForm{})
+	validator.RegisterStructValidation(v1.UpdateRuleFormValidation, v1.UpdateRuleForm{})
 
 	if err := validator.Struct(form); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
