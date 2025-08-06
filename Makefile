@@ -22,6 +22,7 @@ COLOR_LEVEL_FATAL=$(escape)[91m
 
 PODMAN ?= podman
 POSTGRES_IMAGE ?= docker.io/library/postgres:17
+GIT_COMMIT=$(shell git rev-list -1 HEAD --abbrev-commit)
 
 define COLORIZE
 sed -u -e "s/\\\\\"/'/g; \
@@ -128,7 +129,7 @@ postgres.migrate.test:
 
 # Build the application image
 podman.build: ## Build the Finante application container
-	podman build -f Containerfile -t $(APP_IMAGE) .
+	podman build -f Containerfile --build-arg GIT_SHA=$(GIT_COMMIT) -t $(APP_IMAGE) .
 
 # Tag image for remote registry
 tag: ## Tag the local image for remote registry

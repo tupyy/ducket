@@ -15,6 +15,8 @@ RUN npm run build
 # Stage 2: Build Go backend
 FROM docker.io/golang:1.23-alpine AS backend-builder
 
+ARG GIT_SHA
+
 WORKDIR /app
 
 # Copy go mod files for better caching
@@ -25,7 +27,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o finante .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-X main.sha=${GIT_SHA}" -a -installsuffix cgo -o finante .
 
 # Stage 3: Final runtime image
 FROM alpine:latest

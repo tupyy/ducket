@@ -1,12 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"git.tls.tupangiu.ro/cosmin/finante/cmd"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/config"
 	"github.com/spf13/cobra"
 )
+
+var sha string
 
 func main() {
 	cfg := config.NewConfigWithOptionsAndDefaults(
@@ -19,6 +22,8 @@ func main() {
 		config.WithLogLevel("debug"),
 		config.WithGinMode("debug"),
 	)
+
+	fmt.Printf("Build from commit: %s\n", sha)
 
 	var rootCmd = &cobra.Command{
 		Use:   "finance",
