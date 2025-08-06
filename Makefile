@@ -99,6 +99,12 @@ run:
 run.front:
 	cd ui && npm run start:dev
 
+build.ui:
+	cd ui && GIT_SHA=$(GIT_COMMIT) npm run build
+
+build.ui.dev:
+	cd ui && npm run build
+
 DB_HOST=localhost
 DB_PORT=5432
 ROOT_USER=postgres

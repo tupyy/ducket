@@ -10,8 +10,14 @@ const { execSync } = require('child_process');
 const BG_IMAGES_DIRNAME = 'bgimages';
 const ASSET_PATH = process.env.ASSET_PATH || '/';
 
-// Get git commit hash
+// Get git commit hash from environment variable or git command (fallback for local dev)
 const getGitCommit = () => {
+  // First try environment variable (used in container builds)
+  if (process.env.GIT_SHA) {
+    return process.env.GIT_SHA;
+  }
+  
+  // Fallback to git command for local development
   try {
     return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
   } catch (e) {
