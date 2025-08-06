@@ -5,8 +5,20 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyPlugin = require('copy-webpack-plugin');
 const TsconfigPathsPlugin = require('tsconfig-paths-webpack-plugin');
 const Dotenv = require('dotenv-webpack');
+const webpack = require('webpack');
+const { execSync } = require('child_process');
 const BG_IMAGES_DIRNAME = 'bgimages';
 const ASSET_PATH = process.env.ASSET_PATH || '/';
+
+// Get git commit hash
+const getGitCommit = () => {
+  try {
+    return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
+  } catch (e) {
+    return 'unknown';
+  }
+};
+
 module.exports = (env) => {
   return {
     module: {
@@ -118,6 +130,9 @@ module.exports = (env) => {
       new Dotenv({
         systemvars: true,
         silent: true,
+      }),
+      new webpack.DefinePlugin({
+        'process.env.GIT_COMMIT': JSON.stringify(getGitCommit()),
       }),
       new CopyPlugin({
         patterns: [{ from: './src/favicon.png', to: 'images' }],

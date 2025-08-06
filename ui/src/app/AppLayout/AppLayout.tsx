@@ -22,6 +22,7 @@ import {
 import { IAppRoute, IAppRouteGroup, routes } from '@app/routes';
 import { BarsIcon } from '@patternfly/react-icons';
 import { ThemeToggle } from '@app/shared/components/ThemeToggle';
+import { BuildInfo } from '@app/shared/components/BuildInfo';
 import { useTheme } from '@app/shared/contexts/ThemeContext';
 
 // Create a context for page styling
@@ -71,6 +72,9 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
         <Toolbar id="masthead-toolbar">
           <ToolbarContent>
             <ToolbarGroup align={{ default: 'alignEnd' }}>
+              <ToolbarItem>
+                <BuildInfo variant="plain" />
+              </ToolbarItem>
               <ToolbarItem>
                 <ThemeToggle variant="plain" />
               </ToolbarItem>

@@ -10,3 +10,9 @@ declare module '*.m4a';
 declare module '*.rdf';
 declare module '*.ttl';
 declare module '*.pdf';
+
+declare namespace NodeJS {
+  interface ProcessEnv {
+    GIT_COMMIT?: string;
+  }
+}
