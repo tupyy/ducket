@@ -1,12 +1,13 @@
 import * as React from 'react';
 import {
-  Modal,
-  ModalVariant,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  Button,
-} from '@patternfly/react-core';
+  EuiModal,
+  EuiModalHeader,
+  EuiModalHeaderTitle,
+  EuiModalBody,
+  EuiModalFooter,
+  EuiButton,
+  EuiText,
+} from '@elastic/eui';
 import { ILabelTransaction, ITransaction } from '@app/shared/models/transaction';
 
 interface RemoveLabelModalProps {
@@ -24,28 +25,32 @@ export const RemoveLabelModal: React.FC<RemoveLabelModalProps> = ({
   transaction,
   label,
 }) => {
+  if (!isOpen) return null;
+
   return (
-    <Modal
-      variant={ModalVariant.small}
-      isOpen={isOpen}
-      onClose={onClose}
-    >
-      <ModalHeader title="Remove Label" />
-      <ModalBody>
+    <EuiModal onClose={onClose} style={{ width: '400px' }}>
+      <EuiModalHeader>
+        <EuiModalHeaderTitle>Remove Label</EuiModalHeaderTitle>
+      </EuiModalHeader>
+      
+      <EuiModalBody>
         {transaction && label && (
-          <p>
-            Are you sure you want to remove the label <strong>{label.key}={label.value}</strong> from the transaction "<strong>{transaction.description}</strong>"?
-          </p>
+          <EuiText>
+            <p>
+              Are you sure you want to remove the label <strong>{label.key}={label.value}</strong> from the transaction "<strong>{transaction.description}</strong>"?
+            </p>
+          </EuiText>
         )}
-      </ModalBody>
-      <ModalFooter>
-        <Button variant="danger" onClick={onConfirm}>
-          Remove
-        </Button>
-        <Button variant="link" onClick={onClose}>
+      </EuiModalBody>
+      
+      <EuiModalFooter>
+        <EuiButton onClick={onClose}>
           Cancel
-        </Button>
-      </ModalFooter>
-    </Modal>
+        </EuiButton>
+        <EuiButton fill color="danger" onClick={onConfirm}>
+          Remove
+        </EuiButton>
+      </EuiModalFooter>
+    </EuiModal>
   );
-}; 
+};

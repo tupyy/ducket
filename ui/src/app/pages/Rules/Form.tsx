@@ -1,23 +1,15 @@
 import { css } from '@emotion/css';
 import {
-  ActionGroup,
-  Button,
-  Form,
-  FormGroup,
-  TextInput,
-  MenuToggle,
-  MenuToggleElement,
-  Dropdown,
-  DropdownList,
-  DropdownItem,
-  Label,
-  TextInputGroup,
-  TextInputGroupMain,
-  TextInputGroupUtilities,
-  Flex,
-  FlexItem,
-} from '@patternfly/react-core';
-import { TimesIcon } from '@patternfly/react-icons';
+  EuiForm,
+  EuiFormRow,
+  EuiFieldText,
+  EuiButton,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiComboBox,
+  EuiComboBoxOptionOption,
+  EuiBadge,
+} from '@elastic/eui';
 import * as React from 'react';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
 import { createRule, updateRule } from '@app/shared/reducers/rule.reducer';
@@ -52,8 +44,6 @@ const RuleForm: React.FunctionComponent<IRuleForm> = ({ closeFormCB, editingRule
   const labels = useAppSelector((state) => state.labels);
   const [inputs, setInputs] = React.useState<IForm>(initialState);
   const [creating, setIsCreating] = React.useState<boolean>(false);
-  const [isLabelSelectOpen, setIsLabelSelectOpen] = React.useState<boolean>(false);
-  const [labelInputValue, setLabelInputValue] = React.useState<string>('');
 
   const isEditing = !!editingRule;
 
@@ -73,38 +63,25 @@ const RuleForm: React.FunctionComponent<IRuleForm> = ({ closeFormCB, editingRule
     }
   }, [editingRule]);
 
-  const handleChange = (event: React.FormEvent<HTMLInputElement>, value: string) => {
-    const name = (event.target as HTMLInputElement).name;
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = event.target;
     setInputs((prevState) => ({ ...prevState, [name]: value }));
   };
 
-  const handleLabelInputChange = (_event: React.FormEvent<HTMLInputElement>, value: string) => {
-    setLabelInputValue(value);
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputs((prevState) => ({ ...prevState, name: e.target.value }));
   };
 
-  const handleLabelSelect = (label: string) => {
-    if (!inputs.labels.includes(label)) {
-      setInputs((prevState) => ({
-        ...prevState,
-        labels: [...prevState.labels, label],
-      }));
-    }
-    setLabelInputValue('');
-    setIsLabelSelectOpen(false);
+  const handlePatternChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputs((prevState) => ({ ...prevState, pattern: e.target.value }));
   };
 
-  const handleLabelRemove = (labelToRemove: string) => {
+  const handleLabelChange = (selectedOptions: EuiComboBoxOptionOption[]) => {
+    const selectedLabels = selectedOptions.map((option) => option.label);
     setInputs((prevState) => ({
       ...prevState,
-      labels: prevState.labels.filter((label) => label !== labelToRemove),
+      labels: selectedLabels,
     }));
-  };
-
-  const handleLabelInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter' && labelInputValue.trim()) {
-      event.preventDefault();
-      handleLabelSelect(labelInputValue.trim());
-    }
   };
 
   const handleSubmit = async () => {
@@ -136,120 +113,75 @@ const RuleForm: React.FunctionComponent<IRuleForm> = ({ closeFormCB, editingRule
     }
   };
 
-  // Get available label options from the store, filtered by input
-  const availableLabelOptions = labels.labels
-    .map((label) => `${label.key}=${label.value}`)
-    .filter((label) => !inputs.labels.includes(label) && label.toLowerCase().includes(labelInputValue.toLowerCase()));
+  // Convert labels to ComboBox options
+  const availableLabelOptions: EuiComboBoxOptionOption[] = labels.labels
+    .map((label) => ({
+      label: `${label.key}=${label.value}`,
+      value: `${label.key}=${label.value}`,
+    }));
 
-  const toggle = (toggleRef: React.Ref<MenuToggleElement>) => (
-    <MenuToggle
-      ref={toggleRef}
-      onClick={() => setIsLabelSelectOpen(!isLabelSelectOpen)}
-      isExpanded={isLabelSelectOpen}
-      style={{ width: '100%' }}
-    >
-      <TextInputGroup>
-        <TextInputGroupMain
-          value={labelInputValue}
-          placeholder="Type to search or add labels (key=value)..."
-          onChange={handleLabelInputChange}
-          onKeyDown={handleLabelInputKeyDown}
-        />
-        {labelInputValue && (
-          <TextInputGroupUtilities>
-            <Button variant="plain" onClick={() => setLabelInputValue('')} aria-label="Clear input">
-              <TimesIcon />
-            </Button>
-          </TextInputGroupUtilities>
-        )}
-      </TextInputGroup>
-    </MenuToggle>
-  );
+  const selectedLabelOptions: EuiComboBoxOptionOption[] = inputs.labels.map((label) => ({
+    label,
+    value: label,
+  }));
 
   return (
-    <Form className={classes.form}>
-      <FormGroup label="Name" isRequired fieldId="rule-form-name">
-        <TextInput
-          isRequired
-          type="text"
+    <EuiForm className={classes.form}>
+      <EuiFormRow label="Name" isInvalid={false} error={[]}>
+        <EuiFieldText
+          required
           id="rule-form-name"
           name="name"
           value={inputs.name}
-          onChange={handleChange}
-          isDisabled={isEditing} // Name cannot be changed when editing
+          onChange={handleNameChange}
+          disabled={isEditing} // Name cannot be changed when editing
         />
-      </FormGroup>
-      <FormGroup label="Pattern" isRequired fieldId="rule-form-pattern">
-        <TextInput
-          isRequired
-          type="text"
+      </EuiFormRow>
+      
+      <EuiFormRow label="Pattern" isInvalid={false} error={[]}>
+        <EuiFieldText
+          required
           id="rule-form-pattern"
           name="pattern"
           value={inputs.pattern}
-          onChange={handleChange}
+          onChange={handlePatternChange}
         />
-      </FormGroup>
-      <FormGroup label="Labels" isRequired fieldId="rule-form-labels">
-        <Flex direction={{ default: 'column' }}>
-          <FlexItem>
-            <Dropdown
-              isOpen={isLabelSelectOpen}
-              onOpenChange={(isOpen: boolean) => setIsLabelSelectOpen(isOpen)}
-              toggle={toggle}
-              ouiaId="LabelDropdown"
-              shouldFocusToggleOnSelect
-            >
-              <DropdownList>
-                {availableLabelOptions.length > 0 ? (
-                  availableLabelOptions.map((label, index) => (
-                    <DropdownItem key={index} value={label} onClick={() => handleLabelSelect(label)}>
-                      {label}
-                    </DropdownItem>
-                  ))
-                ) : labelInputValue.trim() ? (
-                  <DropdownItem onClick={() => handleLabelSelect(labelInputValue.trim())}>
-                    Create "{labelInputValue.trim()}"
-                  </DropdownItem>
-                ) : (
-                  <DropdownItem isDisabled>No matching labels found</DropdownItem>
-                )}
-              </DropdownList>
-            </Dropdown>
-          </FlexItem>
-          {inputs.labels.length > 0 && (
-            <FlexItem>
-              <Flex spaceItems={{ default: 'spaceItemsXs' }} style={{ marginTop: '8px' }}>
-                {inputs.labels.map((label, index) => (
-                  <FlexItem key={index}>
-                    <Label
-                      variant="filled"
-                      color="blue"
-                      onClose={() => handleLabelRemove(label)}
-                      closeBtnAriaLabel={`Remove ${label} label`}
-                    >
-                      {label}
-                    </Label>
-                  </FlexItem>
-                ))}
-              </Flex>
-            </FlexItem>
-          )}
-        </Flex>
-      </FormGroup>
-      <ActionGroup>
-        <Button
-          variant="primary"
-          isLoading={creating}
-          onClick={handleSubmit}
-          isDisabled={!inputs.name || !inputs.pattern}
-        >
-          {isEditing ? 'Update' : 'Create'}
-        </Button>
-        <Button variant="link" onClick={closeFormCB} isDisabled={creating}>
-          Cancel
-        </Button>
-      </ActionGroup>
-    </Form>
+      </EuiFormRow>
+      
+      <EuiFormRow label="Labels" isInvalid={false} error={[]}>
+        <EuiComboBox
+          placeholder="Type to search or add labels (key=value)..."
+          options={availableLabelOptions}
+          selectedOptions={selectedLabelOptions}
+          onChange={handleLabelChange}
+          onCreateOption={(searchValue: string) => {
+            const newOption = { label: searchValue, value: searchValue };
+            handleLabelChange([...selectedLabelOptions, newOption]);
+          }}
+          isClearable={true}
+          data-test-subj="rule-labels-combo-box"
+        />
+      </EuiFormRow>
+      
+      <EuiFlexGroup gutterSize="s">
+        <EuiFlexItem grow={false}>
+          <EuiButton
+            fill
+            color="primary"
+            isLoading={creating}
+            onClick={handleSubmit}
+            isDisabled={!inputs.name || !inputs.pattern}
+          >
+            {isEditing ? 'Update' : 'Create'}
+          </EuiButton>
+        </EuiFlexItem>
+        <EuiFlexItem grow={false}>
+          <EuiButton color="text" onClick={closeFormCB} isDisabled={creating}>
+            Cancel
+          </EuiButton>
+        </EuiFlexItem>
+      </EuiFlexGroup>
+    </EuiForm>
   );
 };
 

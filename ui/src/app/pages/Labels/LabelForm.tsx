@@ -1,6 +1,6 @@
 import { CreateLabelError, Result } from '@app/shared/models/result';
 import { css } from '@emotion/css';
-import { ActionGroup, Button, Form, FormGroup, TextInput } from '@patternfly/react-core';
+import { EuiForm, EuiFormRow, EuiFieldText, EuiButton, EuiFlexGroup, EuiFlexItem } from '@elastic/eui';
 import * as React from 'react';
 
 export interface ILabelForm {
@@ -20,12 +20,12 @@ const LabelForm: React.FunctionComponent<ILabelForm> = ({ closeFormCB, submitVal
   const [key, setKey] = React.useState('');
   const [value, setValue] = React.useState('');
 
-  const handleKeyChange = (_event, val: string) => {
-    setKey(val);
+  const handleKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setKey(e.target.value);
   };
 
-  const handleValueChange = (_event, val: string) => {
-    setValue(val);
+  const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setValue(e.target.value);
   };
 
   const handleSubmit = () => {
@@ -33,22 +33,44 @@ const LabelForm: React.FunctionComponent<ILabelForm> = ({ closeFormCB, submitVal
   };
 
   return (
-    <Form className={classes.form}>
-      <FormGroup label="Key" isRequired fieldId="label-form-key">
-        <TextInput isRequired type="text" id="label-form-key" value={key} onChange={handleKeyChange} placeholder="e.g., category" />
-      </FormGroup>
-      <FormGroup label="Value" isRequired fieldId="label-form-value">
-        <TextInput isRequired type="text" id="label-form-value" value={value} onChange={handleValueChange} placeholder="e.g., food" />
-      </FormGroup>
-      <ActionGroup>
-        <Button variant="secondary" isLoading={creating} onClick={handleSubmit} isDisabled={key.length === 0 || value.length === 0}>
-          Submit
-        </Button>
-        <Button variant="link" onClick={closeFormCB} isLoading={creating}>
-          Cancel
-        </Button>
-      </ActionGroup>
-    </Form>
+    <EuiForm className={classes.form}>
+      <EuiFormRow label="Key" isInvalid={false} error={[]}>
+        <EuiFieldText
+          required
+          id="label-form-key"
+          value={key}
+          onChange={handleKeyChange}
+          placeholder="e.g., category"
+        />
+      </EuiFormRow>
+      <EuiFormRow label="Value" isInvalid={false} error={[]}>
+        <EuiFieldText
+          required
+          id="label-form-value"
+          value={value}
+          onChange={handleValueChange}
+          placeholder="e.g., food"
+        />
+      </EuiFormRow>
+      <EuiFlexGroup gutterSize="s">
+        <EuiFlexItem grow={false}>
+          <EuiButton
+            fill
+            color="primary"
+            isLoading={creating}
+            onClick={handleSubmit}
+            isDisabled={key.length === 0 || value.length === 0}
+          >
+            Submit
+          </EuiButton>
+        </EuiFlexItem>
+        <EuiFlexItem grow={false}>
+          <EuiButton color="text" onClick={closeFormCB} isDisabled={creating}>
+            Cancel
+          </EuiButton>
+        </EuiFlexItem>
+      </EuiFlexGroup>
+    </EuiForm>
   );
 };
 

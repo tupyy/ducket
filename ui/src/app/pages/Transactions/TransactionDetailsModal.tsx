@@ -1,30 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Button,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
-  ModalVariant,
-  Form,
-  FormGroup,
-  Alert,
-  AlertVariant,
-  MenuToggle,
-  MenuToggleElement,
-  Dropdown,
-  DropdownList,
-  DropdownItem,
-  TextInputGroup,
-  TextInputGroupMain,
-  TextInputGroupUtilities,
-  TextArea,
-  Label,
-  Flex,
-  FlexItem,
-  Divider,
-} from '@patternfly/react-core';
-import { TimesIcon } from '@patternfly/react-icons';
+  EuiModal,
+  EuiModalHeader,
+  EuiModalHeaderTitle,
+  EuiModalBody,
+  EuiModalFooter,
+  EuiButton,
+  EuiForm,
+  EuiFormRow,
+  EuiTextArea,
+  EuiComboBox,
+  EuiComboBoxOptionOption,
+  EuiBadge,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiSpacer,
+  EuiCallOut,
+  EuiText,
+} from '@elastic/eui';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
 import { addLabelToTransaction, updateTransactionInfo } from '@app/shared/reducers/transaction.reducer';
 import { getLabels } from '@app/shared/reducers/label.reducer';
@@ -49,17 +42,13 @@ export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = (
 
   // Local state for form data
   const [info, setInfo] = useState('');
-  const [labelInputValue, setLabelInputValue] = useState('');
   const [selectedLabels, setSelectedLabels] = useState<Array<{ key: string; value: string }>>([]);
-  const [isLabelDropdownOpen, setIsLabelDropdownOpen] = useState(false);
-  const [filteredLabels, setFilteredLabels] = useState<Array<{ key: string; value: string }>>([]);
 
   // Initialize form data when modal opens or transaction changes
   useEffect(() => {
     if (transaction) {
       setInfo(transaction.info || '');
       setSelectedLabels([]);
-      setLabelInputValue('');
     }
   }, [transaction]);
 
@@ -70,54 +59,18 @@ export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = (
     }
   }, [isOpen, dispatch, labels.labels.length]);
 
-  // Filter labels based on input
-  useEffect(() => {
-    if (labelInputValue) {
-      const availableLabels = labels.labels.map(label => ({
-        key: label.key,
-        value: label.value
-      }));
-      
-      const filtered = availableLabels.filter(
-        label =>
-          label.key.toLowerCase().includes(labelInputValue.toLowerCase()) ||
-          label.value.toLowerCase().includes(labelInputValue.toLowerCase())
-      );
-      setFilteredLabels(filtered);
-    } else {
-      setFilteredLabels([]);
-    }
-  }, [labelInputValue, labels.labels]);
-
   const handleClose = () => {
     setInfo('');
     setSelectedLabels([]);
-    setLabelInputValue('');
-    setIsLabelDropdownOpen(false);
     onClose();
   };
 
-  const handleAddLabel = (key: string, value: string) => {
-    const newLabel = { key, value };
-    if (!selectedLabels.some(label => label.key === key && label.value === value)) {
-      setSelectedLabels([...selectedLabels, newLabel]);
-    }
-    setLabelInputValue('');
-    setIsLabelDropdownOpen(false);
-  };
-
-  const handleRemoveLabel = (index: number) => {
-    setSelectedLabels(selectedLabels.filter((_, i) => i !== index));
-  };
-
-  const handleLabelInputKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === 'Enter' && labelInputValue.includes('=')) {
-      event.preventDefault();
-      const [key, value] = labelInputValue.split('=', 2);
-      if (key.trim() && value.trim()) {
-        handleAddLabel(key.trim(), value.trim());
-      }
-    }
+  const handleLabelChange = (selectedOptions: EuiComboBoxOptionOption[]) => {
+    const newLabels = selectedOptions.map(option => {
+      const [key, value] = option.label.split('=', 2);
+      return { key: key.trim(), value: value.trim() };
+    });
+    setSelectedLabels(newLabels);
   };
 
   const handleSave = async () => {
@@ -152,159 +105,113 @@ export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = (
 
   const isLoading = addingLabel || updatingInfo;
 
-  const labelToggle = (toggleRef: React.Ref<MenuToggleElement>) => (
-    <MenuToggle
-      ref={toggleRef}
-      variant="typeahead"
-      onClick={() => setIsLabelDropdownOpen(!isLabelDropdownOpen)}
-      isExpanded={isLabelDropdownOpen}
-      isFullWidth
-    >
-      <TextInputGroup isPlain>
-        <TextInputGroupMain
-          value={labelInputValue}
-          onClick={() => setIsLabelDropdownOpen(!isLabelDropdownOpen)}
-          onChange={(_event, value) => setLabelInputValue(value)}
-          onKeyDown={handleLabelInputKeyDown}
-          placeholder="Enter label (key=value) or select from dropdown"
-          role="combobox"
-          isExpanded={isLabelDropdownOpen}
-          aria-controls="label-listbox"
-        />
+  // Convert labels to ComboBox options
+  const availableLabelOptions: EuiComboBoxOptionOption[] = labels.labels
+    .map((label) => ({
+      label: `${label.key}=${label.value}`,
+      value: `${label.key}=${label.value}`,
+    }));
 
-        {labelInputValue && (
-          <TextInputGroupUtilities>
-            <Button variant="plain" onClick={() => setLabelInputValue('')} aria-label="Clear input">
-              <TimesIcon />
-            </Button>
-          </TextInputGroupUtilities>
-        )}
-      </TextInputGroup>
-    </MenuToggle>
-  );
+  const selectedLabelOptions: EuiComboBoxOptionOption[] = selectedLabels.map((label) => ({
+    label: `${label.key}=${label.value}`,
+    value: `${label.key}=${label.value}`,
+  }));
+
+  if (!isOpen) return null;
 
   return (
-    <Modal
-      variant={ModalVariant.medium}
-      isOpen={isOpen}
-      onClose={handleClose}
-      aria-labelledby="transaction-details-modal-title"
-      aria-describedby="transaction-details-modal-description"
-    >
-      <ModalHeader
-        title="Edit Transaction Details"
-        labelId="transaction-details-modal-title"
-        description={
-          transaction?.description 
-            ? `Transaction: ${transaction.description}` 
-            : undefined
-        }
-        descriptorId="transaction-details-modal-description"
-      />
-      <ModalBody>
-        {errorMessage && (
-          <Alert variant={AlertVariant.danger} title="Error" style={{ marginBottom: '1rem' }}>
-            {errorMessage}
-          </Alert>
+    <EuiModal onClose={handleClose} style={{ width: '600px' }}>
+      <EuiModalHeader>
+        <EuiModalHeaderTitle>Edit Transaction Details</EuiModalHeaderTitle>
+      </EuiModalHeader>
+
+      <EuiModalBody>
+        {transaction?.description && (
+          <>
+            <EuiText size="s" color="subdued">
+              Transaction: {transaction.description}
+            </EuiText>
+            <EuiSpacer size="m" />
+          </>
         )}
 
-        <Form>
-          {/* Transaction Info Section */}
-          <FormGroup label="Transaction Info" fieldId="info-input">
-            <TextArea
-              id="info-input"
+        {errorMessage && (
+          <>
+            <EuiCallOut title="Error" color="danger" iconType="alert">
+              {errorMessage}
+            </EuiCallOut>
+            <EuiSpacer size="m" />
+          </>
+        )}
+
+        <EuiForm>
+          <EuiFormRow label="Transaction Info" fullWidth>
+            <EuiTextArea
               value={info}
-              onChange={(_event, value) => setInfo(value)}
+              onChange={(e) => setInfo(e.target.value)}
               placeholder="Enter additional transaction information..."
               rows={3}
-              resizeOrientation="vertical"
+              resize="vertical"
+              fullWidth
             />
-          </FormGroup>
+          </EuiFormRow>
 
-          <Divider style={{ margin: '1.5rem 0' }} />
+          <EuiSpacer size="l" />
 
-          {/* Labels Section */}
-          <FormGroup label="Add Labels" fieldId="label-input">
-            <Dropdown
-              isOpen={isLabelDropdownOpen}
-              onSelect={(_event, value) => {
-                const selectedValue = value as string;
-                if (selectedValue.includes('=')) {
-                  const [key, val] = selectedValue.split('=', 2);
-                  handleAddLabel(key.trim(), val.trim());
+          <EuiFormRow label="Add Labels" fullWidth>
+            <EuiComboBox
+              placeholder="Enter label (key=value) or select from dropdown"
+              options={availableLabelOptions}
+              selectedOptions={selectedLabelOptions}
+              onChange={handleLabelChange}
+              onCreateOption={(searchValue: string) => {
+                if (searchValue.includes('=')) {
+                  const [key, value] = searchValue.split('=', 2);
+                  if (key.trim() && value.trim()) {
+                    const newLabel = { key: key.trim(), value: value.trim() };
+                    setSelectedLabels([...selectedLabels, newLabel]);
+                  }
                 }
               }}
-              onOpenChange={(isOpen) => setIsLabelDropdownOpen(isOpen)}
-              toggle={labelToggle}
-              shouldFocusToggleOnSelect
-            >
-              <DropdownList>
-                {filteredLabels.map((label, index) => (
-                  <DropdownItem
-                    key={index}
-                    value={`${label.key}=${label.value}`}
-                  >
-                    {label.key}={label.value}
-                  </DropdownItem>
-                ))}
-                {labelInputValue && labelInputValue.includes('=') && (
-                  <DropdownItem value={labelInputValue}>
-                    Create: {labelInputValue}
-                  </DropdownItem>
-                )}
-              </DropdownList>
-            </Dropdown>
-          </FormGroup>
-
-          {/* Selected Labels Display */}
-          {selectedLabels.length > 0 && (
-            <FormGroup label="Labels to Add" fieldId="selected-labels">
-              <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }} flexWrap={{ default: 'wrap' }}>
-                {selectedLabels.map((label, index) => (
-                  <FlexItem key={index}>
-                    <Label
-                      variant="outline"
-                      color="blue"
-                      onClose={() => handleRemoveLabel(index)}
-                      closeBtnAriaLabel={`Remove ${label.key}=${label.value} label`}
-                    >
-                      {label.key}={label.value}
-                    </Label>
-                  </FlexItem>
-                ))}
-              </Flex>
-            </FormGroup>
-          )}
+              isClearable={true}
+              fullWidth
+            />
+          </EuiFormRow>
 
           {/* Current Labels Display */}
           {transaction && transaction.labels && transaction.labels.length > 0 && (
-            <FormGroup label="Current Labels" fieldId="current-labels">
-              <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }} flexWrap={{ default: 'wrap' }}>
-                {transaction.labels.map((label, index) => (
-                  <FlexItem key={index}>
-                    <Label variant="filled" color="grey">
-                      {label.key}={label.value}
-                    </Label>
-                  </FlexItem>
-                ))}
-              </Flex>
-            </FormGroup>
+            <>
+              <EuiSpacer size="m" />
+              <EuiFormRow label="Current Labels" fullWidth>
+                <EuiFlexGroup gutterSize="s" wrap>
+                  {transaction.labels.map((label, index) => (
+                    <EuiFlexItem grow={false} key={index}>
+                      <EuiBadge color="hollow">
+                        {label.key}={label.value}
+                      </EuiBadge>
+                    </EuiFlexItem>
+                  ))}
+                </EuiFlexGroup>
+              </EuiFormRow>
+            </>
           )}
-        </Form>
-      </ModalBody>
-      <ModalFooter>
-        <Button
-          variant="primary"
+        </EuiForm>
+      </EuiModalBody>
+
+      <EuiModalFooter>
+        <EuiButton onClick={handleClose} isDisabled={isLoading}>
+          Cancel
+        </EuiButton>
+        <EuiButton
+          fill
+          color="primary"
           onClick={handleSave}
           isLoading={isLoading}
           isDisabled={isLoading}
         >
           Save Changes
-        </Button>
-        <Button variant="link" onClick={handleClose} isDisabled={isLoading}>
-          Cancel
-        </Button>
-      </ModalFooter>
-    </Modal>
+        </EuiButton>
+      </EuiModalFooter>
+    </EuiModal>
   );
-}; 
+};
