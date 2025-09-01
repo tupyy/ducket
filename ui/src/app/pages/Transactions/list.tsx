@@ -1,27 +1,26 @@
 import * as React from 'react';
 import {
-  Content,
-  Flex,
-  FlexItem,
-  Label,
-  PageSection,
-  Pagination,
-  PaginationVariant,
-  Select,
-  SelectOption,
-  SelectList,
-  MenuToggle,
-  MenuToggleElement,
-  Button,
-  TextInput,
-  Spinner,
-  Checkbox,
-  Switch,
-  Tooltip,
-} from '@patternfly/react-core';
-import { DataView, DataViewToolbar } from '@patternfly/react-data-view';
-import { ExpandableRowContent, Table, Tbody, Td, Th, Thead, ThProps, Tr } from '@patternfly/react-table';
-import { PlusIcon, TimesIcon, CogIcon, PenIcon } from '@patternfly/react-icons';
+  EuiInMemoryTable,
+  EuiBasicTableColumn,
+  EuiTableActionsColumnType,
+  EuiButtonEmpty,
+  EuiButtonIcon,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiBadge,
+  EuiText,
+  EuiSpacer,
+  EuiPanel,
+  EuiFormRow,
+  EuiFieldText,
+  EuiSwitch,
+  EuiButton,
+  EuiLoadingSpinner,
+  EuiCallOut,
+  EuiSelect,
+  EuiSelectOption,
+  EuiToolTip,
+} from '@elastic/eui';
 import { ILabelTransaction, ITransaction } from '@app/shared/models/transaction';
 import { LabelFilter } from '@app/shared/components/label-filter';
 import { AddLabelModal } from './AddLabelModal';
@@ -44,47 +43,17 @@ import {
   setPage,
   setPerPage,
   setSorting,
-  setTransactionExpanded,
-  toggleAllExpanded,
-  setTransactionSelected,
-  selectAllTransactions,
-  clearSelection,
 } from './reducers/transaction-filter.reducer';
 import {
   clearAddLabelToTransactionSuccess,
   removeLabelFromTransaction,
   updateTransactionInfo,
 } from '@app/shared/reducers/transaction.reducer';
-import { isKeyOfObject } from '@app/shared/models/label';
 
 export interface ITransactionListProps {
   transactions: Array<ITransaction> | [];
 }
 
-// Table column definitions for consistent referencing
-const columns = {
-  date: 'Date',
-  account: 'Account',
-  kind: 'Type',
-  amount: 'Amount',
-  labels: 'Labels',
-  rules: 'Rules',
-  actions: 'Actions',
-};
-
-/**
- * TransactionList Component
- *
- * This component displays a paginated, filterable, and sortable table of transactions.
- * Features:
- * - Filtering by labels, transaction types, and accounts
- * - Sorting by various columns
- * - Pagination support
- * - Expandable rows showing transaction descriptions
- * - Expand all/collapse all functionality
- * - Interactive labels and filters for quick filtering
- * - All table state persists across navigation via Redux reducer
- */
 const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ transactions }) => {
   const { theme } = useTheme();
   const dispatch = useAppDispatch();
@@ -101,1163 +70,476 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     perPage,
     sortDirection,
     sortIndex,
-    expandedTransactions,
     filtering,
-    selectedTransactions,
   } = useAppSelector((state) => state.transactionFilter);
 
   // Get transaction update state
   const { updatingInfo, errorMessage } = useAppSelector((state) => state.transactions);
 
-  // ===============================
-  // LOCAL UI STATE (NON-PERSISTENT)
-  // ===============================
-  // Keep only UI states for dropdown controls as local state since they shouldn't persist
-  const [isTransactionTypeSelectOpen, setIsTransactionTypeSelectOpen] = React.useState(false);
-  const [isAccountSelectOpen, setIsAccountSelectOpen] = React.useState(false);
-
-  // Modal state for unified transaction details (labels + info)
+  // Modal states
   const [isTransactionDetailsModalOpen, setIsTransactionDetailsModalOpen] = React.useState(false);
   const [selectedTransactionForDetails, setSelectedTransactionForDetails] = React.useState<ITransaction | null>(null);
-
-  // Modal state for bulk label operations
   const [isBulkLabelModalOpen, setIsBulkLabelModalOpen] = React.useState(false);
-
-  // Modal state for removing labels
   const [isRemoveLabelModalOpen, setIsRemoveLabelModalOpen] = React.useState(false);
   const [labelToRemove, setLabelToRemove] = React.useState<{
     transaction: ITransaction;
     label: ILabelTransaction;
   } | null>(null);
-
-  // Modal state for creating rules
   const [isCreateRuleModalOpen, setIsCreateRuleModalOpen] = React.useState(false);
   const [selectedTransactionForRule, setSelectedTransactionForRule] = React.useState<ITransaction | null>(null);
 
-  // ===============================
-  // COMPUTED VALUES
-  // ===============================
+  // Selection state for bulk operations
+  const [selectedItems, setSelectedItems] = React.useState<ITransaction[]>([]);
 
-  // Calculate available labels from all transactions for filtering
+  // Calculate available values for filters
   const availableLabels = React.useMemo(() => {
     const labelSet = new Set<string>();
     const keySet = new Set<string>();
 
     transactions.forEach((transaction) => {
       transaction.labels.forEach((label) => {
-        // Add exact key=value pairs
         labelSet.add(`${label.key}=${label.value}`);
-        // Collect unique keys for wildcard options
         keySet.add(label.key);
       });
     });
 
-    // Add wildcard options for each unique key
     keySet.forEach((key) => {
       labelSet.add(`${key}=*`);
     });
 
-    // Convert to array and sort with custom logic:
-    // 1. Group by key (wildcard first, then specific values)
-    // 2. Sort keys alphabetically
     const labels = Array.from(labelSet);
     return labels.sort((a, b) => {
       const [keyA, valueA] = a.split('=');
       const [keyB, valueB] = b.split('=');
-
-      // First sort by key
-      if (keyA !== keyB) {
-        return keyA.localeCompare(keyB);
-      }
-
-      // Same key: wildcards (*) come first, then alphabetical values
+      if (keyA !== keyB) return keyA.localeCompare(keyB);
       if (valueA === '*' && valueB !== '*') return -1;
       if (valueA !== '*' && valueB === '*') return 1;
       return valueA.localeCompare(valueB);
     });
   }, [transactions]);
 
-  // Calculate available transaction types from all transactions
-  const availableTransactionTypes = React.useMemo(() => {
-    const typeSet = new Set<string>();
-    transactions.forEach((transaction) => {
-      typeSet.add(transaction.kind);
-    });
-    return Array.from(typeSet).sort();
-  }, [transactions]);
-
-  // Calculate available accounts from all transactions
   const availableAccounts = React.useMemo(() => {
-    const accountSet = new Set<number>();
-    transactions.forEach((transaction) => {
-      accountSet.add(transaction.account);
-    });
-    return Array.from(accountSet).sort();
+    const accounts = Array.from(new Set(transactions.map(t => t.account)));
+    return accounts.sort();
   }, [transactions]);
 
-  // ===============================
-  // UTILITY FUNCTIONS
-  // ===============================
+  const availableTransactionTypes = React.useMemo(() => {
+    const types = Array.from(new Set(transactions.map(t => t.kind)));
+    return types.sort();
+  }, [transactions]);
 
-  /**
-   * Get color for transaction type labels
-   * @param kind - Transaction type (EXPENSE/INCOME)
-   * @returns Color name for the label
-   */
-  const getTransactionKindColor = (kind: string): 'red' | 'blue' => {
-    return kind === 'credit' ? 'red' : 'blue';
-  };
-
-  /**
-   * Check if a transaction is currently expanded
-   * @param t - Transaction to check
-   * @returns Whether the transaction is expanded
-   */
-  const isTransactionExpanded = (t: ITransaction) => expandedTransactions.includes(t.href);
-
-  /**
-   * Check if a transaction is currently selected
-   * @param t - Transaction to check
-   * @returns Whether the transaction is selected
-   */
-  const isTransactionSelected = (t: ITransaction) => selectedTransactions.includes(t.href);
-
-  // ===============================
-  // EFFECTS
-  // ===============================
-
-  // Set source transactions and apply filters whenever transactions change
-  React.useEffect(() => {
-    const applyCurrentFilters = async () => {
-      // Set source transactions for the filter reducer
-      dispatch(setSourceTransactions(transactions));
-
-      // Apply current filters to new transaction data
-      await dispatch(
-        applyFilters({
-          selectedLabels,
-          selectedTransactionTypes,
-          selectedAccounts,
-          descriptionFilter,
-          showOnlyUnlabeled,
-        })
-      );
-    };
-
-    applyCurrentFilters();
-  }, [transactions, selectedLabels, selectedTransactionTypes, selectedAccounts, descriptionFilter, showOnlyUnlabeled, dispatch]);
-
-  // ===============================
-  // SORTING AND PAGINATION
-  // ===============================
-
-  /**
-   * Sort transactions based on column and direction
-   * @param transactionsToSort - Array of transactions to sort
-   * @param sortIndex - Column index to sort by
-   * @param sortDirection - Sort direction (asc/desc)
-   * @returns Sorted array of transactions
-   */
-  const sortTransactions = (
-    transactionsToSort: ITransaction[],
-    sortIndex: number | null,
-    sortDirection: 'asc' | 'desc' | null
-  ): ITransaction[] => {
-    if (sortIndex === null || sortDirection === null) {
-      return transactionsToSort;
+  // Color mapping function for labels based on key
+  const getLabelColor = (labelKey: string): string => {
+    const colors = [
+      'primary', 'success', 'warning', 'danger', 'accent', 
+      'default', 'subdued', 'hollow'
+    ];
+    
+    // Create a simple hash from the label key
+    let hash = 0;
+    for (let i = 0; i < labelKey.length; i++) {
+      const char = labelKey.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
     }
-
-    return [...transactionsToSort].sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
-
-      switch (sortIndex) {
-        case 0: // Date - parse date strings only when sorting by date
-          try {
-            // Parse both dates and handle invalid dates consistently
-            const aDate = new Date(a.date);
-            const bDate = new Date(b.date);
-
-            const aIsValid = !isNaN(aDate.getTime());
-            const bIsValid = !isNaN(bDate.getTime());
-
-            // Both dates are valid - use numeric comparison
-            if (aIsValid && bIsValid) {
-              aValue = aDate.getTime();
-              bValue = bDate.getTime();
-            }
-            // Only a is valid - a should come before b in ascending order
-            else if (aIsValid && !bIsValid) {
-              return sortDirection === 'asc' ? -1 : 1;
-            }
-            // Only b is valid - b should come before a in ascending order
-            else if (!aIsValid && bIsValid) {
-              return sortDirection === 'asc' ? 1 : -1;
-            }
-            // Both dates are invalid - fallback to string comparison
-            else {
-              aValue = a.date;
-              bValue = b.date;
-            }
-          } catch (error) {
-            // Fallback to string comparison if date parsing fails
-            console.warn('Date comparison failed during sort:', error);
-            aValue = a.date;
-            bValue = b.date;
-          }
-          break;
-        case 1: // Account
-          aValue = a.account;
-          bValue = b.account;
-          break;
-        case 2: // Type
-          aValue = a.kind;
-          bValue = b.kind;
-          break;
-        case 3: // Amount
-          aValue = Math.abs(a.amount);
-          bValue = Math.abs(b.amount);
-          break;
-        case 4: // Labels
-          aValue = a.labels.length;
-          bValue = b.labels.length;
-          break;
-        case 5: // Rules (based on unique rules from labels)
-          aValue = Array.from(new Set(a.labels.map((label) => label.ruleHref))).length;
-          bValue = Array.from(new Set(b.labels.map((label) => label.ruleHref))).length;
-          break;
-        default:
-          return 0;
-      }
-
-      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-      return 0;
-    });
+    
+    // Use absolute value and modulo to get a consistent color index
+    const colorIndex = Math.abs(hash) % colors.length;
+    return colors[colorIndex];
   };
 
-  // Apply sorting to filtered transactions
-  const sortedTransactions = React.useMemo(() => {
-    return sortTransactions(filteredTransactions, sortIndex, sortDirection);
-  }, [filteredTransactions, sortIndex, sortDirection]);
+  // Initialize transactions in the filter store
+  React.useEffect(() => {
+    dispatch(setSourceTransactions(transactions));
+  }, [transactions, dispatch]);
 
-  // Apply pagination to sorted transactions
-  const paginatedTransactions = React.useMemo(() => {
-    const startIdx = ((page || 1) - 1) * perPage;
-    const endIdx = startIdx + perPage;
-    return sortedTransactions.slice(startIdx, endIdx);
-  }, [sortedTransactions, page, perPage]);
+  // Apply filters when filter criteria change
+  React.useEffect(() => {
+    dispatch(applyFilters({
+      selectedLabels,
+      selectedTransactionTypes,
+      selectedAccounts,
+      descriptionFilter,
+      showOnlyUnlabeled,
+    }));
+  }, [selectedLabels, selectedTransactionTypes, selectedAccounts, descriptionFilter, showOnlyUnlabeled, dispatch]);
 
-  // ===============================
-  // EXPAND ALL FUNCTIONALITY
-  // ===============================
-
-  // Check if all current page transactions are expanded
-  const areAllCurrentPageExpanded = React.useMemo(() => {
-    return (
-      paginatedTransactions.length > 0 && paginatedTransactions.every((t) => expandedTransactions.includes(t.href))
-    );
-  }, [paginatedTransactions, expandedTransactions]);
-
-  // Check if all current page transactions are selected
-  const areAllCurrentPageSelected = React.useMemo(() => {
-    return (
-      paginatedTransactions.length > 0 && paginatedTransactions.every((t) => selectedTransactions.includes(t.href))
-    );
-  }, [paginatedTransactions, selectedTransactions]);
-
-  /**
-   * Handle expand all / collapse all functionality
-   * Only affects transactions on the current page
-   */
-  const handleExpandAll = () => {
-    const currentPageHrefs = paginatedTransactions.map((t) => t.href);
-    dispatch(toggleAllExpanded(currentPageHrefs));
-  };
-
-  /**
-   * Handle select all / deselect all functionality
-   * Only affects transactions on the current page
-   */
-  const handleSelectAll = () => {
-    const currentPageHrefs = paginatedTransactions.map((t) => t.href);
-    dispatch(selectAllTransactions(currentPageHrefs));
-  };
-
-  /**
-   * Handle individual transaction selection
-   * @param transaction - Transaction to select/deselect
-   * @param isSelected - Whether to select or deselect
-   */
-  const handleTransactionSelect = (transaction: ITransaction, isSelected: boolean) => {
-    dispatch(setTransactionSelected({ href: transaction.href, isSelected }));
-  };
-
-  // ===============================
-  // FILTER EVENT HANDLERS
-  // ===============================
-
-  /**
-   * Handle label filter changes
-   * @param labels - Array of selected label strings in key=value format
-   */
-  const handleLabelsChange = (labels: string[]) => {
-    console.log('Selected labels changed:', labels);
-    dispatch(setSelectedLabels(labels));
-  };
-
-  /**
-   * Handle description filter changes
-   * @param value - Description filter text
-   */
-  const handleDescriptionFilterChange = (value: string) => {
-    dispatch(setDescriptionFilter(value));
-  };
-
-  /**
-   * Handle show only unlabeled filter toggle
-   * @param checked - Whether to show only unlabeled transactions
-   */
-  const handleShowOnlyUnlabeledChange = (checked: boolean) => {
-    dispatch(setShowOnlyUnlabeled(checked));
-  };
-
-  // Transaction type filter handlers
-  const handleTransactionTypeToggle = () => {
-    setIsTransactionTypeSelectOpen(!isTransactionTypeSelectOpen);
-  };
-
-  const handleTransactionTypeSelect = (
-    _event: React.MouseEvent<Element, MouseEvent> | undefined,
-    value: string | number | undefined
-  ) => {
-    const stringValue = String(value);
-    const newSelectedTypes = selectedTransactionTypes.includes(stringValue)
-      ? selectedTransactionTypes.filter((type) => type !== stringValue)
-      : [...selectedTransactionTypes, stringValue];
-    dispatch(setSelectedTransactionTypes(newSelectedTypes));
-  };
-
-  const handleTransactionTypeRemove = (typeToRemove: string) => {
-    const newSelectedTypes = selectedTransactionTypes.filter((type) => type !== typeToRemove);
-    dispatch(setSelectedTransactionTypes(newSelectedTypes));
-  };
-
-  // Account filter handlers
-  const handleAccountToggle = () => {
-    setIsAccountSelectOpen(!isAccountSelectOpen);
-  };
-
-  const handleAccountSelect = (
-    _event: React.MouseEvent<Element, MouseEvent> | undefined,
-    value: string | number | undefined
-  ) => {
-    const numberValue = Number(value);
-    const newSelectedAccounts = selectedAccounts.includes(numberValue)
-      ? selectedAccounts.filter((account) => account !== numberValue)
-      : [...selectedAccounts, numberValue];
-    dispatch(setSelectedAccounts(newSelectedAccounts));
-  };
-
-  const handleAccountRemove = (accountToRemove: number) => {
-    const newSelectedAccounts = selectedAccounts.filter((account) => account !== accountToRemove);
-    dispatch(setSelectedAccounts(newSelectedAccounts));
-  };
-
-  /**
-   * Clear all active filters
-   */
-  const handleClearAllFilters = () => {
-    dispatch(clearAllFilters());
-  };
-
-  // ===============================
-  // INTERACTIVE CLICK HANDLERS
-  // ===============================
-
-  /**
-   * Handle opening the unified transaction details modal
-   * @param transaction - Transaction to edit details for
-   */
-  const handleOpenTransactionDetailsModal = (transaction: ITransaction) => {
-    setSelectedTransactionForDetails(transaction);
-    setIsTransactionDetailsModalOpen(true);
-  };
-
-  /**
-   * Handle closing the unified transaction details modal
-   */
-  const handleCloseTransactionDetailsModal = () => {
-    setIsTransactionDetailsModalOpen(false);
-    setSelectedTransactionForDetails(null);
-  };
-
-  /**
-   * Handle opening the edit info modal
-   * @param transaction - Transaction to edit info for
-   */
-  const handleOpenEditInfoModal = (transaction: ITransaction) => {
-    // Redirect to unified modal
-    handleOpenTransactionDetailsModal(transaction);
-  };
-
-  /**
-   * Handle closing the edit info modal
-   */
-  const handleCloseEditInfoModal = () => {
-    // Redirect to unified modal
-    handleCloseTransactionDetailsModal();
-  };
-
-  /**
-   * Handle opening the add label modal
-   * @param transaction - Transaction to add label to
-   */
-  const handleOpenAddLabelModal = (transaction: ITransaction) => {
-    dispatch(clearAddLabelToTransactionSuccess());
-    // Redirect to unified modal
-    handleOpenTransactionDetailsModal(transaction);
-  };
-
-  /**
-   * Handle closing the add label modal
-   */
-  const handleCloseAddLabelModal = () => {
-    // Redirect to unified modal
-    handleCloseTransactionDetailsModal();
-  };
-
-  /**
-   * Handle opening the remove label confirmation modal
-   * @param transaction - Transaction to remove label from
-   * @param label - Label to remove
-   */
-  const handleOpenRemoveLabelModal = (transaction: ITransaction, label: ILabelTransaction) => {
+  const handleRemoveLabel = (transaction: ITransaction, label: ILabelTransaction) => {
     setLabelToRemove({ transaction, label });
     setIsRemoveLabelModalOpen(true);
   };
 
-  /**
-   * Handle closing the remove label modal
-   */
-  const handleCloseRemoveLabelModal = () => {
+  const handleConfirmRemoveLabel = () => {
+    if (labelToRemove) {
+      dispatch(removeLabelFromTransaction({
+        transactionHref: labelToRemove.transaction.href,
+        key: labelToRemove.label.key,
+        value: labelToRemove.label.value,
+      }));
+    }
     setIsRemoveLabelModalOpen(false);
     setLabelToRemove(null);
   };
 
-  /**
-   * Handle confirming the label removal
-   */
-  const handleConfirmRemoveLabel = async () => {
-    if (labelToRemove) {
-      try {
-        await dispatch(
-          removeLabelFromTransaction({
-            transactionHref: labelToRemove.transaction.href,
-            key: labelToRemove.label.key,
-            value: labelToRemove.label.value,
-          })
-        );
-        handleCloseRemoveLabelModal();
-      } catch (error) {
-        console.error('Failed to remove label:', error);
-        // Handle error (could show a toast notification)
-      }
-    }
+  const handleOpenTransactionDetails = (transaction: ITransaction) => {
+    setSelectedTransactionForDetails(transaction);
+    setIsTransactionDetailsModalOpen(true);
   };
 
-  /**
-   * Handle opening the create rule modal
-   * @param transaction - Transaction to create rule from
-   */
-  const handleOpenCreateRuleModal = (transaction: ITransaction) => {
+  const handleOpenCreateRule = (transaction: ITransaction) => {
     setSelectedTransactionForRule(transaction);
     setIsCreateRuleModalOpen(true);
   };
 
-  /**
-   * Handle closing the create rule modal
-   */
-  const handleCloseCreateRuleModal = () => {
-    setIsCreateRuleModalOpen(false);
-    setSelectedTransactionForRule(null);
-  };
-
-  /**
-   * Handle saving transaction info
-   * @param transactionHref - Transaction href to update
-   * @param info - New info value
-   */
-  const handleSaveTransactionInfo = async (transactionHref: string, info: string) => {
-    try {
-      await dispatch(updateTransactionInfo({ transactionHref, info }));
-      handleCloseEditInfoModal();
-    } catch (error) {
-      console.error('Failed to update transaction info:', error);
-      // Error handling is managed by the reducer
+  const handleOpenBulkLabel = () => {
+    if (selectedItems.length > 0) {
+      setIsBulkLabelModalOpen(true);
     }
   };
 
-  /**
-   * Handle opening the bulk label modal
-   */
-  const handleOpenBulkLabelModal = () => {
-    dispatch(clearAddLabelToTransactionSuccess());
-    setIsBulkLabelModalOpen(true);
+  const handleLabelClick = (label: ILabelTransaction) => {
+    const labelFilter = `${label.key}=${label.value}`;
+    
+    // Check if the label is already in the filter
+    if (!selectedLabels.includes(labelFilter)) {
+      // Add the label to the existing filters
+      const newSelectedLabels = [...selectedLabels, labelFilter];
+      dispatch(setSelectedLabels(newSelectedLabels));
+    }
   };
 
-  /**
-   * Handle closing the bulk label modal
-   */
-  const handleCloseBulkLabelModal = () => {
-    setIsBulkLabelModalOpen(false);
-  };
-
-  /**
-   * Handle clearing selection
-   */
-  const handleClearSelection = () => {
-    dispatch(clearSelection());
-  };
-
-  /**
-   * Handle clicking on a label to add/remove it from filters
-   * @param labelValue - Label string in key=value format
-   */
-  const handleLabelClick = (labelValue: string) => {
-    const newSelectedLabels = selectedLabels.includes(labelValue)
-      ? selectedLabels.filter((label) => label !== labelValue)
-      : [...selectedLabels, labelValue];
-    dispatch(setSelectedLabels(newSelectedLabels));
-  };
-
-  /**
-   * Handle clicking on a rule to filter by all labels associated with that rule
-   * @param ruleId - Rule identifier
-   */
-  const handleRuleClick = (ruleId: string) => {
-    // Find all labels associated with this rule
-    const ruleLabels = new Set<string>();
-    transactions.forEach((transaction) => {
-      transaction.labels.forEach((label) => {
-        if (label.ruleHref === ruleId) {
-          ruleLabels.add(`${label.key}=${label.value}`);
-        }
-      });
-    });
-
-    const ruleLabelsArray = Array.from(ruleLabels);
-    const newSelectedLabels = Array.from(new Set([...selectedLabels, ...ruleLabelsArray]));
-    dispatch(setSelectedLabels(newSelectedLabels));
-  };
-
-  /**
-   * Handle clicking on transaction type to add/remove it from filters
-   * @param transactionType - Transaction type string
-   */
-  const handleTransactionTypeClick = (transactionType: string) => {
-    const newSelectedTypes = selectedTransactionTypes.includes(transactionType)
-      ? selectedTransactionTypes.filter((type) => type !== transactionType)
-      : [...selectedTransactionTypes, transactionType];
-    dispatch(setSelectedTransactionTypes(newSelectedTypes));
-  };
-
-  /**
-   * Handle clicking on account to add/remove it from filters
-   * @param accountNumber - Account number
-   */
-  const handleAccountClick = (accountNumber: number) => {
-    const newSelectedAccounts = selectedAccounts.includes(accountNumber)
-      ? selectedAccounts.filter((account) => account !== accountNumber)
-      : [...selectedAccounts, accountNumber];
-    dispatch(setSelectedAccounts(newSelectedAccounts));
-  };
-
-  // ===============================
-  // SORTING HELPERS
-  // ===============================
-
-  /**
-   * Generate sorting parameters for table headers
-   * @param columnIndex - Index of the column
-   * @returns Sort parameters object
-   */
-  const getSortParams = (columnIndex: number): ThProps['sort'] => ({
-    sortBy: {
-      index: sortIndex === columnIndex ? sortIndex : undefined,
-      direction: sortIndex === columnIndex ? sortDirection || undefined : undefined,
+  // Define table columns
+  const columns: Array<EuiBasicTableColumn<ITransaction>> = [
+    {
+      field: 'date',
+      name: 'Date',
+      sortable: true,
+      render: (date: string) => safeFormatDateString(date),
+      width: '120px',
     },
-    onSort: (_event, index, direction) => {
-      dispatch(setSorting({ sortIndex: index, sortDirection: direction }));
+    {
+      field: 'account',
+      name: 'Account',
+      sortable: true,
+      render: (account: string) => (
+        <EuiBadge 
+          color={theme === 'dark' ? getAccountDarkColor(parseInt(account) || 0) : getAccountColor(parseInt(account) || 0)}
+          style={{ borderRadius: '12px' }}
+        >
+          {account}
+        </EuiBadge>
+      ),
+      width: '140px',
     },
-    columnIndex,
-  });
+    {
+      field: 'kind',
+      name: 'Type',
+      sortable: true,
+      render: (kind: string) => (
+        <EuiBadge 
+          color={kind === 'debit' ? 'danger' : 'success'}
+          style={{ borderRadius: '12px' }}
+        >
+          {kind}
+        </EuiBadge>
+      ),
+      width: '80px',
+    },
+    {
+      field: 'description',
+      name: 'Description',
+      render: (description: string) => (
+        <EuiText 
+          size="s" 
+          style={{ 
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}
+        >
+          {description}
+        </EuiText>
+      ),
+    },
+    {
+      field: 'labels',
+      name: 'Labels',
+      width: '300px',
+      render: (labels: ILabelTransaction[], transaction: ITransaction) => (
+        <EuiFlexGroup gutterSize="xs" wrap>
+          {labels.map((label, index) => (
+            <EuiFlexItem grow={false} key={index}>
+              <EuiBadge 
+                color={getLabelColor(label.key)}
+                onClickAriaLabel={`Filter by label ${label.key}=${label.value}`}
+                onClick={() => handleLabelClick(label)}
+                iconType="cross"
+                iconSide="right"
+                iconOnClick={(e) => {
+                  e.stopPropagation(); // Prevent the main click from firing
+                  handleRemoveLabel(transaction, label);
+                }}
+                iconOnClickAriaLabel={`Remove label ${label.key}=${label.value}`}
+                style={{ borderRadius: '12px', cursor: 'pointer' }}
+              >
+                {label.key}={label.value}
+              </EuiBadge>
+            </EuiFlexItem>
+          ))}
+        </EuiFlexGroup>
+      ),
+    },
+    {
+      field: 'amount',
+      name: 'Amount',
+      sortable: true,
+      render: (amount: number) => (
+        <EuiText size="s" style={{ fontFamily: 'monospace' }}>
+          {amount.toFixed(2)}
+        </EuiText>
+      ),
+      width: '100px',
+    },
+  ];
 
-  // ===============================
-  // PAGINATION HANDLERS
-  // ===============================
+  // Actions column
+  const actions: EuiTableActionsColumnType<ITransaction>['actions'] = [
+    {
+      name: 'Edit',
+      description: 'Edit transaction details',
+      icon: 'pencil',
+      type: 'icon',
+      onClick: (transaction) => handleOpenTransactionDetails(transaction),
+    },
+    {
+      name: 'Add Label',
+      description: 'Add label to transaction',
+      icon: 'tag',
+      type: 'icon',
+      onClick: (transaction) => {
+        setSelectedTransactionForDetails(transaction);
+        setIsTransactionDetailsModalOpen(true);
+      },
+    },
+    {
+      name: 'Create Rule',
+      description: 'Create rule from transaction',
+      icon: 'gear',
+      type: 'icon',
+      onClick: (transaction) => handleOpenCreateRule(transaction),
+    },
+  ];
 
-  const handleSetPage = (
-    _evt: React.MouseEvent | React.KeyboardEvent | MouseEvent,
-    newPage: number,
-    _perPage: number | undefined,
-    startIdx: number | undefined,
-    endIdx: number | undefined
-  ) => {
-    dispatch(setPage(newPage));
+  const actionsColumn: EuiTableActionsColumnType<ITransaction> = {
+    actions,
+    width: '80px',
   };
 
-  const handlePerPageSelect = (
-    _evt: React.MouseEvent | React.KeyboardEvent | MouseEvent,
-    newPerPage: number,
-    newPage: number | undefined,
-    startIdx: number | undefined,
-    endIdx: number | undefined
-  ) => {
-    dispatch(setPerPage({ perPage: newPerPage, page: newPage }));
+  const allColumns = [...columns, actionsColumn];
+
+  // Selection configuration
+  const selection = {
+    onSelectionChange: (selectedTransactions: ITransaction[]) => {
+      setSelectedItems(selectedTransactions);
+    },
   };
 
-  // ===============================
-  // RENDER HELPERS
-  // ===============================
-
-  /**
-   * Render pagination component
-   * @param variant - Pagination variant (top/bottom)
-   * @param isCompact - Whether to use compact layout
-   * @param isSticky - Whether pagination should be sticky
-   * @param isStatic - Whether pagination should be static
-   * @returns Pagination component
-   */
-  const renderPagination = (variant: PaginationVariant, isCompact: boolean, isSticky: boolean, isStatic: boolean) => (
-    <Pagination
-      id={`transaction-table-${variant}-pagination`}
-      variant={variant}
-      itemCount={sortedTransactions.length}
-      page={page}
-      perPage={perPage}
-      isCompact={isCompact}
-      isSticky={isSticky}
-      isStatic={isStatic}
-      onSetPage={handleSetPage}
-      onPerPageSelect={handlePerPageSelect}
-      titles={{
-        paginationAriaLabel: `${variant} pagination`,
-      }}
-    />
-  );
-
-  /**
-   * Render the toolbar with filters and controls
-   */
-  const renderToolbar = (
-    <DataViewToolbar
-      clearAllFilters={handleClearAllFilters}
-      pagination={renderPagination(PaginationVariant.top, true, false, false)}
-      filters={
-        <React.Fragment>
-          <LabelFilter
-            availableLabels={availableLabels}
-            selectedLabels={selectedLabels}
-            onLabelsChange={handleLabelsChange}
-            placeholder="Filter by labels..."
-          />
-          <TextInput
-            type="text"
-            placeholder="Filter by description..."
-            value={descriptionFilter}
-            onChange={(_event, value) => handleDescriptionFilterChange(value)}
-            style={{ width: '200px' }}
-          />
-          <Switch
-            id="unlabeled-filter-switch"
-            label="Show only unlabeled"
-            isChecked={showOnlyUnlabeled}
-            onChange={(_event, checked) => handleShowOnlyUnlabeledChange(checked)}
-            isDisabled={filtering}
-          />
-          <Select
-            id="transaction-type-select"
-            isOpen={isTransactionTypeSelectOpen}
-            selected={selectedTransactionTypes}
-            onSelect={handleTransactionTypeSelect}
-            onOpenChange={(isOpen) => setIsTransactionTypeSelectOpen(isOpen)}
-            toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-              <MenuToggle
-                ref={toggleRef}
-                onClick={handleTransactionTypeToggle}
-                isExpanded={isTransactionTypeSelectOpen}
-                style={{ width: '250px' }}
-              >
-                Transaction Type
-              </MenuToggle>
-            )}
-            shouldFocusToggleOnSelect
-          >
-            <SelectList>
-              {availableTransactionTypes.map((type, index) => (
-                <SelectOption key={index} value={type}>
-                  {type}
-                </SelectOption>
-              ))}
-            </SelectList>
-          </Select>
-          <Select
-            id="account-select"
-            isOpen={isAccountSelectOpen}
-            selected={selectedAccounts}
-            onSelect={handleAccountSelect}
-            onOpenChange={(isOpen) => setIsAccountSelectOpen(isOpen)}
-            toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-              <MenuToggle
-                ref={toggleRef}
-                onClick={handleAccountToggle}
-                isExpanded={isAccountSelectOpen}
-                style={{ width: '250px' }}
-              >
-                Account
-              </MenuToggle>
-            )}
-            shouldFocusToggleOnSelect
-          >
-            <SelectList>
-              {availableAccounts.map((account, index) => (
-                <SelectOption key={index} value={account}>
-                  {account}
-                </SelectOption>
-              ))}
-            </SelectList>
-          </Select>
-        </React.Fragment>
-      }
-    />
-  );
-
-  /**
-   * Render the active filters section
-   */
-  const renderSelectedFilters = () => (
-    <PageSection>
-      <Flex direction={{ default: 'column' }}>
-        {/* Bulk Actions Section */}
-        {selectedTransactions.length > 0 && (
-          <FlexItem>
-            <Flex direction={{ default: 'row' }} alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsMd' }}>
-              <FlexItem>
-                <Content>
-                  <strong>{selectedTransactions.length} transaction{selectedTransactions.length !== 1 ? 's' : ''} selected</strong>
-                </Content>
-              </FlexItem>
-              <FlexItem>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={handleOpenBulkLabelModal}
-                  icon={<PlusIcon />}
-                >
-                  Add Labels to Selected
-                </Button>
-              </FlexItem>
-              <FlexItem>
-                <Button
-                  variant="link"
-                  size="sm"
-                  onClick={handleClearSelection}
-                >
-                  Clear Selection
-                </Button>
-              </FlexItem>
-            </Flex>
-          </FlexItem>
-        )}
-
-        {(selectedLabels.length > 0 ||
-          selectedTransactionTypes.length > 0 ||
-          selectedAccounts.length > 0 ||
-          descriptionFilter.trim() ||
-          showOnlyUnlabeled) && (
-          <FlexItem>
-            <Content>
-              <strong>Active Filters:</strong>
-            </Content>
-          </FlexItem>
-        )}
-
-        {/* Show Only Unlabeled Filter */}
-        {showOnlyUnlabeled && (
-          <FlexItem>
-            <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
-              <FlexItem>
-                <Content>Filter:</Content>
-              </FlexItem>
-              <FlexItem>
-                <Label
-                  variant="filled"
-                  color="orange"
-                  onClose={() => handleShowOnlyUnlabeledChange(false)}
-                  closeBtnAriaLabel="Remove unlabeled filter"
-                >
-                  Only unlabeled transactions
-                </Label>
-              </FlexItem>
-            </Flex>
-          </FlexItem>
-        )}
-
-        {/* Selected Labels */}
-        {selectedLabels.length > 0 && (
-          <FlexItem>
-            <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
-              <FlexItem>
-                <Content>Labels:</Content>
-              </FlexItem>
-              {selectedLabels.map((label, index) => (
-                <FlexItem key={index}>
-                  <Label
-                    variant="filled"
-                    color="blue"
-                    onClose={() => handleLabelClick(label)}
-                    closeBtnAriaLabel={`Remove ${label} filter`}
-                  >
-                    {label}
-                  </Label>
-                </FlexItem>
-              ))}
-            </Flex>
-          </FlexItem>
-        )}
-
-        {/* Description Filter */}
-        {descriptionFilter.trim() && (
-          <FlexItem>
-            <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
-              <FlexItem>
-                <Content>Description:</Content>
-              </FlexItem>
-              <FlexItem>
-                <Label
-                  variant="filled"
-                  color="teal"
-                  onClose={() => handleDescriptionFilterChange('')}
-                  closeBtnAriaLabel={`Remove description filter`}
-                >
-                  Contains "{descriptionFilter}"
-                </Label>
-              </FlexItem>
-            </Flex>
-          </FlexItem>
-        )}
-
-        {/* Selected Transaction Types */}
-        {selectedTransactionTypes.length > 0 && (
-          <FlexItem>
-            <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
-              <FlexItem>
-                <Content>Transaction Types:</Content>
-              </FlexItem>
-              {selectedTransactionTypes.map((type, index) => (
-                <FlexItem key={index}>
-                  <Label
-                    variant="filled"
-                    color="green"
-                    onClose={() => handleTransactionTypeRemove(type)}
-                    closeBtnAriaLabel={`Remove ${type} filter`}
-                  >
-                    {type}
-                  </Label>
-                </FlexItem>
-              ))}
-            </Flex>
-          </FlexItem>
-        )}
-
-        {/* Selected Accounts */}
-        {selectedAccounts.length > 0 && (
-          <FlexItem>
-            <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
-              <FlexItem>
-                <Content>Accounts:</Content>
-              </FlexItem>
-              {selectedAccounts.map((account, index) => (
-                <FlexItem key={index}>
-                  <Label
-                    variant="filled"
-                    color="purple"
-                    onClose={() => handleAccountRemove(account)}
-                    closeBtnAriaLabel={`Remove account ${account} filter`}
-                  >
-                    {account}
-                  </Label>
-                </FlexItem>
-              ))}
-            </Flex>
-          </FlexItem>
-        )}
-
-        {/* Clear All Filters Button */}
-        {(selectedLabels.length > 0 ||
-          selectedTransactionTypes.length > 0 ||
-          selectedAccounts.length > 0 ||
-          descriptionFilter.trim() ||
-          showOnlyUnlabeled) && (
-          <FlexItem>
-            <Button
-              variant="link"
-              onClick={handleClearAllFilters}
-              size="sm"
-              style={{ padding: '0', fontSize: '0.875rem', alignSelf: 'flex-start' }}
-            >
-              Clear all filters
-            </Button>
-          </FlexItem>
-        )}
-      </Flex>
-    </PageSection>
-  );
-
-  /**
-   * Render the main transaction table
-   */
-  const renderList = (
-    <React.Fragment>
-      <Table aria-label="transaction-list">
-        <Thead>
-          <Tr>
-            {/* Select All Checkbox */}
-            <Th
-              select={{
-                onSelect: (_event, isSelected) => handleSelectAll(),
-                isSelected: areAllCurrentPageSelected,
-                isDisabled: filtering,
-              }}
+  // Toolbar with filters
+  const renderToolbar = () => (
+    <EuiPanel paddingSize="s">
+      <EuiFlexGroup gutterSize="s" alignItems="flexEnd" wrap>
+        <EuiFlexItem style={{ minWidth: '200px' }}>
+          <EuiFormRow label="Description Filter">
+            <EuiFieldText
+              placeholder="Filter by description..."
+              value={descriptionFilter}
+              onChange={(e) => dispatch(setDescriptionFilter(e.target.value))}
+              compressed
             />
-            {/* Expand All Button */}
-            <Th>
-              <Button
-                variant="plain"
-                onClick={handleExpandAll}
-                size="sm"
-                aria-label={areAllCurrentPageExpanded ? 'Collapse all rows' : 'Expand all rows'}
-                isDisabled={filtering}
-              >
-                {areAllCurrentPageExpanded ? '▼' : '▶'}
-              </Button>
-            </Th>
-            {/* Sortable Columns */}
-            <Th sort={getSortParams(0)}>
-              <strong>{columns.date}</strong>
-            </Th>
-            <Th sort={getSortParams(1)}>
-              <strong>{columns.account}</strong>
-            </Th>
-            <Th sort={getSortParams(2)}>
-              <strong>{columns.kind}</strong>
-            </Th>
-            <Th sort={getSortParams(4)}>
-              <strong>{columns.labels}</strong>
-            </Th>
-            <Th sort={getSortParams(3)}>
-              <strong>{columns.amount}</strong>
-            </Th>
-            <Th>
-              <strong>{columns.actions}</strong>
-            </Th>
-          </Tr>
-        </Thead>
-        <Tbody>
-          {filtering ? (
-            <Tr>
-              <Td colSpan={8} style={{ textAlign: 'center', padding: '2rem' }}>
-                <Flex direction={{ default: 'column' }} alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsMd' }}>
-                  <FlexItem>
-                    <Spinner size="lg" />
-                  </FlexItem>
-                  <FlexItem>
-                    <Content>Filtering transactions...</Content>
-                  </FlexItem>
-                </Flex>
-              </Td>
-            </Tr>
-          ) : (
-            paginatedTransactions.map((t: ITransaction, rowIndex: number) => (
-              <React.Fragment key={t.href}>
-                {/* Main Transaction Row */}
-                <Tr isRowSelected={isTransactionSelected(t)}>
-                  {/* Selection Checkbox */}
-                  <Td
-                    select={{
-                      rowIndex,
-                      onSelect: (_event, isSelected) => handleTransactionSelect(t, isSelected),
-                      isSelected: isTransactionSelected(t),
-                      isDisabled: filtering,
-                    }}
-                  />
-                  {/* Expand/Collapse Button */}
-                  <Td
-                    expand={{
-                      rowIndex,
-                      isExpanded: isTransactionExpanded(t),
-                      onToggle: () =>
-                        dispatch(setTransactionExpanded({ href: t.href, isExpanding: !isTransactionExpanded(t) })),
-                    }}
-                  />
-                  {/* Date Column */}
-                  <Td dataLabel={columns.date}>{safeFormatDateString(t.date)}</Td>
-                  {/* Account Column - Clickable label for filtering */}
-                  <Td dataLabel={columns.account}>
-                    <Label
-                      variant={theme === 'dark' ? 'outline' : 'filled'}
-                      color="purple"
-                      onClick={() => handleAccountClick(t.account)}
-                      style={{
-                        cursor: 'pointer',
-                        color: theme === 'dark' ? getAccountDarkColor(t.account) : 'black',
-                      }}
-                      aria-label={`Filter by account ${t.account}`}
-                    >
-                      {t.account}
-                    </Label>
-                  </Td>
-                  {/* Transaction Type Column - Clickable label for filtering */}
-                  <Td dataLabel={columns.kind}>
-                    <Label
-                      variant={theme === 'dark' ? 'outline' : 'filled'}
-                      color={getTransactionKindColor(t.kind)}
-                      onClick={() => handleTransactionTypeClick(t.kind)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      {t.kind}
-                    </Label>
-                  </Td>
-                  {/* Labels Column - Clickable labels for filtering */}
-                  <Td dataLabel={columns.labels}>
-                    <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                      {t.labels.map((label: ILabelTransaction, idx: number) => (
-                        <FlexItem key={`label-${idx}`}>
-                          <Label
-                            variant={theme === 'dark' ? 'outline' : 'filled'}
-                            color={isKeyOfObject('rule_href', label) ? 'green' : 'red'}
-                            onClick={() => handleLabelClick(`${label.key}=${label.value}`)}
-                            style={{ cursor: 'pointer' }}
-                            aria-label={`Filter by ${label.key}=${label.value} label`}
-                            onClose={
-                              !isKeyOfObject('rule_href', label) ? () => handleOpenRemoveLabelModal(t, label) : undefined
-                            }
-                          >
-                            {label.key}={label.value}
-                          </Label>
-                        </FlexItem>
-                      ))}
-                    </Flex>
-                  </Td>
-                  {/* Amount Column */}
-                  <Td dataLabel={columns.amount}>
-                    <Content>{t.amount.toFixed(2)}</Content>
-                  </Td>
-                  {/* Actions Column */}
-                  <Td dataLabel={columns.actions}>
-                    <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                      <FlexItem>
-                        <Tooltip content="Edit transaction details (labels & info)">
-                          <Button
-                            variant="plain"
-                            onClick={() => handleOpenTransactionDetailsModal(t)}
-                            aria-label="Edit transaction details"
-                          >
-                            <PenIcon />
-                          </Button>
-                        </Tooltip>
-                      </FlexItem>
-                      <FlexItem>
-                        <Tooltip content="Create rule from transaction">
-                          <Button
-                            variant="plain"
-                            onClick={() => handleOpenCreateRuleModal(t)}
-                            aria-label="Create rule from transaction"
-                          >
-                            <CogIcon />
-                          </Button>
-                        </Tooltip>
-                      </FlexItem>
-                    </Flex>
-                  </Td>
-                </Tr>
-                {/* Expandable Row Content - Shows transaction description and info */}
-                <Tr isExpanded={isTransactionExpanded(t)}>
-                  <Td />
-                  <Td />
-                  <Td colSpan={6}>
-                    <ExpandableRowContent>
-                      <Flex direction={{ default: 'column' }} spaceItems={{ default: 'spaceItemsSm' }}>
-                        <FlexItem>
-                          <Content>
-                            <strong>Description:</strong> {t.description || 'No description'}
-                          </Content>
-                        </FlexItem>
-                        {t.info && (
-                          <FlexItem>
-                            <Content>
-                              <strong>Info:</strong> {t.info}
-                            </Content>
-                          </FlexItem>
-                        )}
-                      </Flex>
-                    </ExpandableRowContent>
-                  </Td>
-                </Tr>
-              </React.Fragment>
-            ))
-          )}
-        </Tbody>
-      </Table>
-    </React.Fragment>
+          </EuiFormRow>
+        </EuiFlexItem>
+
+        <EuiFlexItem style={{ minWidth: '200px' }}>
+          <EuiFormRow label="Labels">
+            <LabelFilter
+              availableLabels={availableLabels}
+              selectedLabels={selectedLabels}
+              onLabelsChange={(labels) => dispatch(setSelectedLabels(labels))}
+              placeholder="Filter by labels..."
+            />
+          </EuiFormRow>
+        </EuiFlexItem>
+
+        <EuiFlexItem style={{ minWidth: '150px' }}>
+          <EuiFormRow label="Account">
+            <EuiSelect
+              options={[
+                { value: '', text: 'All accounts' },
+                ...availableAccounts.map(account => ({ value: account, text: account }))
+              ]}
+              value={selectedAccounts[0]?.toString() || ''}
+              onChange={(e) => dispatch(setSelectedAccounts(e.target.value ? [parseInt(e.target.value) || 0] : []))}
+              compressed
+            />
+          </EuiFormRow>
+        </EuiFlexItem>
+
+        <EuiFlexItem style={{ minWidth: '120px' }}>
+          <EuiFormRow label="Type">
+            <EuiSelect
+              options={[
+                { value: '', text: 'All types' },
+                ...availableTransactionTypes.map(type => ({ value: type, text: type }))
+              ]}
+              value={selectedTransactionTypes[0] || ''}
+              onChange={(e) => dispatch(setSelectedTransactionTypes(e.target.value ? [e.target.value] : []))}
+              compressed
+            />
+          </EuiFormRow>
+        </EuiFlexItem>
+
+        <EuiFlexItem grow={false}>
+          <EuiFormRow hasEmptyLabelSpace>
+            <EuiSwitch
+              label="Unlabeled only"
+              checked={showOnlyUnlabeled}
+              onChange={(e) => dispatch(setShowOnlyUnlabeled(e.target.checked))}
+            />
+          </EuiFormRow>
+        </EuiFlexItem>
+
+        <EuiFlexItem grow={false}>
+          <EuiFormRow hasEmptyLabelSpace>
+            <EuiButton size="s" onClick={() => dispatch(clearAllFilters())}>
+              Clear Filters
+            </EuiButton>
+          </EuiFormRow>
+        </EuiFlexItem>
+
+        {selectedItems.length > 0 && (
+          <EuiFlexItem grow={false}>
+            <EuiFormRow hasEmptyLabelSpace>
+              <EuiButton size="s" fill onClick={handleOpenBulkLabel}>
+                Add Labels to {selectedItems.length} Transaction{selectedItems.length !== 1 ? 's' : ''}
+              </EuiButton>
+            </EuiFormRow>
+          </EuiFlexItem>
+        )}
+      </EuiFlexGroup>
+    </EuiPanel>
   );
 
-  // ===============================
-  // MAIN COMPONENT RENDER
-  // ===============================
+  const sorting = {
+    sort: {
+      field: ['date', 'account', 'kind', 'amount'][sortIndex] as keyof ITransaction,
+      direction: sortDirection as 'asc' | 'desc',
+    },
+  };
+
+  const pagination = {
+    pageIndex: page - 1,
+    pageSize: perPage,
+    totalItemCount: filteredTransactions.length,
+    showPerPageOptions: true,
+    pageSizeOptions: [10, 25, 50, 100],
+  };
+
+  const onTableChange = ({ page: newPage, sort }: any) => {
+    if (newPage) {
+      dispatch(setPage(newPage.index + 1));
+      dispatch(setPerPage(newPage.size));
+    }
+    if (sort) {
+      const fieldToIndex = {
+        'date': 0,
+        'account': 1,
+        'kind': 2,
+        'amount': 3,
+      };
+      const newSortIndex = fieldToIndex[sort.field as keyof typeof fieldToIndex] ?? 0;
+      dispatch(setSorting({ sortIndex: newSortIndex, sortDirection: sort.direction }));
+    }
+  };
+
+  if (filtering) {
+    return (
+      <EuiFlexGroup justifyContent="center" alignItems="center" style={{ minHeight: '200px' }}>
+        <EuiFlexItem grow={false}>
+          <EuiLoadingSpinner size="l" />
+        </EuiFlexItem>
+      </EuiFlexGroup>
+    );
+  }
 
   return (
-    <React.Fragment>
-      <DataView>
-        {renderToolbar}
-        {renderSelectedFilters()}
-        {renderList}
-        {renderPagination(PaginationVariant.bottom, false, false, true)}
-      </DataView>
+    <>
+      {renderToolbar()}
+      <EuiSpacer size="m" />
+      
+      {errorMessage && (
+        <>
+          <EuiCallOut title="Error" color="danger" iconType="alert">
+            {errorMessage}
+          </EuiCallOut>
+          <EuiSpacer size="m" />
+        </>
+      )}
 
-      {/* Unified Transaction Details Modal */}
+      <EuiInMemoryTable
+        items={filteredTransactions}
+        columns={allColumns}
+        selection={selection}
+        sorting={sorting}
+        pagination={pagination}
+        onChange={onTableChange}
+        loading={filtering}
+        message={filteredTransactions.length === 0 ? "No transactions found" : undefined}
+      />
+
+      {/* Modals */}
       <TransactionDetailsModal
         isOpen={isTransactionDetailsModalOpen}
-        onClose={handleCloseTransactionDetailsModal}
+        onClose={() => {
+          setIsTransactionDetailsModalOpen(false);
+          setSelectedTransactionForDetails(null);
+        }}
         transaction={selectedTransactionForDetails || undefined}
-        onSuccess={handleClearSelection}
+        onSuccess={() => {
+          dispatch(clearAddLabelToTransactionSuccess());
+        }}
       />
 
-      {/* Bulk Add Label Modal */}
       <AddLabelModal
         isOpen={isBulkLabelModalOpen}
-        onClose={handleCloseBulkLabelModal}
-        transactionHrefs={selectedTransactions}
-        onSuccess={handleClearSelection}
+        onClose={() => setIsBulkLabelModalOpen(false)}
+        transactionHrefs={selectedItems.map(t => t.href)}
+        onSuccess={() => {
+          setIsBulkLabelModalOpen(false);
+          setSelectedItems([]);
+          dispatch(clearAddLabelToTransactionSuccess());
+        }}
       />
 
-      {/* Remove Label Confirmation Modal */}
       <RemoveLabelModal
         isOpen={isRemoveLabelModalOpen}
-        onClose={handleCloseRemoveLabelModal}
+        onClose={() => {
+          setIsRemoveLabelModalOpen(false);
+          setLabelToRemove(null);
+        }}
         onConfirm={handleConfirmRemoveLabel}
         transaction={labelToRemove?.transaction}
         label={labelToRemove?.label}
       />
 
-      {/* Create Rule Modal */}
       <CreateRuleModal
         isOpen={isCreateRuleModalOpen}
-        onClose={handleCloseCreateRuleModal}
+        onClose={() => {
+          setIsCreateRuleModalOpen(false);
+          setSelectedTransactionForRule(null);
+        }}
         transaction={selectedTransactionForRule || undefined}
       />
-    </React.Fragment>
+    </>
   );
 };
 

@@ -1,21 +1,19 @@
 import * as React from 'react';
 import {
-  PageSection,
-  Title,
-  Card,
-  CardBody,
-  MultipleFileUpload,
-  MultipleFileUploadMain,
-  MultipleFileUploadStatus,
-  MultipleFileUploadStatusItem,
-  HelperText,
-  HelperTextItem,
-  Button,
-  Alert,
-  AlertVariant,
-  Spinner,
-} from '@patternfly/react-core';
-import { UploadIcon } from '@patternfly/react-icons';
+  EuiPageSection,
+  EuiTitle,
+  EuiPanel,
+  EuiFilePicker,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiButton,
+  EuiCallOut,
+  EuiLoadingSpinner,
+  EuiText,
+  EuiSpacer,
+  EuiBadge,
+  EuiButtonIcon,
+} from '@elastic/eui';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
 import { importFiles, clearResults } from '@app/shared/reducers/import.reducer';
 
@@ -34,15 +32,17 @@ const FileUpload: React.FunctionComponent = () => {
 
   const [uploadedFiles, setUploadedFiles] = React.useState<UploadedFile[]>([]);
 
-  const handleFileDrop = (_event: any, files: File[]) => {
-    const newFiles: UploadedFile[] = files.map((file) => ({
-      file,
-      progress: 0,
-      status: 'uploading' as const,
-      id: `${file.name}-${Date.now()}`,
-    }));
+  const handleFileChange = (files: FileList | null) => {
+    if (files) {
+      const newFiles: UploadedFile[] = Array.from(files).map((file) => ({
+        file,
+        progress: 0,
+        status: 'uploading' as const,
+        id: `${file.name}-${Date.now()}`,
+      }));
 
-    setUploadedFiles((prev) => [...prev, ...newFiles]);
+      setUploadedFiles((prev) => [...prev, ...newFiles]);
+    }
   };
 
   const handleImport = async () => {
@@ -62,83 +62,112 @@ const FileUpload: React.FunctionComponent = () => {
   };
 
   return (
-    <PageSection>
-      <Title headingLevel="h1" size="lg">
-        File Upload
-      </Title>
-      <Card>
-        <CardBody>
-          <MultipleFileUpload
-            onFileDrop={handleFileDrop}
-            dropzoneProps={{
-              accept: {
-                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-                'application/vnd.ms-excel': ['.xls'],
-                'text/csv': ['.csv'],
-              },
-              maxSize: 10 * 1024 * 1024, // 10MB
-            }}
-          >
-            <MultipleFileUploadMain
-              titleIcon={<UploadIcon />}
-              titleText="Drag and drop files here"
-              titleTextSeparator="or"
-              infoText="Upload transaction files"
-            />
-            {uploadedFiles.length > 0 && (
-              <MultipleFileUploadStatus
-                statusToggleText={`${uploadedFiles.length} files ready for import`}
-                statusToggleIcon="info"
-              >
-                {uploadedFiles.map((uploadedFile) => (
-                  <MultipleFileUploadStatusItem
-                    key={uploadedFile.id}
-                    file={uploadedFile.file}
-                    onClearClick={() => handleFileRemove(uploadedFile.id)}
-                  />
-                ))}
-              </MultipleFileUploadStatus>
-            )}
-            <HelperText>
-              <HelperTextItem>
-                Accepted file types: Excel (.xlsx, .xls) and CSV (.csv) files up to 10MB each
-              </HelperTextItem>
-            </HelperText>
-          </MultipleFileUpload>
+    <EuiPageSection>
+      <EuiTitle size="l">
+        <h1>File Upload</h1>
+      </EuiTitle>
+      
+      <EuiSpacer size="m" />
+      
+      <EuiPanel paddingSize="l">
+        <EuiFilePicker
+          id="file-picker"
+          multiple
+          onChange={handleFileChange}
+          display="large"
+          accept=".xlsx,.xls,.csv"
+          aria-label="Upload transaction files"
+        />
+        
+        <EuiSpacer size="s" />
+        
+        <EuiText size="s" color="subdued">
+          Accepted file types: Excel (.xlsx, .xls) and CSV (.csv) files up to 10MB each
+        </EuiText>
 
-          {uploadedFiles.length > 0 && (
-            <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem' }}>
-              <Button variant="primary" onClick={handleImport} isDisabled={loading || uploadedFiles.length === 0}>
-                {loading ? <Spinner size="sm" /> : null}
-                {loading ? ' Importing...' : 'Import Files'}
-              </Button>
-              <Button variant="secondary" onClick={clearAllFiles}>
-                Clear All
-              </Button>
-            </div>
-          )}
-        </CardBody>
-      </Card>
+        {uploadedFiles.length > 0 && (
+          <>
+            <EuiSpacer size="m" />
+            
+            <EuiText size="s">
+              <strong>{uploadedFiles.length} files ready for import:</strong>
+            </EuiText>
+            
+            <EuiSpacer size="s" />
+            
+            <EuiFlexGroup wrap gutterSize="s">
+              {uploadedFiles.map((uploadedFile) => (
+                <EuiFlexItem grow={false} key={uploadedFile.id}>
+                  <EuiBadge 
+                    color="hollow"
+                    iconType="cross"
+                    iconSide="right"
+                    iconOnClick={() => handleFileRemove(uploadedFile.id)}
+                    iconOnClickAriaLabel={`Remove ${uploadedFile.file.name}`}
+                  >
+                    {uploadedFile.file.name}
+                  </EuiBadge>
+                </EuiFlexItem>
+              ))}
+            </EuiFlexGroup>
+            
+            <EuiSpacer size="m" />
+            
+            <EuiFlexGroup gutterSize="s" alignItems="center">
+              <EuiFlexItem grow={false}>
+                <EuiButton 
+                  fill 
+                  onClick={handleImport} 
+                  isDisabled={loading || uploadedFiles.length === 0}
+                  iconType={loading ? undefined : "importAction"}
+                >
+                  {loading && <EuiLoadingSpinner size="s" />}
+                  {loading ? ' Importing...' : 'Import Files'}
+                </EuiButton>
+              </EuiFlexItem>
+              <EuiFlexItem grow={false}>
+                <EuiButton onClick={clearAllFiles}>
+                  Clear All
+                </EuiButton>
+              </EuiFlexItem>
+            </EuiFlexGroup>
+          </>
+        )}
+      </EuiPanel>
 
       {/* Import Results */}
       {errorMessage && (
-        <Alert variant={AlertVariant.danger} title="Import Error" style={{ marginTop: '1rem' }}>
-          {errorMessage}
-        </Alert>
+        <>
+          <EuiSpacer size="m" />
+          <EuiCallOut title="Import Error" color="danger" iconType="alert">
+            {errorMessage}
+          </EuiCallOut>
+        </>
       )}
 
       {importSuccess && summary && (
-        <Card style={{ marginTop: '1rem' }}>
-          <CardBody>
-            <Title headingLevel="h2" size="md">
-              Import Results
-            </Title>
-            <Alert variant={AlertVariant.success} title="Import Completed" style={{ marginTop: '1rem' }}>
+        <>
+          <EuiSpacer size="m" />
+          <EuiPanel paddingSize="l">
+            <EuiTitle size="m">
+              <h2>Import Results</h2>
+            </EuiTitle>
+            
+            <EuiSpacer size="m" />
+            
+            <EuiCallOut title="Import Completed" color="success" iconType="check">
               {lastImportMessage}
-            </Alert>
+            </EuiCallOut>
 
-            <div style={{ marginTop: '1rem' }}>
+            <EuiSpacer size="m" />
+            
+            <EuiTitle size="s">
               <h3>Summary</h3>
+            </EuiTitle>
+            
+            <EuiSpacer size="s" />
+            
+            <EuiText size="s">
               <ul>
                 <li>Files processed: {summary.files_processed}</li>
                 <li>Total rows: {summary.total_rows}</li>
@@ -147,39 +176,52 @@ const FileUpload: React.FunctionComponent = () => {
                 <li>Updated transactions: {summary.total_updated}</li>
                 <li>Errors: {summary.total_errors}</li>
               </ul>
-            </div>
+            </EuiText>
 
             {results && results.length > 0 && (
-              <div style={{ marginTop: '1rem' }}>
-                <h3>File Details</h3>
+              <>
+                <EuiSpacer size="m" />
+                <EuiTitle size="s">
+                  <h3>File Details</h3>
+                </EuiTitle>
+                <EuiSpacer size="s" />
+                
                 {results.map((result, index) => (
-                  <div
-                    key={index}
-                    style={{ marginBottom: '1rem', padding: '1rem', border: '1px solid #ccc', borderRadius: '4px' }}
+                  <EuiPanel 
+                    key={index} 
+                    paddingSize="m" 
+                    style={{ marginBottom: '1rem' }}
+                    color="subdued"
                   >
-                    <h4>{result.filename}</h4>
-                    <p>
+                    <EuiTitle size="xs">
+                      <h4>{result.filename}</h4>
+                    </EuiTitle>
+                    <EuiSpacer size="xs" />
+                    <EuiText size="s">
                       Rows: {result.total_rows} | Processed: {result.processed_rows} | Created: {result.created_count} |
                       Ignored: {result.ignored_count} | Errors: {result.error_count}
-                    </p>
+                    </EuiText>
                     {result.errors && result.errors.length > 0 && (
-                      <div>
-                        <strong>Errors:</strong>
-                        <ul>
-                          {result.errors.map((error, errorIndex) => (
-                            <li key={errorIndex}>{error}</li>
-                          ))}
-                        </ul>
-                      </div>
+                      <>
+                        <EuiSpacer size="s" />
+                        <EuiText size="s">
+                          <strong>Errors:</strong>
+                          <ul>
+                            {result.errors.map((error, errorIndex) => (
+                              <li key={errorIndex}>{error}</li>
+                            ))}
+                          </ul>
+                        </EuiText>
+                      </>
                     )}
-                  </div>
+                  </EuiPanel>
                 ))}
-              </div>
+              </>
             )}
-          </CardBody>
-        </Card>
+          </EuiPanel>
+        </>
       )}
-    </PageSection>
+    </EuiPageSection>
   );
 };
 

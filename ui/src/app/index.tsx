@@ -1,6 +1,5 @@
 import * as React from 'react';
-import '@elastic/eui/dist/eui_theme_light.css';
-import '@elastic/eui/dist/eui_theme_dark.css';
+// EUI themes are handled by EuiProvider in ThemeContext
 import { BrowserRouter as Router } from 'react-router-dom';
 import { AppLayout } from '@app/AppLayout/AppLayout';
 import { AppRoutes } from '@app/routes';

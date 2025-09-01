@@ -1,5 +1,5 @@
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
-import { PageSection } from '@patternfly/react-core';
+import { EuiPageSection, EuiLoadingSpinner, EuiFlexGroup, EuiFlexItem } from '@elastic/eui';
 import * as React from 'react';
 import { LabelsList } from './Labels';
 import { ILabel } from '@app/shared/models/label';
@@ -31,12 +31,18 @@ const LabelsPage: React.FunctionComponent = () => {
     };
 
     if (loading) {
-      return <div>loading</div>;
+      return (
+        <EuiFlexGroup justifyContent="center" alignItems="center" style={{ minHeight: '200px' }}>
+          <EuiFlexItem grow={false}>
+            <EuiLoadingSpinner size="l" />
+          </EuiFlexItem>
+        </EuiFlexGroup>
+      );
     }
     return <LabelsList labels={sortLabels(labels.slice())} />;
   };
 
-  return <PageSection>{renderLabelList(labels.loading, labels.labels)}</PageSection>;
+  return <EuiPageSection>{renderLabelList(labels.loading, labels.labels)}</EuiPageSection>;
 };
 
 export { LabelsPage };

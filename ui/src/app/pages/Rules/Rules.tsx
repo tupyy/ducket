@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { PageSection } from '@patternfly/react-core';
+import { EuiPageSection } from '@elastic/eui';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
 import { getRules, syncRule, syncAllRules, deleteRule } from '@app/shared/reducers/rule.reducer';
 import { RulesList } from '@app/pages/Rules/List';
@@ -84,9 +84,9 @@ const Rules: React.FunctionComponent = () => {
   };
 
   return (
-    <PageSection hasBodyWrapper={false}>
+    <EuiPageSection>
       {isCreateFormActive || isEditFormActive ? renderForm() : renderList(rules.loading, rules.rules)}
-    </PageSection>
+    </EuiPageSection>
   );
 };
 

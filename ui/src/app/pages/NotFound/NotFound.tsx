@@ -1,26 +1,27 @@
 import * as React from 'react';
-import { ExclamationTriangleIcon } from '@patternfly/react-icons';
-import { Button, EmptyState, EmptyStateBody, EmptyStateFooter, PageSection } from '@patternfly/react-core';
+import { EuiPageSection, EuiEmptyPrompt, EuiButton } from '@elastic/eui';
 import { useNavigate } from 'react-router-dom';
 
 const NotFound: React.FunctionComponent = () => {
-  function GoHomeBtn() {
-    const navigate = useNavigate();
-    function handleClick() {
-      navigate('/');
-    }
-    return <Button onClick={handleClick}>Take me home</Button>;
-  }
+  const navigate = useNavigate();
+  
+  const handleGoHome = () => {
+    navigate('/');
+  };
 
   return (
-    <PageSection hasBodyWrapper={false}>
-      <EmptyState titleText="404 Page not found" variant="full" icon={ExclamationTriangleIcon}>
-        <EmptyStateBody>We didn&apos;t find a page that matches the address you navigated to.</EmptyStateBody>
-        <EmptyStateFooter>
-          <GoHomeBtn />
-        </EmptyStateFooter>
-      </EmptyState>
-    </PageSection>
+    <EuiPageSection>
+      <EuiEmptyPrompt
+        icon="alert"
+        title={<h2>404 Page not found</h2>}
+        body="We didn't find a page that matches the address you navigated to."
+        actions={
+          <EuiButton fill onClick={handleGoHome}>
+            Take me home
+          </EuiButton>
+        }
+      />
+    </EuiPageSection>
   );
 };
 
