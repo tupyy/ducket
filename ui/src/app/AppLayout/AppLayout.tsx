@@ -26,6 +26,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
 
   const navigation = [
     { path: '/transactions', label: 'Transactions' },
+    { path: '/transactions/upload', label: 'Upload' },
     { path: '/rules', label: 'Rules' },
     { path: '/labels', label: 'Labels' },
   ];
@@ -71,8 +72,14 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
   return (
     <EuiPage paddingSize="none">
       {header}
-      <EuiPageBody panelled={false} paddingSize="none">
-        {children}
+      <EuiPageBody 
+        panelled={false} 
+        paddingSize="none" 
+        style={{ paddingTop: '48px' }} // Add space for fixed header
+      >
+        <main>
+          {children}
+        </main>
       </EuiPageBody>
     </EuiPage>
   );

@@ -1,12 +1,9 @@
 import * as React from 'react';
 import {
-  EuiDatePicker,
+  EuiSuperDatePicker,
   EuiFlexGroup,
   EuiFlexItem,
-  EuiSelect,
-  EuiSelectOption,
 } from '@elastic/eui';
-import { calculateDateRange, getRelativeTimeRange } from '@app/utils/dateUtils';
 import moment from 'moment';
 
 interface TimePickerProps {
@@ -16,113 +13,135 @@ interface TimePickerProps {
   initialTimeRange?: string;
 }
 
-const timeList = [
-  { value: 'last 24 hours', text: 'Last 24 hours' },
-  { value: 'last 2 days', text: 'Last 2 days' },
-  { value: 'last 7 days', text: 'Last 7 days' },
-  { value: 'last 30 days', text: 'Last 30 days' },
-  { value: 'last 90 days', text: 'Last 90 days' },
-  { value: 'last 6 months', text: 'Last 6 months' },
-  { value: 'last 1 year', text: 'Last 1 year' },
-  { value: 'last 2 years', text: 'Last 2 years' },
-  { value: 'custom', text: 'Custom range' },
-];
-
 const TimePicker: React.FC<TimePickerProps> = ({ 
   onDateChange, 
   initialStartDate, 
   initialEndDate, 
   initialTimeRange 
 }) => {
-  const getFirstDayOfMonth = () => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    return `${year}-${month}-01`;
+  // Convert initial dates to EuiSuperDatePicker format
+  const getInitialStart = () => {
+    if (initialStartDate) {
+      return moment(initialStartDate).toISOString();
+    }
+    return 'now-30d'; // Default to last 30 days
   };
 
-  const getLastDayOfMonth = () => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = today.getMonth();
-    const lastDay = new Date(year, month + 1, 0).getDate();
-    const monthStr = String(month + 1).padStart(2, '0');
-    return `${year}-${monthStr}-${String(lastDay).padStart(2, '0')}`;
+  const getInitialEnd = () => {
+    if (initialEndDate) {
+      return moment(initialEndDate).toISOString();
+    }
+    return 'now'; // Default to now
   };
 
-  const [selectedTimeRange, setSelectedTimeRange] = React.useState<string>(
-    initialTimeRange || 'last 30 days'
-  );
-  const [startDate, setStartDate] = React.useState<moment.Moment | null>(
-    initialStartDate ? moment(initialStartDate) : moment(getFirstDayOfMonth())
-  );
-  const [endDate, setEndDate] = React.useState<moment.Moment | null>(
-    initialEndDate ? moment(initialEndDate) : moment(getLastDayOfMonth())
-  );
+  const [start, setStart] = React.useState(getInitialStart());
+  const [end, setEnd] = React.useState(getInitialEnd());
+  const [isLoading, setIsLoading] = React.useState(false);
 
-  const handleTimeRangeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
-    setSelectedTimeRange(value);
+  const parseRelativeTime = (timeExpression: string): moment.Moment => {
+    const now = moment();
     
-    if (value !== 'custom') {
-      const { startDate: calcStartDate, endDate: calcEndDate } = getRelativeTimeRange(value);
-      setStartDate(moment(calcStartDate));
-      setEndDate(moment(calcEndDate));
-      onDateChange?.(calcStartDate, calcEndDate);
+    // Handle 'now' expressions
+    if (timeExpression === 'now') {
+      return now;
     }
+    
+    // Handle expressions like 'now/d' (start of day)
+    if (timeExpression.includes('/d')) {
+      const base = timeExpression.replace('/d', '');
+      if (base === 'now') {
+        return now.clone().startOf('day');
+      }
+      // Handle 'now-1d/d' (start of yesterday)
+      if (base.includes('now-') && base.includes('d')) {
+        const match = base.match(/now-(\d+)d/);
+        if (match) {
+          const days = parseInt(match[1]);
+          return now.clone().subtract(days, 'days').startOf('day');
+        }
+      }
+    }
+    
+    // Handle expressions like 'now-30d', 'now-1y', etc.
+    if (timeExpression.includes('now-')) {
+      const match = timeExpression.match(/now-(\d+)([dMy])/);
+      if (match) {
+        const value = parseInt(match[1]);
+        const unit = match[2];
+        
+        switch (unit) {
+          case 'd':
+            return now.clone().subtract(value, 'days');
+          case 'M':
+            return now.clone().subtract(value, 'months');
+          case 'y':
+            return now.clone().subtract(value, 'years');
+        }
+      }
+    }
+    
+    // If it's already a proper date/ISO string, parse it directly
+    const parsed = moment(timeExpression);
+    if (parsed.isValid()) {
+      return parsed;
+    }
+    
+    // Fallback to now if we can't parse
+    return now;
   };
 
-  const handleStartDateChange = (date: moment.Moment | null) => {
-    setStartDate(date);
-    if (date && endDate) {
-      onDateChange?.(date.format('YYYY-MM-DD'), endDate.format('YYYY-MM-DD'));
-    }
+  const onTimeChange = ({ start: newStart, end: newEnd }: { start: string; end: string }) => {
+    setStart(newStart);
+    setEnd(newEnd);
+    
+    // Convert the date picker values to actual dates, handling relative expressions
+    const startMoment = parseRelativeTime(newStart);
+    const endMoment = parseRelativeTime(newEnd);
+    
+    const startDateString = startMoment.format('YYYY-MM-DD');
+    const endDateString = endMoment.format('YYYY-MM-DD');
+    
+    onDateChange?.(startDateString, endDateString);
   };
 
-  const handleEndDateChange = (date: moment.Moment | null) => {
-    setEndDate(date);
-    if (startDate && date) {
-      onDateChange?.(startDate.format('YYYY-MM-DD'), date.format('YYYY-MM-DD'));
-    }
+  const onRefresh = ({ start: newStart, end: newEnd }: { start: string; end: string }) => {
+    setIsLoading(true);
+    onTimeChange({ start: newStart, end: newEnd });
+    
+    // Simulate loading for refresh
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
   };
-
-  const showCustomDates = selectedTimeRange === 'custom';
 
   return (
     <EuiFlexGroup gutterSize="s" alignItems="center">
       <EuiFlexItem grow={false}>
-        <EuiSelect
-          value={selectedTimeRange}
-          onChange={handleTimeRangeChange}
-          options={timeList}
-          compressed
+        <EuiSuperDatePicker
+          start={start}
+          end={end}
+          onTimeChange={onTimeChange}
+          onRefresh={onRefresh}
+          isLoading={isLoading}
+          showUpdateButton="iconOnly"
+          dateFormat="YYYY-MM-DD"
+          canRoundRelativeUnits={false}
+          recentlyUsedRanges={[
+            { start: 'now-7d/d', end: 'now/d', label: 'Last 7 days' },
+            { start: 'now-30d/d', end: 'now/d', label: 'Last 30 days' },
+            { start: 'now-90d/d', end: 'now/d', label: 'Last 90 days' },
+            { start: 'now-1y/d', end: 'now/d', label: 'Last year' },
+          ]}
+          commonlyUsedRanges={[
+            { start: 'now/d', end: 'now/d', label: 'Today' },
+            { start: 'now-1d/d', end: 'now-1d/d', label: 'Yesterday' },
+            { start: 'now-7d/d', end: 'now/d', label: 'Last 7 days' },
+            { start: 'now-30d/d', end: 'now/d', label: 'Last 30 days' },
+            { start: 'now-90d/d', end: 'now/d', label: 'Last 90 days' },
+            { start: 'now-1y/d', end: 'now/d', label: 'Last year' },
+          ]}
         />
       </EuiFlexItem>
-      
-      {showCustomDates && (
-        <>
-          <EuiFlexItem grow={false}>
-            <EuiDatePicker
-              selected={startDate}
-              onChange={handleStartDateChange}
-              maxDate={endDate || moment()}
-              dateFormat="YYYY-MM-DD"
-              compressed
-            />
-          </EuiFlexItem>
-          
-          <EuiFlexItem grow={false}>
-            <EuiDatePicker
-              selected={endDate}
-              onChange={handleEndDateChange}
-              minDate={startDate}
-              maxDate={moment()}
-              dateFormat="YYYY-MM-DD"
-              compressed
-            />
-          </EuiFlexItem>
-        </>
-      )}
     </EuiFlexGroup>
   );
 };

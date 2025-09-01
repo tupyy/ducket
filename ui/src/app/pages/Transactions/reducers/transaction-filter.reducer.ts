@@ -50,8 +50,8 @@ const initialState: ITransactionFilterState = {
   page: 1,
   perPage: 50,
   // Sorting states
-  sortDirection: null,
-  sortIndex: null,
+  sortDirection: 'desc',
+  sortIndex: 0, // 0 = date column
   // Row expansion states
   expandedTransactions: [],
   allExpanded: false,

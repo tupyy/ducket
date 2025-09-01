@@ -1,22 +1,19 @@
 import * as React from 'react';
 import {
-  Card,
-  CardBody,
-  PageSection,
-  Toolbar,
-  ToolbarContent,
-  ToolbarGroup,
-  ToolbarItem,
-  Content,
-} from '@patternfly/react-core';
+  EuiPageSection,
+  EuiPanel,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiEmptyPrompt,
+  EuiSpacer,
+} from '@elastic/eui';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
 import { getTransactions } from '@app/shared/reducers/transaction.reducer';
 import { calculateTransactionSummary } from './reducers/transactionSummary.reducer';
 import { setDateRange } from './reducers/transaction-filter.reducer';
 import { TransactionList } from './list';
 import { TransactionSummary } from './TransactionSummary';
-import { CubesIcon } from '@patternfly/react-icons';
-import { EmptyState, EmptyStateBody, EmptyStateVariant } from '@patternfly/react-core';
+import { TransactionSummaryChart } from './TransactionSummaryChart';
 import { TimePicker } from '@app/shared/components/time-picker';
 import { calculateDateRange } from '@app/utils/dateUtils';
 
@@ -70,52 +67,54 @@ const Transactions: React.FC = () => {
 
 
   const emptyState = (
-    <EmptyState variant={EmptyStateVariant.full} titleText="No transactions" icon={CubesIcon}>
-      <EmptyStateBody>
-        <Content>
-          <Content component="p">Please add some transactions</Content>
-        </Content>
-      </EmptyStateBody>
-    </EmptyState>
+    <EuiEmptyPrompt
+      icon="cube"
+      title={<h2>No transactions</h2>}
+      body="Please add some transactions"
+    />
   );
 
   return (
-    <PageSection hasBodyWrapper={false} style={{ backgroundColor: 'transparent' }}>
+    <EuiPageSection style={{ backgroundColor: 'transparent' }}>
       <div style={{ padding: '1rem' }}>
-        {/* Transaction Summary Card */}
+        <h1 style={{ position: 'absolute', left: '-10000px' }}>Transactions</h1>
+        {/* Transaction Summary and Chart */}
         {transactions.transactions.length > 0 && transactionSummary && (
-          <TransactionSummary transactionSummary={transactionSummary} />
+          <EuiFlexGroup gutterSize="l">
+            <EuiFlexItem grow={true}>
+              <TransactionSummary transactionSummary={transactionSummary} />
+            </EuiFlexItem>
+            <EuiFlexItem grow={false} style={{ minWidth: '350px', maxWidth: '350px' }}>
+              <TransactionSummaryChart transactionSummary={transactionSummary} />
+            </EuiFlexItem>
+          </EuiFlexGroup>
         )}
 
-        {/* Main Transaction List Card */}
-        <Card>
-          <CardBody>
-            {/* Date Picker Toolbar */}
-            <Toolbar>
-              <ToolbarContent>
-                <ToolbarGroup>
-                  <ToolbarItem>
-                    <TimePicker
-                      onDateChange={handleDateChange}
-                      initialStartDate={dateRange.startDate}
-                      initialEndDate={dateRange.endDate}
-                      initialTimeRange={getInitialTimeRange()}
-                    />
-                  </ToolbarItem>
-                </ToolbarGroup>
-              </ToolbarContent>
-            </Toolbar>
+        {/* Main Transaction List Panel */}
+        <EuiPanel paddingSize="l">
+          {/* Date Picker */}
+          <EuiFlexGroup gutterSize="s" alignItems="center">
+            <EuiFlexItem grow={false}>
+              <TimePicker
+                onDateChange={handleDateChange}
+                initialStartDate={dateRange.startDate}
+                initialEndDate={dateRange.endDate}
+                initialTimeRange={getInitialTimeRange()}
+              />
+            </EuiFlexItem>
+          </EuiFlexGroup>
+          
+          <EuiSpacer size="m" />
 
-            {/* Transaction List with integrated label filter */}
-            {transactions.transactions.length === 0 ? (
-              emptyState
-            ) : (
-              <TransactionList transactions={transactions.transactions} />
-            )}
-          </CardBody>
-        </Card>
+          {/* Transaction List with integrated label filter */}
+          {transactions.transactions.length === 0 ? (
+            emptyState
+          ) : (
+            <TransactionList transactions={transactions.transactions} />
+          )}
+        </EuiPanel>
       </div>
-    </PageSection>
+    </EuiPageSection>
   );
 };
 

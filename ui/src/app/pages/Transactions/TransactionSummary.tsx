@@ -1,6 +1,12 @@
 import * as React from 'react';
-import { Card, CardBody, Content, Button } from '@patternfly/react-core';
-import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
+import {
+  EuiPanel,
+  EuiTitle,
+  EuiBasicTable,
+  EuiBasicTableColumn,
+  EuiButtonEmpty,
+  EuiText,
+} from '@elastic/eui';
 import { ITransactionSummary } from './reducers/transactionSummary.reducer';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
 import { setSelectedLabels, setShowOnlyUnlabeled } from './reducers/transaction-filter.reducer';
@@ -33,142 +39,126 @@ export const TransactionSummary: React.FC<TransactionSummaryProps> = ({ transact
     }
   };
 
-  return (
-    <Card style={{ marginBottom: '1rem' }}>
-      <CardBody>
-        <Content>
-          <strong>{transactionSummary.type === 'filtered' ? 'Filtered Transaction Summary' : 'Summary'}</strong>
-        </Content>
-        <Table
-          aria-label="transaction-summary"
-          variant="compact"
-          borders={false}
-          style={{ marginTop: '0.5rem' }}
+  // Prepare data for EuiBasicTable
+  const tableData = [
+    ...transactionSummary.data.map((row, index) => ({
+      id: index,
+      label: row.label,
+      count: row.count,
+      debitAmount: row.debitAmount,
+      creditAmount: row.creditAmount,
+      isTotal: false,
+    })),
+    {
+      id: 'total',
+      label: 'Total',
+      count: transactionSummary.totals.count,
+      debitAmount: transactionSummary.totals.debitAmount,
+      creditAmount: transactionSummary.totals.creditAmount,
+      isTotal: true,
+    },
+  ];
+
+  const columns: Array<EuiBasicTableColumn<typeof tableData[0]>> = [
+    {
+      field: 'label',
+      name: transactionSummary.type === 'filtered' ? 'Type' : 'Label',
+      render: (label: string, item) => {
+        if (item.isTotal) {
+          return <EuiText size="s" style={{ fontWeight: 'bold' }}>{label}</EuiText>;
+        }
+        
+        const wildcardFilter = `${label}=*`;
+        const isFilterActive = selectedLabels.includes(wildcardFilter);
+        
+        return (
+          <EuiButtonEmpty
+            size="xs"
+            onClick={() => handleLabelClick(label)}
+            style={{
+              fontWeight: isFilterActive ? 'bold' : 'normal',
+              color: isFilterActive ? '#006BB4' : '#007B94',
+            }}
+            aria-label={`Filter by ${label} labels`}
+          >
+            {label} {isFilterActive && '(filtered)'}
+          </EuiButtonEmpty>
+        );
+      },
+    },
+    {
+      field: 'count',
+      name: 'Count',
+      render: (count: number, item) => (
+        <EuiText size="s" style={{ fontWeight: item.isTotal ? 'bold' : 'normal' }}>
+          {count}
+        </EuiText>
+      ),
+      width: '80px',
+    },
+    {
+      field: 'debitAmount',
+      name: 'Debit',
+      render: (amount: number, item) => (
+        <EuiText 
+          size="s" 
+          style={{ 
+            fontWeight: item.isTotal ? 'bold' : 'normal',
+            color: amount > 0 ? '#BD271E' : '#69707D',
+          }}
         >
-          <Thead>
-            <Tr>
-              <Th>{transactionSummary.type === 'filtered' ? 'Type' : 'Label'}</Th>
-              <Th>Count</Th>
-              <Th>Debit</Th>
-              <Th>Credit</Th>
-            </Tr>
-          </Thead>
-          <Tbody>
-            {transactionSummary.data.map((row, index) => {
-              const wildcardFilter = `${row.label}=*`;
-              const isFilterActive = selectedLabels.includes(wildcardFilter);
-              
-              return (
-                <Tr key={index}>
-                  <Td>
-                    <Button
-                      variant="link"
-                      onClick={() => handleLabelClick(row.label)}
-                      style={{
-                        padding: 0,
-                        fontSize: 'inherit',
-                        fontWeight: isFilterActive ? 'bold' : 'inherit',
-                        textDecoration: 'none',
-                        color: isFilterActive 
-                          ? 'var(--pf-v6-global--primary-color--100)' 
-                          : 'var(--pf-v6-global--link--Color)',
-                        cursor: 'pointer',
-                      }}
-                      aria-label={`Filter by ${row.label} labels`}
-                    >
-                      {row.label} {isFilterActive && '(filtered)'}
-                    </Button>
-                  </Td>
-                  <Td>
-                    <Content>{row.count}</Content>
-                  </Td>
-                  <Td>
-                    <Content
-                      style={{
-                        color:
-                          row.debitAmount > 0
-                            ? 'var(--pf-v6-global--danger-color--100)'
-                            : 'var(--pf-v6-global--palette--black-600)',
-                      }}
-                    >
-                      {row.debitAmount > 0
-                        ? row.debitAmount.toLocaleString('de-DE', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })
-                        : '-'}
-                    </Content>
-                  </Td>
-                  <Td>
-                    <Content
-                      style={{
-                        color:
-                          row.creditAmount > 0
-                            ? 'var(--pf-v6-global--success-color--100)'
-                            : 'var(--pf-v6-global--palette--black-600)',
-                      }}
-                    >
-                      {row.creditAmount > 0
-                        ? row.creditAmount.toLocaleString('de-DE', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })
-                        : '-'}
-                    </Content>
-                  </Td>
-                </Tr>
-              );
-            })}
-            {/* Total row */}
-            <Tr
-              style={{
-                borderTopWidth: '1px',
-                borderTopStyle: 'solid',
-                borderTopColor: 'var(--pf-v6-global--BorderColor--100)',
-                backgroundColor: 'var(--pf-v6-global--palette--blue-50)',
-              }}
-            >
-              <Td>
-                <Content>
-                  <strong>Total</strong>
-                </Content>
-              </Td>
-              <Td>
-                <Content style={{ fontWeight: 'bold' }}>{transactionSummary.totals.count}</Content>
-              </Td>
-              <Td>
-                <Content
-                  style={{
-                    color: 'var(--pf-v6-global--danger-color--100)',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  {transactionSummary.totals.debitAmount > 0
-                    ? transactionSummary.totals.debitAmount.toLocaleString('de-DE', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })
-                    : '-'}
-                </Content>
-              </Td>
-              <Td>
-                <Content
-                  style={{
-                    fontWeight: 'bold',
-                  }}
-                >
-                  {transactionSummary.totals.creditAmount > 0
-                    ? transactionSummary.totals.creditAmount.toLocaleString('de-DE', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })
-                    : '-'}
-                </Content>
-              </Td>
-            </Tr>
-          </Tbody>
-        </Table>
-      </CardBody>
-    </Card>
+          {amount > 0
+            ? amount.toLocaleString('de-DE', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })
+            : '-'}
+        </EuiText>
+      ),
+      width: '120px',
+    },
+    {
+      field: 'creditAmount',
+      name: 'Credit',
+      render: (amount: number, item) => (
+        <EuiText 
+          size="s" 
+          style={{ 
+            fontWeight: item.isTotal ? 'bold' : 'normal',
+            color: amount > 0 ? '#017D73' : '#69707D',
+          }}
+        >
+          {amount > 0
+            ? amount.toLocaleString('de-DE', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })
+            : '-'}
+        </EuiText>
+      ),
+      width: '120px',
+    },
+  ];
+
+
+  return (
+    <EuiPanel paddingSize="m" style={{ marginBottom: '1rem' }}>
+      <div style={{ marginBottom: '0.5rem' }}>
+        <EuiTitle size="xs">
+          <h3>{transactionSummary.type === 'filtered' ? 'Filtered Transaction Summary' : 'Summary'}</h3>
+        </EuiTitle>
+      </div>
+      
+      <EuiBasicTable
+        items={tableData}
+        columns={columns}
+        rowProps={(item) => ({
+          style: item.isTotal ? {
+            borderTop: '1px solid #D3DAE6',
+            backgroundColor: '#F7F9FC',
+          } : undefined,
+        })}
+      />
+    </EuiPanel>
   );
 };
