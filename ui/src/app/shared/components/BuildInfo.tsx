@@ -1,23 +1,26 @@
 import * as React from 'react';
-import { Tooltip } from '@patternfly/react-core';
-import { CodeIcon } from '@patternfly/react-icons';
+import { EuiToolTip, EuiIcon, EuiFlexGroup, EuiFlexItem, EuiText } from '@elastic/eui';
 
 interface IBuildInfo {
-  variant?: 'plain' | 'link';
+  variant?: 'default' | 'subdued';
 }
 
-const BuildInfo: React.FunctionComponent<IBuildInfo> = ({ variant = 'plain' }) => {
+const BuildInfo: React.FunctionComponent<IBuildInfo> = ({ variant = 'subdued' }) => {
   const gitCommit = process.env.GIT_COMMIT || 'unknown';
   
   return (
-    <Tooltip content={`Build commit: ${gitCommit}`}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: 0.7 }}>
-        <CodeIcon />
-        <span style={{ fontSize: '0.75rem' }}>
-          {gitCommit}
-        </span>
-      </div>
-    </Tooltip>
+    <EuiToolTip content={`Build commit: ${gitCommit}`}>
+      <EuiFlexGroup gutterSize="xs" alignItems="center" responsive={false}>
+        <EuiFlexItem grow={false}>
+          <EuiIcon type="console" size="s" />
+        </EuiFlexItem>
+        <EuiFlexItem grow={false}>
+          <EuiText size="xs" color={variant}>
+            {gitCommit.substring(0, 8)}
+          </EuiText>
+        </EuiFlexItem>
+      </EuiFlexGroup>
+    </EuiToolTip>
   );
 };
 

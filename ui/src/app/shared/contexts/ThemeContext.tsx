@@ -1,6 +1,9 @@
 import * as React from 'react';
+import { EuiProvider } from '@elastic/eui';
+import { EuiThemeColorMode } from '@elastic/eui/src/services/theme';
 
 export type ThemeType = 'light' | 'dark';
+export type EuiColorMode = EuiThemeColorMode;
 
 export interface ThemeContextType {
   theme: ThemeType;
@@ -29,10 +32,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children, defaultT
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('finante-theme', theme);
-
-      // Apply theme to document body for global styling
-      document.body.className = document.body.className.replace(/theme-\w+/, '');
-      document.body.classList.add(`theme-${theme}`);
     }
   }, [theme]);
 
@@ -49,7 +48,13 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children, defaultT
     [theme, toggleTheme],
   );
 
-  return <ThemeContext.Provider value={contextValue}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={contextValue}>
+      <EuiProvider colorMode={theme}>
+        {children}
+      </EuiProvider>
+    </ThemeContext.Provider>
+  );
 };
 
 export const useTheme = (): ThemeContextType => {

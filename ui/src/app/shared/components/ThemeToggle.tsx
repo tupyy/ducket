@@ -1,27 +1,45 @@
 import * as React from 'react';
-import { Button } from '@patternfly/react-core';
-import { MoonIcon, SunIcon } from '@patternfly/react-icons';
+import { EuiButton, EuiButtonIcon } from '@elastic/eui';
 import { useTheme } from '@app/shared/contexts/ThemeContext';
 
 export interface ThemeToggleProps {
-  variant?: 'primary' | 'secondary' | 'tertiary' | 'danger' | 'warning' | 'link' | 'plain';
-  size?: 'sm' | 'lg' | 'default';
-  isInline?: boolean;
+  variant?: 'primary' | 'success' | 'warning' | 'danger' | 'text';
+  size?: 's' | 'm';
+  iconOnly?: boolean;
 }
 
-export const ThemeToggle: React.FC<ThemeToggleProps> = ({ variant = 'plain', size = 'default', isInline = false }) => {
+export const ThemeToggle: React.FC<ThemeToggleProps> = ({ 
+  variant = 'text', 
+  size = 'm', 
+  iconOnly = false 
+}) => {
   const { theme, toggleTheme } = useTheme();
 
+  const iconType = theme === 'light' ? 'moon' : 'sun';
+  const label = `Switch to ${theme === 'light' ? 'dark' : 'light'} theme`;
+
+  if (iconOnly) {
+    return (
+      <EuiButtonIcon
+        iconType={iconType}
+        onClick={toggleTheme}
+        aria-label={label}
+        size={size}
+        color={variant}
+      />
+    );
+  }
+
   return (
-    <Button
-      variant={variant}
-      size={size}
-      isInline={isInline}
+    <EuiButton
+      iconType={iconType}
       onClick={toggleTheme}
-      aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
-      icon={theme === 'light' ? <MoonIcon /> : <SunIcon />}
+      aria-label={label}
+      size={size}
+      color={variant}
+      fill={false}
     >
       {theme === 'light' ? 'Dark' : 'Light'}
-    </Button>
+    </EuiButton>
   );
 };
