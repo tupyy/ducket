@@ -1,15 +1,13 @@
 import * as React from 'react';
 import {
-  DatePicker,
-  Grid,
-  GridItem,
-  Dropdown,
-  DropdownList,
-  DropdownItem,
-  MenuToggle,
-  MenuToggleElement,
-} from '@patternfly/react-core';
+  EuiDatePicker,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiSelect,
+  EuiSelectOption,
+} from '@elastic/eui';
 import { calculateDateRange, getRelativeTimeRange } from '@app/utils/dateUtils';
+import moment from 'moment';
 
 interface TimePickerProps {
   onDateChange?: (startDate: string, endDate: string) => void;
@@ -19,150 +17,113 @@ interface TimePickerProps {
 }
 
 const timeList = [
-  'last 24 hours',
-  'last 2 days',
-  'last 7 days',
-  'last 30 days',
-  'last 90 days',
-  'last 6 months',
-  'last 1 year',
-  'last 2 years',
+  { value: 'last 24 hours', text: 'Last 24 hours' },
+  { value: 'last 2 days', text: 'Last 2 days' },
+  { value: 'last 7 days', text: 'Last 7 days' },
+  { value: 'last 30 days', text: 'Last 30 days' },
+  { value: 'last 90 days', text: 'Last 90 days' },
+  { value: 'last 6 months', text: 'Last 6 months' },
+  { value: 'last 1 year', text: 'Last 1 year' },
+  { value: 'last 2 years', text: 'Last 2 years' },
+  { value: 'custom', text: 'Custom range' },
 ];
 
-const css: React.CSSProperties = {
-  gridTemplateColumns: 'repeat(3, 1fr)',
-};
-
-const TimePicker: React.FC<TimePickerProps> = ({ onDateChange, initialStartDate, initialEndDate, initialTimeRange }) => {
+const TimePicker: React.FC<TimePickerProps> = ({ 
+  onDateChange, 
+  initialStartDate, 
+  initialEndDate, 
+  initialTimeRange 
+}) => {
   const getFirstDayOfMonth = () => {
     const today = new Date();
     const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0'); // +1 because getMonth() is 0-based
+    const month = String(today.getMonth() + 1).padStart(2, '0');
     return `${year}-${month}-01`;
   };
 
-  const getTodayDate = () => {
-    return new Date().toISOString().split('T')[0];
+  const getLastDayOfMonth = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const monthStr = String(month + 1).padStart(2, '0');
+    return `${year}-${monthStr}-${String(lastDay).padStart(2, '0')}`;
   };
 
-  const [startDate, setStartDate] = React.useState<string>(initialStartDate || getFirstDayOfMonth());
-  const [endDate, setEndDate] = React.useState<string>(initialEndDate || getTodayDate());
-  const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
-  
-  // Initialize selectedTimeRange based on initial dates or provided range
-  const getInitialTimeRange = () => {
-    if (initialTimeRange) {
-      return initialTimeRange;
-    }
-    if (initialStartDate && initialEndDate) {
-      const detectedRange = getRelativeTimeRange(initialStartDate, initialEndDate);
-      // Check if it matches one of our predefined ranges
-      return timeList.includes(detectedRange) ? detectedRange : 'Custom range';
-    }
-    return 'Select time range';
-  };
+  const [selectedTimeRange, setSelectedTimeRange] = React.useState<string>(
+    initialTimeRange || 'last 30 days'
+  );
+  const [startDate, setStartDate] = React.useState<moment.Moment | null>(
+    initialStartDate ? moment(initialStartDate) : moment(getFirstDayOfMonth())
+  );
+  const [endDate, setEndDate] = React.useState<moment.Moment | null>(
+    initialEndDate ? moment(initialEndDate) : moment(getLastDayOfMonth())
+  );
 
-  // Helper function to update time range display based on current dates
-  const updateTimeRangeDisplay = (start: string, end: string) => {
-    const detectedRange = getRelativeTimeRange(start, end);
-    if (timeList.includes(detectedRange)) {
-      setSelectedTimeRange(detectedRange);
-    } else {
-      setSelectedTimeRange('Custom range');
-    }
-  };
-  
-  const [selectedTimeRange, setSelectedTimeRange] = React.useState<string>(getInitialTimeRange());
-
-  React.useEffect(() => {
-    // Trigger callback with initial values on mount
-    onDateChange?.(startDate, endDate);
-  }, []); // Only run on mount to avoid infinite loops
-
-  const handleStartDateChange = (_event: any, value: string) => {
-    setStartDate(value);
-
-    // If start date is after end date, update end date to match start date
-    if (value && endDate && new Date(value) > new Date(endDate)) {
-      setEndDate(value);
-      updateTimeRangeDisplay(value, value);
-      onDateChange?.(value, value);
-    } else {
-      updateTimeRangeDisplay(value, endDate);
-      onDateChange?.(value, endDate);
+  const handleTimeRangeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    setSelectedTimeRange(value);
+    
+    if (value !== 'custom') {
+      const { startDate: calcStartDate, endDate: calcEndDate } = getRelativeTimeRange(value);
+      setStartDate(moment(calcStartDate));
+      setEndDate(moment(calcEndDate));
+      onDateChange?.(calcStartDate, calcEndDate);
     }
   };
 
-  const handleEndDateChange = (_event: any, value: string) => {
-    setEndDate(value);
-    updateTimeRangeDisplay(startDate, value);
-    onDateChange?.(startDate, value);
-  };
-
-  const validateEndDate = (date: Date): string => {
-    if (startDate && date < new Date(startDate)) {
-      return 'End date must be after start date';
+  const handleStartDateChange = (date: moment.Moment | null) => {
+    setStartDate(date);
+    if (date && endDate) {
+      onDateChange?.(date.format('YYYY-MM-DD'), endDate.format('YYYY-MM-DD'));
     }
-    return '';
   };
 
-  const handleTimeRangeClick = (timeRange: string) => {
-    const { startDateValue, endDateValue } = calculateDateRange(timeRange);
-    setStartDate(startDateValue);
-    setEndDate(endDateValue);
-    setSelectedTimeRange(timeRange);
-    setIsDropdownOpen(false);
-    onDateChange?.(startDateValue, endDateValue);
+  const handleEndDateChange = (date: moment.Moment | null) => {
+    setEndDate(date);
+    if (startDate && date) {
+      onDateChange?.(startDate.format('YYYY-MM-DD'), date.format('YYYY-MM-DD'));
+    }
   };
 
-  const onToggleClick = () => {
-    setIsDropdownOpen(!isDropdownOpen);
-  };
+  const showCustomDates = selectedTimeRange === 'custom';
 
   return (
-    <React.Fragment>
-      <Grid style={css} hasGutter>
-        <GridItem span={1}>
-          <DatePicker
-            key={`start-${startDate}`}
-            value={startDate}
-            onChange={handleStartDateChange}
-            placeholder="Start date"
-          />
-        </GridItem>
-        <GridItem span={1}>
-          <DatePicker
-            value={endDate}
-            onChange={handleEndDateChange}
-            placeholder="End date"
-            validators={[validateEndDate]}
-            rangeStart={startDate ? new Date(startDate) : undefined}
-            isDisabled={!startDate}
-          />
-        </GridItem>
-        <GridItem span={1}>
-          <Dropdown
-            isOpen={isDropdownOpen}
-            onOpenChange={(isOpen: boolean) => setIsDropdownOpen(isOpen)}
-            toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-              <MenuToggle ref={toggleRef} onClick={onToggleClick} isExpanded={isDropdownOpen}>
-                {selectedTimeRange}
-              </MenuToggle>
-            )}
-            ouiaId="TimeRangeDropdown"
-            shouldFocusToggleOnSelect
-          >
-            <DropdownList>
-              {timeList.map((item: string, idx: number) => (
-                <DropdownItem key={`${idx}`} onClick={() => handleTimeRangeClick(item)}>
-                  {item}
-                </DropdownItem>
-              ))}
-            </DropdownList>
-          </Dropdown>
-        </GridItem>
-      </Grid>
-    </React.Fragment>
+    <EuiFlexGroup gutterSize="s" alignItems="center">
+      <EuiFlexItem grow={false}>
+        <EuiSelect
+          value={selectedTimeRange}
+          onChange={handleTimeRangeChange}
+          options={timeList}
+          compressed
+        />
+      </EuiFlexItem>
+      
+      {showCustomDates && (
+        <>
+          <EuiFlexItem grow={false}>
+            <EuiDatePicker
+              selected={startDate}
+              onChange={handleStartDateChange}
+              maxDate={endDate || moment()}
+              dateFormat="YYYY-MM-DD"
+              compressed
+            />
+          </EuiFlexItem>
+          
+          <EuiFlexItem grow={false}>
+            <EuiDatePicker
+              selected={endDate}
+              onChange={handleEndDateChange}
+              minDate={startDate}
+              maxDate={moment()}
+              dateFormat="YYYY-MM-DD"
+              compressed
+            />
+          </EuiFlexItem>
+        </>
+      )}
+    </EuiFlexGroup>
   );
 };
 

@@ -1,16 +1,18 @@
 import * as React from 'react';
 import {
-  Modal,
-  ModalVariant,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  Button,
-  Form,
-  FormGroup,
-  TextArea,
-  Alert,
-} from '@patternfly/react-core';
+  EuiModal,
+  EuiModalHeader,
+  EuiModalHeaderTitle,
+  EuiModalBody,
+  EuiModalFooter,
+  EuiButton,
+  EuiForm,
+  EuiFormRow,
+  EuiTextArea,
+  EuiCallOut,
+  EuiText,
+  EuiSpacer,
+} from '@elastic/eui';
 import { ITransaction } from '@app/shared/models/transaction';
 
 interface EditInfoModalProps {
@@ -50,62 +52,61 @@ export const EditInfoModal: React.FC<EditInfoModalProps> = ({
     }
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
-    handleSave();
-  };
+  if (!isOpen) return null;
 
   return (
-    <Modal
-      variant={ModalVariant.small}
-      isOpen={isOpen}
-      onClose={handleClose}
-      aria-labelledby="edit-info-modal-title"
-      aria-describedby="edit-info-modal-description"
-    >
-      <ModalHeader
-        title="Edit Transaction Info"
-        labelId="edit-info-modal-title"
-        description={
-          transaction?.description 
-            ? `Transaction: ${transaction.description}` 
-            : undefined
-        }
-        descriptorId="edit-info-modal-description"
-      />
-      <ModalBody>
-        {error && (
-          <Alert variant="danger" title="Error" style={{ marginBottom: '1rem' }}>
-            {error}
-          </Alert>
+    <EuiModal onClose={handleClose} style={{ width: '500px' }}>
+      <EuiModalHeader>
+        <EuiModalHeaderTitle>Edit Transaction Info</EuiModalHeaderTitle>
+      </EuiModalHeader>
+
+      <EuiModalBody>
+        {transaction?.description && (
+          <>
+            <EuiText size="s" color="subdued">
+              Transaction: {transaction.description}
+            </EuiText>
+            <EuiSpacer size="m" />
+          </>
         )}
 
-        <Form id="edit-info-form" onSubmit={handleSubmit}>
-          <FormGroup label="Transaction Info" fieldId="info-input">
-            <TextArea
-              id="info-input"
+        {error && (
+          <>
+            <EuiCallOut title="Error" color="danger" iconType="alert">
+              {error}
+            </EuiCallOut>
+            <EuiSpacer size="m" />
+          </>
+        )}
+
+        <EuiForm>
+          <EuiFormRow label="Transaction Info" fullWidth>
+            <EuiTextArea
               value={info}
-              onChange={(_event, value) => setInfo(value)}
+              onChange={(e) => setInfo(e.target.value)}
               placeholder="Enter additional transaction information..."
               rows={4}
-              resizeOrientation="vertical"
+              resize="vertical"
+              fullWidth
             />
-          </FormGroup>
-        </Form>
-      </ModalBody>
-      <ModalFooter>
-        <Button
-          variant="primary"
+          </EuiFormRow>
+        </EuiForm>
+      </EuiModalBody>
+
+      <EuiModalFooter>
+        <EuiButton onClick={handleClose} isDisabled={loading}>
+          Cancel
+        </EuiButton>
+        <EuiButton
+          fill
+          color="primary"
           onClick={handleSave}
           isLoading={loading}
           isDisabled={loading}
         >
           Save
-        </Button>
-        <Button variant="link" onClick={handleClose} isDisabled={loading}>
-          Cancel
-        </Button>
-      </ModalFooter>
-    </Modal>
+        </EuiButton>
+      </EuiModalFooter>
+    </EuiModal>
   );
-}; 
+};
