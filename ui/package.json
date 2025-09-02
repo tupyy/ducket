@@ -68,18 +68,20 @@
     "webpack-merge": "^6.0.1"
   },
   "dependencies": {
-    "@elastic/charts": "^71.0.0",
     "@elastic/datemath": "^5.0.3",
     "@elastic/eui": "^106.4.0",
+    "@elastic/eui-theme-borealis": "^3.3.2",
     "@emotion/css": "^11.13.5",
     "@emotion/react": "^11.13.5",
     "@reduxjs/toolkit": "^2.8.2",
     "axios": "^1.9.0",
     "axios-date-transformer": "^1.2.1",
+    "moment": "^2.30.1",
+    "moment-timezone": "^0.6.0",
     "react": "^18",
     "react-dom": "^18",
     "react-redux": "^9.2.0",
-    "moment": "^2.30.1",
+    "recharts": "^3.1.2",
     "sirv-cli": "^3.0.0"
   },
   "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"

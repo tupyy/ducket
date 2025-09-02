@@ -9,6 +9,8 @@ import {
   EuiComboBox,
   EuiComboBoxOptionOption,
   EuiBadge,
+  EuiCallOut,
+  EuiSpacer,
 } from '@elastic/eui';
 import * as React from 'react';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
@@ -42,6 +44,7 @@ const initialState: IForm = {
 const RuleForm: React.FunctionComponent<IRuleForm> = ({ closeFormCB, editingRule }) => {
   const dispatch = useAppDispatch();
   const labels = useAppSelector((state) => state.labels);
+  const rules = useAppSelector((state) => state.rules);
   const [inputs, setInputs] = React.useState<IForm>(initialState);
   const [creating, setIsCreating] = React.useState<boolean>(false);
 
@@ -86,28 +89,27 @@ const RuleForm: React.FunctionComponent<IRuleForm> = ({ closeFormCB, editingRule
 
   const handleSubmit = async () => {
     setIsCreating(true);
+    
+    const ruleData = {
+      name: inputs.name,
+      pattern: inputs.pattern,
+      labels: inputs.labels.filter((label) => label.length > 0).reduce((acc, label) => {
+        const [key, value] = label.split('=');
+        if (key && value) {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as { [key: string]: string }),
+    };
+
     try {
-      const ruleData = {
-        name: inputs.name,
-        pattern: inputs.pattern,
-        labels: inputs.labels.filter((label) => label.length > 0).reduce((acc, label) => {
-          const [key, value] = label.split('=');
-          if (key && value) {
-            acc[key] = value;
-          }
-          return acc;
-        }, {} as { [key: string]: string }),
-      };
+      const result = isEditing 
+        ? await dispatch(updateRule(ruleData))
+        : await dispatch(createRule(ruleData));
 
-      if (isEditing) {
-        await dispatch(updateRule(ruleData));
-      } else {
-        await dispatch(createRule(ruleData));
+      if (updateRule.fulfilled.match(result) || createRule.fulfilled.match(result)) {
+        closeFormCB();
       }
-
-      closeFormCB();
-    } catch (error) {
-      console.error('Error submitting rule:', error);
     } finally {
       setIsCreating(false);
     }
@@ -127,6 +129,14 @@ const RuleForm: React.FunctionComponent<IRuleForm> = ({ closeFormCB, editingRule
 
   return (
     <EuiForm className={classes.form}>
+      {rules.errorMessage && (
+        <>
+          <EuiCallOut title="Error" color="danger" iconType="alert">
+            {rules.errorMessage}
+          </EuiCallOut>
+          <EuiSpacer size="m" />
+        </>
+      )}
       <EuiFormRow label="Name" isInvalid={false} error={[]}>
         <EuiFieldText
           required

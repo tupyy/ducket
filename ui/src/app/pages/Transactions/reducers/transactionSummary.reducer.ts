@@ -29,23 +29,22 @@ const initialState: ITransactionSummaryState = {
 };
 
 // Helper function to calculate summary
-const calculateSummary = (
-  filteredTransactions: ITransaction[]
-): ITransactionSummary => {
+const calculateSummary = (filteredTransactions: ITransaction[]): ITransactionSummary => {
   // Show totals by label key only
   const labelKeyTotals: { [key: string]: { count: number; debitAmount: number; creditAmount: number } } = {};
 
   filteredTransactions.forEach((transaction) => {
     transaction.labels.forEach((label) => {
-      if (!labelKeyTotals[label.key]) {
-        labelKeyTotals[label.key] = { count: 0, debitAmount: 0, creditAmount: 0 };
+      const key = label.key +"="+ label.value;
+      if (!labelKeyTotals[key]) {
+        labelKeyTotals[key] = { count: 0, debitAmount: 0, creditAmount: 0 };
       }
-      labelKeyTotals[label.key].count += 1;
+      labelKeyTotals[key].count += 1;
 
       if (transaction.kind === 'debit') {
-        labelKeyTotals[label.key].debitAmount += Math.abs(transaction.amount);
+        labelKeyTotals[key].debitAmount += Math.abs(transaction.amount);
       } else if (transaction.kind === 'credit') {
-        labelKeyTotals[label.key].creditAmount += Math.abs(transaction.amount);
+        labelKeyTotals[key].creditAmount += Math.abs(transaction.amount);
       }
     });
   });

@@ -1,97 +1,186 @@
 import * as React from 'react';
 import {
-  EuiPanel,
-  EuiTitle,
   EuiBasicTable,
   EuiBasicTableColumn,
   EuiButtonEmpty,
+  EuiPanel,
   EuiText,
+  EuiTitle,
 } from '@elastic/eui';
-import { ITransactionSummary } from './reducers/transactionSummary.reducer';
+import { IHierarchicalSummary, IHierarchicalSummaryData } from './utils/calculateSummary';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
 import { setSelectedLabels, setShowOnlyUnlabeled } from './reducers/transaction-filter.reducer';
+import { useThemeStyles } from '@app/shared/hooks/useThemeStyles';
 
 interface TransactionSummaryProps {
-  transactionSummary: ITransactionSummary;
+  transactionSummary: IHierarchicalSummary;
+  expandedKeys: Set<string>;
+  setExpandedKeys: React.Dispatch<React.SetStateAction<Set<string>>>;
 }
 
-export const TransactionSummary: React.FC<TransactionSummaryProps> = ({ transactionSummary }) => {
+export const TransactionSummary: React.FC<TransactionSummaryProps> = ({ 
+  transactionSummary, 
+  expandedKeys, 
+  setExpandedKeys 
+}) => {
   const dispatch = useAppDispatch();
   const { selectedLabels, showOnlyUnlabeled } = useAppSelector((state) => state.transactionFilter);
+  const themeStyles = useThemeStyles();
 
   /**
-   * Handle clicking on a label to add wildcard filter
-   * @param labelKey - The label key to filter by (e.g., "category")
+   * Handle clicking on a parent label key to expand/collapse
+   * @param labelKey - The label key to expand/collapse
    */
   const handleLabelClick = (labelKey: string) => {
-    const wildcardFilter = `${labelKey}=*`;
-    
-    // If showing only unlabeled transactions, clear that filter first
-    if (showOnlyUnlabeled) {
-      dispatch(setShowOnlyUnlabeled(false));
+    const newExpandedKeys = new Set(expandedKeys);
+    if (expandedKeys.has(labelKey)) {
+      newExpandedKeys.delete(labelKey);
+    } else {
+      newExpandedKeys.add(labelKey);
     }
-    
-    // Check if the wildcard filter already exists
-    if (!selectedLabels.includes(wildcardFilter)) {
-      // Add the wildcard filter to existing selected labels
-      const newSelectedLabels = [...selectedLabels, wildcardFilter];
-      dispatch(setSelectedLabels(newSelectedLabels));
-    }
+    setExpandedKeys(newExpandedKeys);
   };
 
-  // Prepare data for EuiBasicTable
-  const tableData = [
-    ...transactionSummary.data.map((row, index) => ({
-      id: index,
-      label: row.label,
-      count: row.count,
-      debitAmount: row.debitAmount,
-      creditAmount: row.creditAmount,
-      isTotal: false,
-    })),
-    {
-      id: 'total',
-      label: 'Total',
-      count: transactionSummary.totals.count,
-      debitAmount: transactionSummary.totals.debitAmount,
-      creditAmount: transactionSummary.totals.creditAmount,
-      isTotal: true,
-    },
-  ];
+  // Prepare hierarchical data for EuiBasicTable
+  const tableData: Array<{
+    id: string | number;
+    label: string;
+    count: number;
+    debitAmount: number;
+    creditAmount: number;
+    isTotal: boolean;
+    isParent: boolean;
+    isChild: boolean;
+    parentKey?: string;
+  }> = [];
+
+  const hasAnyExpanded = expandedKeys.size > 0;
+
+  if (hasAnyExpanded) {
+    // Filtered view: only show expanded labels and their children
+    transactionSummary.data.forEach((parentRow, parentIndex) => {
+      if (expandedKeys.has(parentRow.label)) {
+        // Add parent row but with zero totals (for collapsing back)
+        tableData.push({
+          id: `parent-${parentIndex}`,
+          label: parentRow.label,
+          count: 0,
+          debitAmount: 0,
+          creditAmount: 0,
+          isTotal: false,
+          isParent: true,
+          isChild: false,
+        });
+
+        // Add children
+        if (parentRow.children) {
+          parentRow.children.forEach((childRow, childIndex) => {
+            tableData.push({
+              id: `child-${parentIndex}-${childIndex}`,
+              label: childRow.label,
+              count: childRow.count,
+              debitAmount: childRow.debitAmount,
+              creditAmount: childRow.creditAmount,
+              isTotal: false,
+              isParent: false,
+              isChild: true,
+              parentKey: parentRow.label,
+            });
+          });
+        }
+      }
+    });
+  } else {
+    // Default view: show all parent rows collapsed
+    transactionSummary.data.forEach((parentRow, parentIndex) => {
+      tableData.push({
+        id: `parent-${parentIndex}`,
+        label: parentRow.label,
+        count: parentRow.count,
+        debitAmount: parentRow.debitAmount,
+        creditAmount: parentRow.creditAmount,
+        isTotal: false,
+        isParent: true,
+        isChild: false,
+      });
+    });
+  }
+
+  // Calculate totals for the filtered view
+  const filteredTotals = hasAnyExpanded ? 
+    tableData
+      .filter(item => !item.isTotal && item.isChild) // Only count child rows
+      .reduce(
+        (acc, row) => ({
+          count: acc.count + row.count,
+          debitAmount: acc.debitAmount + row.debitAmount,
+          creditAmount: acc.creditAmount + row.creditAmount,
+        }),
+        { count: 0, debitAmount: 0, creditAmount: 0 }
+      ) : transactionSummary.totals;
+
+  // Add total row
+  tableData.push({
+    id: 'total',
+    label: 'Total',
+    count: filteredTotals.count,
+    debitAmount: filteredTotals.debitAmount,
+    creditAmount: filteredTotals.creditAmount,
+    isTotal: true,
+    isParent: false,
+    isChild: false,
+  });
 
   const columns: Array<EuiBasicTableColumn<typeof tableData[0]>> = [
     {
       field: 'label',
-      name: transactionSummary.type === 'filtered' ? 'Type' : 'Label',
+      name: 'Label',
       render: (label: string, item) => {
         if (item.isTotal) {
-          return <EuiText size="s" style={{ fontWeight: 'bold' }}>{label}</EuiText>;
+          return <EuiText size="s" style={{ fontWeight: 'bold', color: themeStyles.textColor }}>{label}</EuiText>;
         }
-        
-        const wildcardFilter = `${label}=*`;
-        const isFilterActive = selectedLabels.includes(wildcardFilter);
-        
-        return (
-          <EuiButtonEmpty
-            size="xs"
-            onClick={() => handleLabelClick(label)}
-            style={{
-              fontWeight: isFilterActive ? 'bold' : 'normal',
-              color: isFilterActive ? '#006BB4' : '#007B94',
-            }}
-            aria-label={`Filter by ${label} labels`}
-          >
-            {label} {isFilterActive && '(filtered)'}
-          </EuiButtonEmpty>
-        );
+
+        if (item.isChild) {
+          return (
+            <EuiText size="s" style={{ paddingLeft: '1.5rem', color: themeStyles.textColor }}>
+              {label}
+            </EuiText>
+          );
+        }
+
+        // In expanded view, show regular rows (which are the key=value pairs)
+        if (hasAnyExpanded && !item.isParent) {
+          return <EuiText size="s" style={{ color: themeStyles.textColor }}>{label}</EuiText>;
+        }
+
+        if (item.isParent) {
+          const isExpanded = expandedKeys.has(label);
+          return (
+            <EuiButtonEmpty
+              size="xs"
+              onClick={() => handleLabelClick(label)}
+              style={{
+                fontWeight: 'normal',
+              }}
+              aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${label} details`}
+            >
+              {isExpanded ? '▼' : '▶'} {label}
+            </EuiButtonEmpty>
+          );
+        }
+
+        return <EuiText size="s">{label}</EuiText>;
       },
     },
     {
       field: 'count',
       name: 'Count',
       render: (count: number, item) => (
-        <EuiText size="s" style={{ fontWeight: item.isTotal ? 'bold' : 'normal' }}>
-          {count}
+        <EuiText size="s" style={{ 
+          fontWeight: item.isTotal ? 'bold' : 'normal',
+          color: (item.isTotal || item.isChild || (hasAnyExpanded && !item.isParent)) ? themeStyles.textColor : undefined,
+        }}>
+          {item.isParent && hasAnyExpanded ? '-' : count}
         </EuiText>
       ),
       width: '80px',
@@ -100,14 +189,15 @@ export const TransactionSummary: React.FC<TransactionSummaryProps> = ({ transact
       field: 'debitAmount',
       name: 'Debit',
       render: (amount: number, item) => (
-        <EuiText 
-          size="s" 
-          style={{ 
+        <EuiText
+          size="s"
+          style={{
             fontWeight: item.isTotal ? 'bold' : 'normal',
-            color: amount > 0 ? '#BD271E' : '#69707D',
+            color: (item.isTotal || item.isChild || (hasAnyExpanded && !item.isParent)) ? themeStyles.textColor : (amount > 0 ? '#BD271E' : '#69707D'),
           }}
         >
-          {amount > 0
+          {item.isParent && hasAnyExpanded ? '-' : 
+           amount > 0
             ? amount.toLocaleString('de-DE', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
@@ -121,14 +211,15 @@ export const TransactionSummary: React.FC<TransactionSummaryProps> = ({ transact
       field: 'creditAmount',
       name: 'Credit',
       render: (amount: number, item) => (
-        <EuiText 
-          size="s" 
-          style={{ 
+        <EuiText
+          size="s"
+          style={{
             fontWeight: item.isTotal ? 'bold' : 'normal',
-            color: amount > 0 ? '#017D73' : '#69707D',
+            color: (item.isTotal || item.isChild || (hasAnyExpanded && !item.isParent)) ? themeStyles.textColor : (amount > 0 ? '#017D73' : '#69707D'),
           }}
         >
-          {amount > 0
+          {item.isParent && hasAnyExpanded ? '-' : 
+           amount > 0
             ? amount.toLocaleString('de-DE', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
@@ -142,20 +233,30 @@ export const TransactionSummary: React.FC<TransactionSummaryProps> = ({ transact
 
 
   return (
-    <EuiPanel paddingSize="m" style={{ marginBottom: '1rem' }}>
+    <EuiPanel 
+      paddingSize="m" 
+      style={{ 
+        marginBottom: '1rem',
+      }}
+    >
       <div style={{ marginBottom: '0.5rem' }}>
         <EuiTitle size="xs">
-          <h3>{transactionSummary.type === 'filtered' ? 'Filtered Transaction Summary' : 'Summary'}</h3>
+          <h3>Transaction Summary by Label Key</h3>
         </EuiTitle>
       </div>
-      
+
       <EuiBasicTable
         items={tableData}
         columns={columns}
         rowProps={(item) => ({
           style: item.isTotal ? {
-            borderTop: '1px solid #D3DAE6',
-            backgroundColor: '#F7F9FC',
+            borderTop: '2px solid #D3DAE6',
+            backgroundColor: themeStyles.cardBackground,
+            marginTop: '8px',
+          } : item.isChild ? {
+            backgroundColor: themeStyles.cardBackground,
+          } : (hasAnyExpanded && !item.isParent) ? {
+            backgroundColor: themeStyles.cardBackground,
           } : undefined,
         })}
       />

@@ -10,7 +10,15 @@ const store = configureStore({
     getDefaultMiddleware({
       serializableCheck: {
         // Ignore these field paths in all actions
-        ignoredActionPaths: ['payload.config', 'payload.request', 'payload.headers', 'error', 'meta.arg'],
+        ignoredActionPaths: ['payload.config', 'payload.request', 'payload.headers', 'error', 'meta.arg', 'meta'],
+        // Ignore these paths in the state
+        ignoredPaths: ['transactions.transactions', 'transactionFilter.filteredTransactions', 'transactionFilter.sourceTransactions'],
+        // Ignore specific action types that contain non-serializable data
+        ignoredActions: ['transactionFilter/applyFilters/fulfilled', 'transactionFilter/applyFilters/pending', 'transactionFilter/applyFilters/rejected'],
+        // Allow Date objects
+        isSerializable: (value: any) => {
+          return value instanceof Date || typeof value !== 'object' || value === null || Array.isArray(value) || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+        },
       },
     }).concat(loggerMiddleware),
 });

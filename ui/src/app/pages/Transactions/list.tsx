@@ -3,14 +3,11 @@ import {
   EuiInMemoryTable,
   EuiBasicTableColumn,
   EuiTableActionsColumnType,
-  EuiButtonEmpty,
-  EuiButtonIcon,
   EuiFlexGroup,
   EuiFlexItem,
   EuiBadge,
   EuiText,
   EuiSpacer,
-  EuiPanel,
   EuiFormRow,
   EuiFieldText,
   EuiSwitch,
@@ -18,8 +15,6 @@ import {
   EuiLoadingSpinner,
   EuiCallOut,
   EuiSelect,
-  EuiSelectOption,
-  EuiToolTip,
 } from '@elastic/eui';
 import { ILabelTransaction, ITransaction } from '@app/shared/models/transaction';
 import { LabelFilter } from '@app/shared/components/label-filter';
@@ -131,10 +126,10 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
   // Color mapping function for labels based on key
   const getLabelColor = (labelKey: string): string => {
     const colors = [
-      'primary', 'success', 'warning', 'danger', 'accent', 
+      'primary', 'success', 'warning', 'danger', 'accent',
       'default', 'subdued', 'hollow'
     ];
-    
+
     // Create a simple hash from the label key
     let hash = 0;
     for (let i = 0; i < labelKey.length; i++) {
@@ -142,7 +137,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
       hash = ((hash << 5) - hash) + char;
       hash = hash & hash; // Convert to 32bit integer
     }
-    
+
     // Use absolute value and modulo to get a consistent color index
     const colorIndex = Math.abs(hash) % colors.length;
     return colors[colorIndex];
@@ -199,7 +194,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
 
   const handleLabelClick = (label: ILabelTransaction) => {
     const labelFilter = `${label.key}=${label.value}`;
-    
+
     // Check if the label is already in the filter
     if (!selectedLabels.includes(labelFilter)) {
       // Add the label to the existing filters
@@ -222,7 +217,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
       name: 'Account',
       sortable: true,
       render: (account: string) => (
-        <EuiBadge 
+        <EuiBadge
           color={theme === 'dark' ? getAccountDarkColor(parseInt(account) || 0) : getAccountColor(parseInt(account) || 0)}
           style={{ borderRadius: '12px' }}
         >
@@ -236,7 +231,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
       name: 'Type',
       sortable: true,
       render: (kind: string) => (
-        <EuiBadge 
+        <EuiBadge
           color={kind === 'debit' ? 'danger' : 'success'}
           style={{ borderRadius: '12px' }}
         >
@@ -249,9 +244,9 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
       field: 'description',
       name: 'Description',
       render: (description: string) => (
-        <EuiText 
-          size="s" 
-          style={{ 
+        <EuiText
+          size="s"
+          style={{
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis'
@@ -267,25 +262,39 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
       width: '300px',
       render: (labels: ILabelTransaction[], transaction: ITransaction) => (
         <EuiFlexGroup gutterSize="xs" wrap>
-          {labels.map((label, index) => (
-            <EuiFlexItem grow={false} key={index}>
-              <EuiBadge 
-                color={getLabelColor(label.key)}
-                onClickAriaLabel={`Filter by label ${label.key}=${label.value}`}
-                onClick={() => handleLabelClick(label)}
-                iconType="cross"
-                iconSide="right"
-                iconOnClick={(e) => {
-                  e.stopPropagation(); // Prevent the main click from firing
-                  handleRemoveLabel(transaction, label);
-                }}
-                iconOnClickAriaLabel={`Remove label ${label.key}=${label.value}`}
-                style={{ borderRadius: '12px', cursor: 'pointer' }}
-              >
-                {label.key}={label.value}
-              </EuiBadge>
-            </EuiFlexItem>
-          ))}
+          {labels.map((label, index) => {
+            // A label is from a rule if it has a non-empty ruleHref
+            // Handle cases where ruleHref might be undefined, null, empty string, or the string "undefined"
+            const isRuleLabel = label.ruleHref &&
+                               label.ruleHref.trim() !== '' &&
+                               label.ruleHref !== 'undefined' &&
+                               label.ruleHref !== 'null';
+            console.log(`Label ${label.key}=${label.value}: ruleHref="${label.ruleHref}", isRuleLabel=${isRuleLabel}`);
+            const badgeProps: any = {
+              color: getLabelColor(label.key),
+              onClickAriaLabel: `Filter by label ${label.key}=${label.value}`,
+              onClick: () => handleLabelClick(label),
+              style: { borderRadius: '12px', cursor: 'pointer' }
+            };
+
+            if (!isRuleLabel) {
+              badgeProps.iconType = "cross";
+              badgeProps.iconSide = "right";
+              badgeProps.iconOnClick = (e: any) => {
+                e.stopPropagation(); // Prevent the main click from firing
+                handleRemoveLabel(transaction, label);
+              };
+              badgeProps.iconOnClickAriaLabel = `Remove label ${label.key}=${label.value}`;
+            }
+
+            return (
+              <EuiFlexItem grow={false} key={index}>
+                <EuiBadge {...badgeProps}>
+                  {label.key}={label.value}
+                </EuiBadge>
+              </EuiFlexItem>
+            );
+          })}
         </EuiFlexGroup>
       ),
     },
@@ -346,7 +355,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
 
   // Toolbar with filters
   const renderToolbar = () => (
-    <EuiPanel paddingSize="s">
+    <div style={{ padding: '8px 0' }}>
       <EuiFlexGroup gutterSize="s" alignItems="flexEnd" wrap>
         <EuiFlexItem style={{ minWidth: '200px' }}>
           <EuiFormRow label="Description Filter">
@@ -426,7 +435,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
           </EuiFlexItem>
         )}
       </EuiFlexGroup>
-    </EuiPanel>
+    </div>
   );
 
   const sorting = {
@@ -475,7 +484,7 @@ const TransactionList: React.FunctionComponent<ITransactionListProps> = ({ trans
     <>
       {renderToolbar()}
       <EuiSpacer size="m" />
-      
+
       {errorMessage && (
         <>
           <EuiCallOut title="Error" color="danger" iconType="alert">

@@ -124,8 +124,17 @@ export const applyFilters = createAsyncThunk(
       );
     }
 
+    // Serialize Date objects to strings to avoid Redux serialization errors
+    const serializedTransactions = filtered.map(transaction => {
+      const dateValue = transaction.date as any;
+      return {
+        ...transaction,
+        date: dateValue instanceof Date ? dateValue.toISOString() : transaction.date
+      };
+    });
+
     return {
-      filteredTransactions: filtered,
+      filteredTransactions: serializedTransactions,
       selectedLabels,
       selectedTransactionTypes,
       selectedAccounts,
@@ -141,7 +150,16 @@ export const transactionFilterSlice = createSlice({
   initialState,
   reducers: {
     setSourceTransactions: (state, action: PayloadAction<ITransaction[]>) => {
-      state.sourceTransactions = action.payload;
+      // Serialize Date objects to strings to avoid Redux serialization errors
+      const serializedTransactions = action.payload.map(transaction => {
+        const dateValue = transaction.date as any;
+        return {
+          ...transaction,
+          date: dateValue instanceof Date ? dateValue.toISOString() : transaction.date
+        };
+      });
+      
+      state.sourceTransactions = serializedTransactions;
       // Only reset filtered transactions when no filters are active
       // If filters are active, let applyFilters handle the filtering
       if (
@@ -151,7 +169,7 @@ export const transactionFilterSlice = createSlice({
         state.descriptionFilter.trim() === '' &&
         !state.showOnlyUnlabeled
       ) {
-        state.filteredTransactions = action.payload;
+        state.filteredTransactions = serializedTransactions;
       }
       // Reset pagination to first page when source data changes
       state.page = 1;

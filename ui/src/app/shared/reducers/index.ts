@@ -6,7 +6,6 @@ import transactionFilter from '@app/pages/Transactions/reducers/transaction-filt
 import labelReport from '@app/pages/Dashboard/reducers/label-report.reducer';
 import monthlyLabelReport from '@app/pages/Dashboard/reducers/monthly-label-report.reducer';
 import importReducer from '@app/shared/reducers/import.reducer';
-import transactionSummary from '@app/pages/Transactions/reducers/transactionSummary.reducer';
 
 const rootReducer: ReducersMapObject = {
   labels,
@@ -16,7 +15,6 @@ const rootReducer: ReducersMapObject = {
   labelReport,
   monthlyLabelReport,
   import: importReducer,
-  transactionSummary,
 };
 
 export default rootReducer;

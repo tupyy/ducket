@@ -9,7 +9,8 @@ import {
 } from '@elastic/eui';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
 import { getTransactions } from '@app/shared/reducers/transaction.reducer';
-import { calculateTransactionSummary } from './reducers/transactionSummary.reducer';
+import { IHierarchicalSummary } from './utils/calculateSummary';
+import { calculateHierarchicalSummary } from './utils/calculateSummary';
 import { setDateRange } from './reducers/transaction-filter.reducer';
 import { TransactionList } from './list';
 import { TransactionSummary } from './TransactionSummary';
@@ -17,22 +18,54 @@ import { TransactionSummaryChart } from './TransactionSummaryChart';
 import { TimePicker } from '@app/shared/components/time-picker';
 import { calculateDateRange } from '@app/utils/dateUtils';
 
+
 const Transactions: React.FC = () => {
   const dispatch = useAppDispatch();
   const transactions = useAppSelector((state) => state.transactions);
   const { filteredTransactions, dateRange } = useAppSelector((state) => state.transactionFilter);
-  const { summary: transactionSummary, loading: summaryLoading } = useAppSelector((state) => state.transactionSummary);
+  
+  // State for expanded summary keys
+  const [expandedSummaryKeys, setExpandedSummaryKeys] = React.useState<Set<string>>(new Set());
 
-  React.useEffect(() => {
-    // Calculate summary when transactions or filtered transactions change
-    if (transactions.transactions.length > 0) {
-      dispatch(
-        calculateTransactionSummary({
-          filteredTransactions: filteredTransactions,
-        })
-      );
+  // Calculate summary locally instead of using Redux
+  const transactionSummary = React.useMemo(() => {
+    if (transactions.transactions.length > 0 && filteredTransactions.length > 0) {
+      return calculateHierarchicalSummary(filteredTransactions);
     }
-  }, [dispatch, transactions.transactions, filteredTransactions]);
+    return null;
+  }, [transactions.transactions, filteredTransactions]);
+
+  // Create filtered summary for chart based on expanded keys
+  const chartSummary = React.useMemo(() => {
+    if (!transactionSummary) return null;
+    
+    const hasAnyExpanded = expandedSummaryKeys.size > 0;
+    
+    if (hasAnyExpanded) {
+      // Show only the children of expanded keys
+      const filteredData = transactionSummary.data
+        .filter(parentRow => expandedSummaryKeys.has(parentRow.label))
+        .flatMap(parentRow => parentRow.children || []);
+      
+      const filteredTotals = filteredData.reduce(
+        (acc, row) => ({
+          count: acc.count + row.count,
+          debitAmount: acc.debitAmount + row.debitAmount,
+          creditAmount: acc.creditAmount + row.creditAmount,
+        }),
+        { count: 0, debitAmount: 0, creditAmount: 0 }
+      );
+
+      return {
+        type: 'hierarchical' as const,
+        data: filteredData,
+        totals: filteredTotals,
+      };
+    }
+    
+    return transactionSummary;
+  }, [transactionSummary, expandedSummaryKeys]);
+
 
   React.useEffect(() => {
     // Fetch transactions when date range changes (backend filtering)
@@ -79,13 +112,17 @@ const Transactions: React.FC = () => {
       <div style={{ padding: '1rem' }}>
         <h1 style={{ position: 'absolute', left: '-10000px' }}>Transactions</h1>
         {/* Transaction Summary and Chart */}
-        {transactions.transactions.length > 0 && transactionSummary && (
+        {transactions.transactions.length > 0 && transactionSummary && chartSummary && (
           <EuiFlexGroup gutterSize="l">
-            <EuiFlexItem grow={true}>
-              <TransactionSummary transactionSummary={transactionSummary} />
+            <EuiFlexItem grow={3}>
+              <TransactionSummary 
+                transactionSummary={transactionSummary}
+                expandedKeys={expandedSummaryKeys}
+                setExpandedKeys={setExpandedSummaryKeys}
+              />
             </EuiFlexItem>
-            <EuiFlexItem grow={false} style={{ minWidth: '350px', maxWidth: '350px' }}>
-              <TransactionSummaryChart transactionSummary={transactionSummary} />
+            <EuiFlexItem grow={1}>
+              <TransactionSummaryChart transactionSummary={chartSummary} />
             </EuiFlexItem>
           </EuiFlexGroup>
         )}

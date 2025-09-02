@@ -4,6 +4,7 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { serializeAxiosError } from '@app/shared/reducers/reducer.utils';
 import { ITransaction, ITransactionForm, ITransactionUpdateForm, ITransactions } from '@app/shared/models/transaction';
 import { applyFilters } from '@app/pages/Transactions/reducers/transaction-filter.reducer';
+import { createAxiosDateTransformer } from 'axios-date-transformer';
 
 const transactionApiUrl = 'api/v1/transactions';
 
@@ -45,7 +46,7 @@ export const getTransactions = createAsyncThunk(
       url = `${transactionApiUrl}?${searchParams.toString()}`;
     }
 
-    return axios.get<ITransactions>(url);
+    return createAxiosDateTransformer().get<ITransactions>(url);
   },
   { serializeError: serializeAxiosError }
 );
@@ -293,12 +294,20 @@ export const TransactionManagementSlice = createSlice({
       })
       .addCase(addLabelToTransaction.rejected, (state, action) => {
         state.addingLabel = false;
-        state.errorMessage = action.error.message || 'error adding label to transaction';
+        const errorPayload = action.payload as any;
+        state.errorMessage = errorPayload?.response?.data?.message || 
+                           errorPayload?.message || 
+                           action.error.message || 
+                           'error adding label to transaction';
         state.addLabelSuccess = false;
       })
       .addCase(updateTransactionInfo.rejected, (state, action) => {
         state.updatingInfo = false;
-        state.errorMessage = action.error.message || 'error updating transaction info';
+        const errorPayload = action.payload as any;
+        state.errorMessage = errorPayload?.response?.data?.message || 
+                           errorPayload?.message || 
+                           action.error.message || 
+                           'error updating transaction info';
         state.updateInfoSuccess = false;
       });
   },

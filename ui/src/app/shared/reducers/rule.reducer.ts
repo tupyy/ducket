@@ -167,27 +167,47 @@ export const RuleManagementSlice = createSlice({
       })
       .addCase(createRule.rejected, (state, action) => {
         state.creating = false;
-        state.errorMessage = action.error.message || 'error creating rule';
+        const errorPayload = action.payload as any;
+        state.errorMessage = errorPayload?.response?.data?.message || 
+                           errorPayload?.message || 
+                           action.error.message || 
+                           'error creating rule';
         state.createSuccess = false;
       })
       .addCase(updateRule.rejected, (state, action) => {
         state.updating = false;
-        state.errorMessage = action.error.message || 'error updating rule';
+        const errorPayload = action.payload as any;
+        state.errorMessage = errorPayload?.response?.data?.message || 
+                           errorPayload?.message || 
+                           action.error.message || 
+                           'error updating rule';
         state.updateSuccess = false;
       })
       .addCase(deleteRule.rejected, (state, action) => {
         state.deleting = false;
-        state.errorMessage = action.error.message || 'error deleting rule';
+        const errorPayload = action.payload as any;
+        state.errorMessage = errorPayload?.response?.data?.message || 
+                           errorPayload?.message || 
+                           action.error.message || 
+                           'error deleting rule';
         state.deleteSuccess = false;
       })
       .addCase(syncRule.rejected, (state, action) => {
         state.syncing = false;
-        state.errorMessage = action.error.message || 'error syncing rule';
+        const errorPayload = action.payload as any;
+        state.errorMessage = errorPayload?.response?.data?.message || 
+                           errorPayload?.message || 
+                           action.error.message || 
+                           'error syncing rule';
         state.syncSuccess = false;
       })
       .addCase(syncAllRules.rejected, (state, action) => {
         state.syncingAll = false;
-        state.errorMessage = action.error.message || 'error syncing all rules';
+        const errorPayload = action.payload as any;
+        state.errorMessage = errorPayload?.response?.data?.message || 
+                           errorPayload?.message || 
+                           action.error.message || 
+                           'error syncing all rules';
         state.syncAllSuccess = false;
       });
   },

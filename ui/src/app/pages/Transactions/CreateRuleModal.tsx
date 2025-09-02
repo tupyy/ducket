@@ -18,7 +18,7 @@ import {
 } from '@elastic/eui';
 import { ITransaction } from '@app/shared/models/transaction';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
-import { createRule } from '@app/shared/reducers/rule.reducer';
+import { createRule, reset } from '@app/shared/reducers/rule.reducer';
 import { getLabels } from '@app/shared/reducers/label.reducer';
 
 interface CreateRuleModalProps {
@@ -34,7 +34,7 @@ export const CreateRuleModal: React.FC<CreateRuleModalProps> = ({
 }) => {
   const dispatch = useAppDispatch();
   const labels = useAppSelector((state) => state.labels);
-  const [isLoading, setIsLoading] = React.useState(false);
+  const rules = useAppSelector((state) => state.rules);
   const [error, setError] = React.useState<string | null>(null);
   
   // Form state
@@ -47,6 +47,7 @@ export const CreateRuleModal: React.FC<CreateRuleModalProps> = ({
   React.useEffect(() => {
     if (isOpen) {
       dispatch(getLabels());
+      dispatch(reset()); // Clear any previous errors
       // Initialize form with transaction data if available
       if (transaction) {
         setPattern(transaction.description || '');
@@ -72,25 +73,20 @@ export const CreateRuleModal: React.FC<CreateRuleModalProps> = ({
       return;
     }
 
-    setIsLoading(true);
     setError(null);
 
-    try {
-      const ruleData = {
-        name: ruleName.trim(),
-        pattern: pattern.trim(),
-        labels: selectedLabels.reduce((acc, label) => {
-          acc[label.key] = label.value;
-          return acc;
-        }, {} as { [key: string]: string }),
-      };
+    const ruleData = {
+      name: ruleName.trim(),
+      pattern: pattern.trim(),
+      labels: selectedLabels.reduce((acc, label) => {
+        acc[label.key] = label.value;
+        return acc;
+      }, {} as { [key: string]: string }),
+    };
 
-      await dispatch(createRule(ruleData));
+    const result = await dispatch(createRule(ruleData));
+    if (createRule.fulfilled.match(result)) {
       onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create rule');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -132,10 +128,10 @@ export const CreateRuleModal: React.FC<CreateRuleModalProps> = ({
           </>
         )}
 
-        {error && (
+        {(error || rules.errorMessage) && (
           <>
             <EuiCallOut title="Error" color="danger" iconType="alert">
-              {error}
+              {error || rules.errorMessage}
             </EuiCallOut>
             <EuiSpacer size="m" />
           </>
@@ -193,15 +189,15 @@ export const CreateRuleModal: React.FC<CreateRuleModalProps> = ({
       </EuiModalBody>
 
       <EuiModalFooter>
-        <EuiButton onClick={onClose} isDisabled={isLoading}>
+        <EuiButton onClick={onClose} isDisabled={rules.creating}>
           Cancel
         </EuiButton>
         <EuiButton
           fill
           color="primary"
           onClick={handleSubmit}
-          isLoading={isLoading}
-          isDisabled={isLoading || !ruleName.trim() || !pattern.trim()}
+          isLoading={rules.creating}
+          isDisabled={rules.creating || !ruleName.trim() || !pattern.trim()}
         >
           Create Rule
         </EuiButton>

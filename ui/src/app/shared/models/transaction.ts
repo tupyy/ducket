@@ -26,7 +26,7 @@ export interface ITransactionForm {
   date: string;
   content: string;
   amount: number;
-  labels: Map<string, string>;
+  labels: Record<string, string>;
 }
 
 export interface ITransactionUpdateForm {
@@ -35,5 +35,5 @@ export interface ITransactionUpdateForm {
   date: string;
   content: string;
   amount: number;
-  labels: Map<string, string>;
+  labels: Record<string, string>;
 }
