@@ -31,9 +31,6 @@ func NewDatabaseWithOptionsAndDefaults(opts ...DatabaseOption) *Database {
 func (d *Database) ToOption() DatabaseOption {
 	return func(to *Database) {
 		to.URI = d.URI
-		to.SSL = d.SSL
-		to.MaxOpenConnections = d.MaxOpenConnections
-		to.Debug = d.Debug
 	}
 }
 
@@ -41,9 +38,6 @@ func (d *Database) ToOption() DatabaseOption {
 func (d Database) DebugMap() map[string]any {
 	debugMap := map[string]any{}
 	debugMap["URI"] = helpers.DebugValue(d.URI, false)
-	debugMap["SSL"] = helpers.DebugValue(d.SSL, false)
-	debugMap["MaxOpenConnections"] = helpers.DebugValue(d.MaxOpenConnections, false)
-	debugMap["Debug"] = helpers.DebugValue(d.Debug, false)
 	return debugMap
 }
 
@@ -67,26 +61,5 @@ func (d *Database) WithOptions(opts ...DatabaseOption) *Database {
 func WithURI(uRI string) DatabaseOption {
 	return func(d *Database) {
 		d.URI = uRI
-	}
-}
-
-// WithSSL returns an option that can set SSL on a Database
-func WithSSL(sSL bool) DatabaseOption {
-	return func(d *Database) {
-		d.SSL = sSL
-	}
-}
-
-// WithMaxOpenConnections returns an option that can set MaxOpenConnections on a Database
-func WithMaxOpenConnections(maxOpenConnections int) DatabaseOption {
-	return func(d *Database) {
-		d.MaxOpenConnections = maxOpenConnections
-	}
-}
-
-// WithDebug returns an option that can set Debug on a Database
-func WithDebug(debug bool) DatabaseOption {
-	return func(d *Database) {
-		d.Debug = debug
 	}
 }

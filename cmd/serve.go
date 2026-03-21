@@ -2,13 +2,24 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
 
 	"git.tls.tupangiu.ro/cosmin/finante/internal/config"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/handlers"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/server"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/services"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/store"
 	"git.tls.tupangiu.ro/cosmin/finante/pkg/logger"
 	"github.com/ecordell/optgen/helpers"
 	"github.com/fatih/color"
+	"github.com/go-extras/cobraflags"
 	"github.com/jzelinskie/cobrautil/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -31,9 +42,13 @@ func NewServeCommand(config *config.Config) *cobra.Command {
 			zap.S().Info("using configuration", "config", helpers.Flatten(config.DebugMap()))
 
 			if config.Mode == "prod" && config.StaticsFolder == "" {
-				return fmt.Errorf("statics folder should be provided in prod mod")
+				return fmt.Errorf("statics folder should be provided in prod mode")
 			}
 
+			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+			defer cancel()
+
+			// Database
 			db, err := store.NewDB(config.Database.URI)
 			if err != nil {
 				return err
@@ -42,17 +57,52 @@ func NewServeCommand(config *config.Config) *cobra.Command {
 			st := store.NewStore(db)
 			defer st.Close()
 
-			if err := st.Migrate(context.Background()); err != nil {
+			if err := st.Migrate(ctx); err != nil {
 				return fmt.Errorf("running migrations: %w", err)
 			}
 
-			// TODO: wire up HTTP server and handlers
-			zap.S().Info("store ready, server not yet implemented")
+			// Services
+			txnSvc := services.NewTransactionService(st)
+			ruleSvc := services.NewRuleService(st)
+
+			// Handler
+			h := handlers.NewHandler(txnSvc, ruleSvc)
+
+			// HTTP server
+			srv := server.New(config.ServerPort, config.GinMode, h)
+
+			var wg sync.WaitGroup
+			wg.Add(1)
+			go func() {
+				defer func() {
+					wg.Done()
+					cancel()
+				}()
+				zap.S().Infof("starting HTTP server on port %d", config.ServerPort)
+				if err := srv.Start(); err != nil {
+					if !errors.Is(err, http.ErrServerClosed) {
+						zap.S().Errorw("failed to start http server", "error", err)
+					}
+				}
+			}()
+
+			go func() {
+				<-ctx.Done()
+				stopCtx, stopCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer stopCancel()
+				srv.Stop(stopCtx)
+			}()
+
+			<-ctx.Done()
+			wg.Wait()
+
+			zap.S().Info("server shutdown complete")
 			return nil
 		},
 	}
 
 	registerFlags(cmd, config)
+	cobraflags.CobraOnInitialize("FINANTE", cmd)
 
 	return cmd
 }
@@ -76,6 +126,6 @@ func registerDatabaseFlags(flagSet *pflag.FlagSet, config *config.Database) {
 func registerServerFlags(flagSet *pflag.FlagSet, config *config.Config) {
 	flagSet.IntVar(&config.ServerPort, "server-port", config.ServerPort, "port on which the server is listening")
 	flagSet.StringVar(&config.GinMode, "server-gin-mode", config.GinMode, "gin mode: either release or debug. It applies only on server-type web")
-	flagSet.StringVar(&config.Mode, "server-mode", config.Mode, "server mod: dev or prod")
+	flagSet.StringVar(&config.Mode, "server-mode", config.Mode, "server mode: dev or prod")
 	flagSet.StringVar(&config.StaticsFolder, "statics-folder", config.StaticsFolder, "path to statics")
 }

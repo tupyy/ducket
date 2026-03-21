@@ -1,22 +1,17 @@
-# Podman Container Management Makefile for Finante
-.PHONY: help build run stop logs clean restart rebuild dev network db-start db-stop tag push deploy-image db-migrate
+# Podman Container Management Makefile for Finante (DuckDB)
+.PHONY: help podman-run stop down logs clean restart rebuild dev network tag push deploy-image
 
 # Podman network and container names
 NETWORK_NAME = finante-network
-DB_CONTAINER = finante-db
 APP_CONTAINER = finante-app
-DB_IMAGE = postgres:17-alpine
 APP_IMAGE = finante:latest
 
 # Remote registry configuration
 REGISTRY = quay.io/ctupangiu/finance
 REMOTE_TAG ?= latest
 
-# Database configuration
-DB_NAME = finante
-DB_USER = finante
-DB_PASSWORD = finante_password
-DB_PORT = 5432
+# DuckDB volume for persistent storage
+DB_VOLUME = finante-db-data
 
 # Default target
 help: ## Show this help message
@@ -29,42 +24,8 @@ help: ## Show this help message
 network: ## Create Podman network for containers
 	@podman network inspect $(NETWORK_NAME) >/dev/null 2>&1 || podman network create $(NETWORK_NAME)
 
-
-# Start database container
-db-start: network ## Start PostgreSQL database container
-	@if [ ! "$$(podman ps -q -f name=$(DB_CONTAINER))" ]; then \
-		if [ "$$(podman ps -aq -f status=exited -f name=$(DB_CONTAINER))" ]; then \
-			podman rm $(DB_CONTAINER); \
-		fi; \
-		podman run -d \
-			--name $(DB_CONTAINER) \
-			--network $(NETWORK_NAME) \
-			-e POSTGRES_DB=$(DB_NAME) \
-			-e POSTGRES_USER=$(DB_USER) \
-			-e POSTGRES_PASSWORD=$(DB_PASSWORD) \
-			-p $(DB_PORT):5432 \
-			-v finante-db-data:/var/lib/postgresql/data \
-			$(DB_IMAGE); \
-		echo "⏳ Waiting for database to be ready..."; \
-		sleep 10; \
-	fi
-
-# Stop database container
-db-stop: ## Stop PostgreSQL database container
-	@podman stop $(DB_CONTAINER) 2>/dev/null || true
-
-# Run database migrations
-db-migrate: db-start ## Run database migrations in container
-	@echo "⏳ Running database migrations..."
-	@podman run --rm \
-		--network $(NETWORK_NAME) \
-		-e LOG_LEVEL=info \
-		$(APP_IMAGE) \
-		./finante migrate --migration-folder=./migrations --db-conn-uri="postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_CONTAINER):5432/$(DB_NAME)?sslmode=disable"
-	@echo "✅ Database migrations completed"
-
 # Start application container
-podman-run: network db-start build db-migrate ## Start the Finante application container
+podman-run: network build ## Start the Finante application container
 	@if [ ! "$$(podman ps -q -f name=$(APP_CONTAINER))" ]; then \
 		if [ "$$(podman ps -aq -f status=exited -f name=$(APP_CONTAINER))" ]; then \
 			podman rm $(APP_CONTAINER); \
@@ -73,17 +34,14 @@ podman-run: network db-start build db-migrate ## Start the Finante application c
 			--name $(APP_CONTAINER) \
 			--network $(NETWORK_NAME) \
 			-p 8080:8080 \
-			-e DB_CONN_URI="postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_CONTAINER):5432/$(DB_NAME)?sslmode=disable" \
-			-e SERVER_PORT=8080 \
-			-e SERVER_GIN_MODE=release \
-			-e LOG_LEVEL=info \
+			-v $(DB_VOLUME):/app/data \
 			$(APP_IMAGE) \
-			./finante serve --server-port=8080 --server-gin-mode=release --server-mode=prod --statics-folder=./ui/dist --db-conn-uri="postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_CONTAINER):5432/$(DB_NAME)?sslmode=disable"; \
-		echo "✅ Application started at http://localhost:8080"; \
+			./finante serve --server-port=8080 --server-gin-mode=release --server-mode=prod --statics-folder=./ui/dist --db-uri=/app/data/finante.db; \
+		echo "Application started at http://localhost:8080"; \
 	fi
 
 # Start in development mode
-dev: network db-start build db-migrate ## Start in development mode with debug logging
+dev: network build ## Start in development mode with debug logging
 	@if [ ! "$$(podman ps -q -f name=$(APP_CONTAINER))" ]; then \
 		if [ "$$(podman ps -aq -f status=exited -f name=$(APP_CONTAINER))" ]; then \
 			podman rm $(APP_CONTAINER); \
@@ -93,14 +51,12 @@ dev: network db-start build db-migrate ## Start in development mode with debug l
 			--network $(NETWORK_NAME) \
 			-p 8080:8080 \
 			-p 2345:2345 \
-			-e SERVER_PORT=8080 \
-			-e SERVER_GIN_MODE=debug \
-			-e LOG_LEVEL=debug \
+			-v $(DB_VOLUME):/app/data \
 			-v $$(pwd)/uploads:/app/uploads \
 			-v $$(pwd)/logs:/app/logs \
 			$(APP_IMAGE) \
-			./finante serve --server-port=8080 --server-gin-mode=debug --server-mode=dev --statics-folder=./ui/dist --db-conn-uri="postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_CONTAINER):5432/$(DB_NAME)?sslmode=disable"; \
-		echo "✅ Application started in development mode at http://localhost:8080"; \
+			./finante serve --server-port=8080 --server-gin-mode=debug --server-mode=dev --statics-folder=./ui/dist --db-uri=/app/data/finante.db; \
+		echo "Application started in development mode at http://localhost:8080"; \
 	fi
 
 # Stop application container
@@ -108,24 +64,19 @@ stop: ## Stop the Finante application container
 	@podman stop $(APP_CONTAINER) 2>/dev/null || true
 
 # Stop all containers
-down: ## Stop all containers (app + database)
-	@podman stop $(APP_CONTAINER) $(DB_CONTAINER) 2>/dev/null || true
+down: ## Stop all containers
+	@podman stop $(APP_CONTAINER) 2>/dev/null || true
 
 # Follow logs
 logs: ## Follow logs for the application
 	podman logs -f $(APP_CONTAINER)
 
-# Show logs for database
-logs-db: ## Show logs for the database
-	podman logs -f $(DB_CONTAINER)
-
 # Clean up containers and volumes
 clean: ## Remove all containers, networks, and volumes
-	@podman stop $(APP_CONTAINER) $(DB_CONTAINER) 2>/dev/null || true
-	@podman rm $(APP_CONTAINER) $(DB_CONTAINER) 2>/dev/null || true
+	@podman stop $(APP_CONTAINER) 2>/dev/null || true
+	@podman rm $(APP_CONTAINER) 2>/dev/null || true
 	@podman network rm $(NETWORK_NAME) 2>/dev/null || true
-	@podman volume rm finante-db-data 2>/dev/null || true
-	@podman system prune -f
+	@podman volume rm $(DB_VOLUME) 2>/dev/null || true
 
 # Restart application
 restart: ## Restart the application container
@@ -135,17 +86,7 @@ restart: ## Restart the application container
 rebuild: ## Rebuild application image and restart
 	$(MAKE) stop
 	$(MAKE) build
-	$(MAKE) run
-
-# Database operations
-db-shell: ## Connect to database shell
-	podman exec -it $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME)
-
-db-backup: ## Backup database
-	podman exec $(DB_CONTAINER) pg_dump -U $(DB_USER) $(DB_NAME) > backup_$$(date +%Y%m%d_%H%M%S).sql
-
-db-restore: ## Restore database from backup file (usage: make db-restore FILE=backup.sql)
-	podman exec -i $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME) < $(FILE)
+	$(MAKE) podman-run
 
 # Update application
 update: ## Pull latest changes and update application

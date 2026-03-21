@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
+	pkgErrors "git.tls.tupangiu.ro/cosmin/finante/pkg/errors"
 	sq "github.com/Masterminds/squirrel"
 )
 
@@ -67,7 +68,7 @@ func (s *Store) GetTransaction(ctx context.Context, id int64) (*entity.Transacti
 		return nil, err
 	}
 	if len(txns) == 0 {
-		return nil, nil
+		return nil, pkgErrors.NewResourceNotFoundError("transaction", fmt.Sprintf("%d", id))
 	}
 	return &txns[0], nil
 }
@@ -114,6 +115,7 @@ func (s *Store) CreateTransaction(ctx context.Context, t entity.Transaction) (in
 
 func (s *Store) UpdateTransaction(ctx context.Context, t entity.Transaction) error {
 	query, args, err := sq.Update("transactions").
+		Set("hash", t.Hash).
 		Set("date", t.Date).
 		Set("account", t.Account).
 		Set("kind", string(t.Kind)).
@@ -128,8 +130,18 @@ func (s *Store) UpdateTransaction(ctx context.Context, t entity.Transaction) err
 		return err
 	}
 
-	_, err = s.qi.ExecContext(ctx, query, args...)
-	return err
+	result, err := s.qi.ExecContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return pkgErrors.NewResourceNotFoundError("transaction", fmt.Sprintf("%d", t.ID))
+	}
+	return nil
 }
 
 func (s *Store) DeleteTransaction(ctx context.Context, id int64) error {
@@ -141,14 +153,24 @@ func (s *Store) DeleteTransaction(ctx context.Context, id int64) error {
 		return err
 	}
 
-	_, err = s.qi.ExecContext(ctx, query, args...)
-	return err
+	result, err := s.qi.ExecContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return pkgErrors.NewResourceNotFoundError("transaction", fmt.Sprintf("%d", id))
+	}
+	return nil
 }
 
 // buildTagCTE builds a CTE that matches all rules against transactions using the filter DSL.
-func buildTagCTE(rules []entity.Rule) (string, []any, error) {
+func buildTagCTE(rules []entity.Rule) (string, []any) {
 	if len(rules) == 0 {
-		return "", nil, nil
+		return "", nil
 	}
 
 	var branches []string
@@ -175,13 +197,13 @@ func buildTagCTE(rules []entity.Rule) (string, []any, error) {
 	}
 
 	if len(branches) == 0 {
-		return "", nil, nil
+		return "", nil
 	}
 
 	cte := "rule_matches AS (" + strings.Join(branches, " UNION ALL ") + "), " +
 		"rule_tags AS (SELECT transaction_id, list_distinct(flatten(list(tags))) AS tags FROM rule_matches GROUP BY transaction_id)"
 
-	return cte, allArgs, nil
+	return cte, allArgs
 }
 
 // taggedQuery builds a SELECT with optional tag CTE. When rules exist, it joins
@@ -193,10 +215,7 @@ func (s *Store) taggedQuery(ctx context.Context) (sq.SelectBuilder, string, []an
 		return sq.SelectBuilder{}, "", nil, err
 	}
 
-	tagCTE, tagArgs, err := buildTagCTE(rules)
-	if err != nil {
-		return sq.SelectBuilder{}, "", nil, err
-	}
+	tagCTE, tagArgs := buildTagCTE(rules)
 
 	cols := make([]string, len(txnBaseColumns))
 	copy(cols, txnBaseColumns)
@@ -224,7 +243,9 @@ func (s *Store) execTaggedQuery(ctx context.Context, q sq.SelectBuilder, tagCTE 
 		query = "WITH " + tagCTE + " " + query
 	}
 
-	allArgs := append(tagArgs, selectArgs...)
+	allArgs := make([]any, 0, len(tagArgs)+len(selectArgs))
+	allArgs = append(allArgs, tagArgs...)
+	allArgs = append(allArgs, selectArgs...)
 	return s.qi.QueryContext(ctx, query, allArgs...)
 }
 

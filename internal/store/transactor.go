@@ -18,15 +18,19 @@ func newTransactor(db *sql.DB) *DBTransactor {
 }
 
 func (t *DBTransactor) WithTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	if _, ok := ctx.Value(txKey).(*sql.Tx); ok {
+		return fn(ctx)
+	}
+
 	tx, err := t.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
 		return err
 	}
+	defer func() { _ = tx.Rollback() }()
 
 	txContext := context.WithValue(ctx, txKey, tx)
 
 	if err := fn(txContext); err != nil {
-		_ = tx.Rollback()
 		return err
 	}
 

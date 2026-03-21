@@ -7,6 +7,7 @@ import (
 	"git.tls.tupangiu.ro/cosmin/finante/internal/store"
 	"git.tls.tupangiu.ro/cosmin/finante/pkg/logger"
 	"github.com/fatih/color"
+	"github.com/go-extras/cobraflags"
 	"github.com/jzelinskie/cobrautil/v2"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -29,7 +30,7 @@ func NewMigrateCommand(config *config.Config) *cobra.Command {
 
 			db, err := store.NewDB(config.Database.URI)
 			if err != nil {
-				zap.S().Error("failed to connect to database", "error", err)
+				zap.S().Errorw("failed to connect to database", "error", err)
 				return err
 			}
 			defer db.Close()
@@ -38,7 +39,7 @@ func NewMigrateCommand(config *config.Config) *cobra.Command {
 
 			st := store.NewStore(db)
 			if err := st.Migrate(context.Background()); err != nil {
-				zap.S().Error("migration failed", "error", err)
+				zap.S().Errorw("migration failed", "error", err)
 				return err
 			}
 
@@ -48,6 +49,8 @@ func NewMigrateCommand(config *config.Config) *cobra.Command {
 	}
 
 	registerMigrateFlags(cmd, config)
+	cobraflags.CobraOnInitialize("FINANTE", cmd)
+
 	return cmd
 }
 

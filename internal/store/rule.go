@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	sq "github.com/Masterminds/squirrel"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
+	pkgErrors "git.tls.tupangiu.ro/cosmin/finante/pkg/errors"
+	sq "github.com/Masterminds/squirrel"
 )
 
 func (s *Store) ListRules(ctx context.Context, filter string, limit, offset int) ([]entity.Rule, error) {
@@ -65,7 +66,7 @@ func (s *Store) GetRule(ctx context.Context, id int) (*entity.Rule, error) {
 		return nil, err
 	}
 	if len(rules) == 0 {
-		return nil, nil
+		return nil, pkgErrors.NewResourceNotFoundError("rule", fmt.Sprintf("%d", id))
 	}
 	return &rules[0], nil
 }
@@ -102,8 +103,18 @@ func (s *Store) UpdateRule(ctx context.Context, r entity.Rule) error {
 		return err
 	}
 
-	_, err = s.qi.ExecContext(ctx, query, args...)
-	return err
+	result, err := s.qi.ExecContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return pkgErrors.NewResourceNotFoundError("rule", fmt.Sprintf("%d", r.ID))
+	}
+	return nil
 }
 
 func (s *Store) DeleteRule(ctx context.Context, id int) error {
@@ -115,8 +126,18 @@ func (s *Store) DeleteRule(ctx context.Context, id int) error {
 		return err
 	}
 
-	_, err = s.qi.ExecContext(ctx, query, args...)
-	return err
+	result, err := s.qi.ExecContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return pkgErrors.NewResourceNotFoundError("rule", fmt.Sprintf("%d", id))
+	}
+	return nil
 }
 
 func scanRules(rows *sql.Rows) ([]entity.Rule, error) {

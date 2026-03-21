@@ -94,7 +94,7 @@ func getMigrationFiles() ([]string, error) {
 func extractVersion(filename string) int {
 	base := strings.TrimPrefix(filename, "sql/")
 	parts := strings.SplitN(base, "_", 2)
-	if len(parts) < 1 {
+	if parts[0] == "" {
 		return 0
 	}
 	v, err := strconv.Atoi(parts[0])

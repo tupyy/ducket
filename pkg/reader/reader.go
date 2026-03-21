@@ -14,23 +14,25 @@ type FileReader interface {
 	Read(r io.Reader) ([]entity.Transaction, error)
 }
 
-// NewFileReader creates a new FileReader based on the file extension
-func NewFileReader(filename string) (FileReader, error) {
+// NewFileReader creates a new FileReader based on the file extension.
+// The account parameter is used by CSV readers to assign an account number
+// to imported transactions (Excel files contain the account number in the sheet).
+func NewFileReader(filename string, account int64) (FileReader, error) {
 	ext := strings.ToLower(filepath.Ext(filename))
 
 	switch ext {
 	case ".xlsx", ".xls":
 		return &ExcelReader{}, nil
 	case ".csv":
-		return &CSVReader{}, nil
+		return &CSVReader{Account: account}, nil
 	default:
 		return nil, fmt.Errorf("unsupported file type: %s. Supported types: .xlsx, .xls, .csv", ext)
 	}
 }
 
 // ReadTransactionsFromFile reads transactions from a file using the appropriate reader
-func ReadTransactionsFromFile(filename string, r io.Reader) ([]entity.Transaction, error) {
-	reader, err := NewFileReader(filename)
+func ReadTransactionsFromFile(filename string, account int64, r io.Reader) ([]entity.Transaction, error) {
+	reader, err := NewFileReader(filename, account)
 	if err != nil {
 		return nil, err
 	}

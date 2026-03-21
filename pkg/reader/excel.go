@@ -31,17 +31,19 @@ func (e *ExcelReader) Read(r io.Reader) ([]entity.Transaction, error) {
 	if err != nil {
 		return []entity.Transaction{}, err
 	}
+	defer f.Close()
 
 	accountNumber := int64(0)
 	rows, err := f.GetRows("Sheet0")
+	if err != nil {
+		return []entity.Transaction{}, fmt.Errorf("failed to get rows from Sheet0: %w", err)
+	}
+
 	startReadTransactions := false
 	transactions := make([]entity.Transaction, 0, len(rows))
 	for _, row := range rows {
 		if len(row) == 0 {
 			continue
-		}
-		if len(row) > 0 && strings.ToLower(row[0]) == "date" {
-			startReadTransactions = true
 		}
 
 		if matched := accountRegexp.MatchString(row[0]); matched {
@@ -53,10 +55,15 @@ func (e *ExcelReader) Read(r io.Reader) ([]entity.Transaction, error) {
 			}
 		}
 
+		if strings.ToLower(row[0]) == "date" {
+			startReadTransactions = true
+			continue
+		}
+
 		if startReadTransactions {
 			t, err := parseRow(row)
 			if err != nil {
-				zap.S().Error(err)
+				zap.S().Errorw("failed to parse Excel row", "error", err, "row", row)
 				continue
 			}
 			t.Account = accountNumber
@@ -80,11 +87,13 @@ func parseRow(r []string) (*entity.Transaction, error) {
 
 	var sum string
 	kind := entity.CreditTransaction
-	if len(r) == 3 {
+	if len(r) >= 4 && r[3] != "" {
+		sum = r[3]
+	} else if len(r) >= 3 && r[2] != "" {
 		kind = entity.DebitTransaction
 		sum = r[2]
 	} else {
-		sum = r[3]
+		return nil, fmt.Errorf("no amount found in row %q", r)
 	}
 
 	floatSum, err := parseSum(sum)
@@ -99,12 +108,12 @@ func parseDate(s string) (time.Time, error) {
 	return time.Parse(dateFormat, s)
 }
 
-func parseSum(s string) (float32, error) {
-	f, err := strconv.ParseFloat(s, 32)
+func parseSum(s string) (float64, error) {
+	f, err := strconv.ParseFloat(s, 64)
 	if err != nil {
 		return 0, err
 	}
-	return float32(f), nil
+	return f, nil
 }
 
 func formatContent(s string) string {

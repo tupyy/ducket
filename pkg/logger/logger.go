@@ -15,9 +15,14 @@ func SetupLogger(cfg *config.Config) *zap.Logger {
 		lvl = level
 	}
 
+	encoding := cfg.LogFormat
+	if encoding == "" {
+		encoding = "console"
+	}
+
 	loggerCfg := &zap.Config{
 		Level:    zap.NewAtomicLevelAt(lvl),
-		Encoding: cfg.LogFormat,
+		Encoding: encoding,
 		EncoderConfig: zapcore.EncoderConfig{
 			TimeKey:        "time",
 			LevelKey:       "severity",

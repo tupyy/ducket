@@ -11,6 +11,7 @@ import (
 	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/services"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/store"
+	srvErrors "git.tls.tupangiu.ro/cosmin/finante/pkg/errors"
 )
 
 var _ = Describe("TransactionService", func() {
@@ -62,8 +63,7 @@ var _ = Describe("TransactionService", func() {
 
 			_, err = svc.Create(ctx, txn)
 			Expect(err).To(HaveOccurred())
-			_, ok := err.(*services.ErrResourceExistsAlready)
-			Expect(ok).To(BeTrue())
+			Expect(srvErrors.IsDuplicateResourceError(err)).To(BeTrue())
 		})
 	})
 
@@ -80,7 +80,7 @@ var _ = Describe("TransactionService", func() {
 		It("should return not found for non-existent ID", func() {
 			_, err := svc.Get(ctx, 999)
 			Expect(err).To(HaveOccurred())
-			Expect(services.IsErrResourceNotFound(err)).To(BeTrue())
+			Expect(srvErrors.IsResourceNotFoundError(err)).To(BeTrue())
 		})
 	})
 
@@ -134,7 +134,7 @@ var _ = Describe("TransactionService", func() {
 			txn.ID = 999
 			err := svc.Update(ctx, txn)
 			Expect(err).To(HaveOccurred())
-			Expect(services.IsErrResourceNotFound(err)).To(BeTrue())
+			Expect(srvErrors.IsResourceNotFoundError(err)).To(BeTrue())
 		})
 	})
 
@@ -148,7 +148,7 @@ var _ = Describe("TransactionService", func() {
 
 			_, err = svc.Get(ctx, created.ID)
 			Expect(err).To(HaveOccurred())
-			Expect(services.IsErrResourceNotFound(err)).To(BeTrue())
+			Expect(srvErrors.IsResourceNotFoundError(err)).To(BeTrue())
 		})
 	})
 })

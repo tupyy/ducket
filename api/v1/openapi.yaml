@@ -1,0 +1,324 @@
+openapi: 3.0.3
+info:
+  title: Finante API
+  description: Personal finance management API
+  version: 1.0.0
+paths:
+  /transactions:
+    get:
+      operationId: ListTransactions
+      summary: List transactions
+      parameters:
+        - name: filter
+          in: query
+          schema:
+            type: string
+          description: Filter DSL expression
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transaction'
+    post:
+      operationId: CreateTransaction
+      summary: Create a new transaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransactionRequest'
+      responses:
+        '201':
+          description: Created transaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+  /transactions/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+    get:
+      operationId: GetTransaction
+      summary: Get a transaction by ID
+      responses:
+        '200':
+          description: Transaction details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '404':
+          description: Transaction not found
+    put:
+      operationId: UpdateTransaction
+      summary: Update a transaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTransactionRequest'
+      responses:
+        '204':
+          description: Transaction updated
+        '404':
+          description: Transaction not found
+    delete:
+      operationId: DeleteTransaction
+      summary: Delete a transaction
+      responses:
+        '204':
+          description: Transaction deleted
+  /rules:
+    get:
+      operationId: ListRules
+      summary: List rules
+      parameters:
+        - name: filter
+          in: query
+          schema:
+            type: string
+          description: Filter DSL expression
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of rules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Rule'
+    post:
+      operationId: CreateRule
+      summary: Create a new rule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRuleRequest'
+      responses:
+        '201':
+          description: Created rule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rule'
+  /rules/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      operationId: GetRule
+      summary: Get a rule by ID
+      responses:
+        '200':
+          description: Rule details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rule'
+        '404':
+          description: Rule not found
+    put:
+      operationId: UpdateRule
+      summary: Update a rule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRuleRequest'
+      responses:
+        '204':
+          description: Rule updated
+        '404':
+          description: Rule not found
+    delete:
+      operationId: DeleteRule
+      summary: Delete a rule
+      responses:
+        '204':
+          description: Rule deleted
+components:
+  schemas:
+    TransactionKind:
+      type: string
+      enum:
+        - debit
+        - credit
+    Transaction:
+      type: object
+      required:
+        - id
+        - hash
+        - date
+        - account
+        - kind
+        - amount
+        - content
+        - tags
+      properties:
+        id:
+          type: integer
+          format: int64
+        hash:
+          type: string
+        date:
+          type: string
+          format: date-time
+        account:
+          type: integer
+          format: int64
+        kind:
+          $ref: '#/components/schemas/TransactionKind'
+        amount:
+          type: number
+          format: double
+        content:
+          type: string
+        info:
+          type: string
+        recipient:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+
+    CreateTransactionRequest:
+      type: object
+      required:
+        - kind
+        - account
+        - date
+        - amount
+        - content
+      properties:
+        kind:
+          $ref: '#/components/schemas/TransactionKind'
+        account:
+          type: integer
+          format: int64
+        date:
+          type: string
+          format: date-time
+        amount:
+          type: number
+          format: double
+        content:
+          type: string
+        info:
+          type: string
+        recipient:
+          type: string
+
+    UpdateTransactionRequest:
+      type: object
+      required:
+        - kind
+        - account
+        - date
+        - amount
+        - content
+      properties:
+        kind:
+          $ref: '#/components/schemas/TransactionKind'
+        account:
+          type: integer
+          format: int64
+        date:
+          type: string
+          format: date-time
+        amount:
+          type: number
+          format: double
+        content:
+          type: string
+        info:
+          type: string
+        recipient:
+          type: string
+
+    Rule:
+      type: object
+      required:
+        - id
+        - name
+        - filter
+        - tags
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        filter:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+
+    CreateRuleRequest:
+      type: object
+      required:
+        - name
+        - filter
+        - tags
+      properties:
+        name:
+          type: string
+        filter:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+
+    UpdateRuleRequest:
+      type: object
+      required:
+        - name
+        - filter
+        - tags
+      properties:
+        name:
+          type: string
+        filter:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string

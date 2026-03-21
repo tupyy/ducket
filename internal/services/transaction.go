@@ -2,9 +2,11 @@ package services
 
 import (
 	"context"
+	"fmt"
 
 	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/store"
+	srvErrors "git.tls.tupangiu.ro/cosmin/finante/pkg/errors"
 )
 
 type TransactionService struct {
@@ -20,25 +22,24 @@ func (t *TransactionService) List(ctx context.Context, filter string, limit, off
 }
 
 func (t *TransactionService) Get(ctx context.Context, id int64) (*entity.Transaction, error) {
-	txn, err := t.st.GetTransaction(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	if txn == nil {
-		return nil, NewErrTransactionNotFound(int(id))
-	}
-	return txn, nil
+	return t.st.GetTransaction(ctx, id)
 }
 
 func (t *TransactionService) Create(ctx context.Context, txn entity.Transaction) (entity.Transaction, error) {
-	existing, _ := t.st.GetTransactionByHash(ctx, txn.Hash)
-	if existing != nil {
-		return *existing, NewErrTransactionExistsAlready(int(existing.ID))
+	if !txn.Kind.Valid() {
+		return txn, srvErrors.NewValidationError(fmt.Sprintf("invalid transaction kind: %q", txn.Kind))
 	}
 
 	var id int64
 	if err := t.st.WithTx(ctx, func(ctx context.Context) error {
-		var err error
+		existing, err := t.st.GetTransactionByHash(ctx, txn.Hash)
+		if err != nil && !srvErrors.IsResourceNotFoundError(err) {
+			return err
+		}
+		if existing != nil {
+			return srvErrors.NewDuplicateResourceError("transaction", "hash", txn.Hash)
+		}
+
 		id, err = t.st.CreateTransaction(ctx, txn)
 		return err
 	}); err != nil {
@@ -50,13 +51,11 @@ func (t *TransactionService) Create(ctx context.Context, txn entity.Transaction)
 }
 
 func (t *TransactionService) Update(ctx context.Context, txn entity.Transaction) error {
-	existing, err := t.st.GetTransaction(ctx, txn.ID)
-	if err != nil {
-		return err
+	if !txn.Kind.Valid() {
+		return srvErrors.NewValidationError(fmt.Sprintf("invalid transaction kind: %q", txn.Kind))
 	}
-	if existing == nil {
-		return NewErrTransactionNotFound(int(txn.ID))
-	}
+
+	txn.RecomputeHash()
 
 	return t.st.WithTx(ctx, func(ctx context.Context) error {
 		return t.st.UpdateTransaction(ctx, txn)

@@ -13,7 +13,9 @@ import (
 	"go.uber.org/zap"
 )
 
-type CSVReader struct{}
+type CSVReader struct {
+	Account int64
+}
 
 // Read parses a CSV file from the provided io.Reader and extracts transaction data.
 // It expects the first row to contain headers and starts reading transactions after finding
@@ -78,15 +80,15 @@ func (c *CSVReader) parseRow(r []string) (*entity.Transaction, error) {
 
 	date, err := c.parseDate(r[2])
 	if err != nil {
-		return nil, fmt.Errorf("cannot convert to date %q: %w", r[0], err)
+		return nil, fmt.Errorf("cannot convert to date %q: %w", r[2], err)
 	}
 	rowContent := formatContent(r[4])
 
-	return entity.NewTransaction(kind, 1000, date, floatSum, rowContent), nil
+	return entity.NewTransaction(kind, c.Account, date, floatSum, rowContent), nil
 }
 
 func (c *CSVReader) parseDate(s string) (time.Time, error) {
-	format := "2006-01-02" // MM-DD-YYYY
+	format := "2006-01-02" // YYYY-MM-DD
 
 	parts := strings.Split(s, " ")
 
@@ -97,17 +99,22 @@ func (c *CSVReader) parseDate(s string) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("unable to parse date with any known format")
 }
 
-func (c *CSVReader) parseSum(s string) (float32, error) {
-	// Clean the string: remove currency symbols, spaces, and handle different decimal separators
+func (c *CSVReader) parseSum(s string) (float64, error) {
 	cleaned := strings.ReplaceAll(s, " ", "")
 	cleaned = strings.ReplaceAll(cleaned, "€", "")
 	cleaned = strings.ReplaceAll(cleaned, "$", "")
 	cleaned = strings.ReplaceAll(cleaned, "£", "")
-	cleaned = strings.ReplaceAll(cleaned, ",", ".")
 
-	f, err := strconv.ParseFloat(cleaned, 32)
+	// Handle European format (e.g. "1.234,56") by stripping thousand-separator
+	// dots before replacing the decimal comma with a dot.
+	if strings.Contains(cleaned, ",") {
+		cleaned = strings.ReplaceAll(cleaned, ".", "")
+		cleaned = strings.ReplaceAll(cleaned, ",", ".")
+	}
+
+	f, err := strconv.ParseFloat(cleaned, 64)
 	if err != nil {
 		return 0, err
 	}
-	return float32(f), nil
+	return f, nil
 }

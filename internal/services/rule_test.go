@@ -10,6 +10,7 @@ import (
 	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/services"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/store"
+	srvErrors "git.tls.tupangiu.ro/cosmin/finante/pkg/errors"
 )
 
 var _ = Describe("RuleService", func() {
@@ -138,7 +139,7 @@ var _ = Describe("RuleService", func() {
 		It("should return not found for non-existent rule", func() {
 			err := svc.Update(ctx, entity.Rule{ID: 999, Name: "x", Filter: "content ~ /X/", Tags: []string{"x"}})
 			Expect(err).To(HaveOccurred())
-			Expect(services.IsErrResourceNotFound(err)).To(BeTrue())
+			Expect(srvErrors.IsResourceNotFoundError(err)).To(BeTrue())
 		})
 
 		It("should reject invalid filter", func() {

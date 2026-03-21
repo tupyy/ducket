@@ -14,8 +14,7 @@ var sha string
 func main() {
 	cfg := config.NewConfigWithOptionsAndDefaults(
 		config.WithDatabase(config.NewDatabaseWithOptions(
-			config.WithURI("postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"),
-			config.WithMaxOpenConnections(10),
+			config.WithURI("finante.db"),
 		)),
 		config.WithServerPort(8080),
 		config.WithLogFormat("console"),

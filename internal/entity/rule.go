@@ -3,9 +3,9 @@ package entity
 import "time"
 
 type Rule struct {
-	ID        int
-	Name      string
-	Filter    string
-	Tags      []string
-	CreatedAt time.Time
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	Filter    string    `json:"filter"`
+	Tags      []string  `json:"tags"`
+	CreatedAt time.Time `json:"created_at"`
 }

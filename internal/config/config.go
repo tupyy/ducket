@@ -16,8 +16,5 @@ type Config struct {
 
 //go:generate go run github.com/ecordell/optgen -output zz_generated.db_configuration.go . Database
 type Database struct {
-	URI                string `debugmap:"visible"`
-	SSL                bool   `debugmap:"visible"`
-	MaxOpenConnections int    `debugmap:"visible" default:"10"`
-	Debug              bool   `debugmap:"visible" default:"false"`
+	URI string `debugmap:"visible"`
 }

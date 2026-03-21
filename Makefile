@@ -21,8 +21,6 @@ COLOR_LEVEL_ERROR=$(escape)[91m
 COLOR_LEVEL_FATAL=$(escape)[91m
 
 PODMAN ?= podman
-POSTGRES_IMAGE ?= docker.io/library/postgres:17
-GIT_COMMIT=$(shell git rev-list -1 HEAD --abbrev-commit)
 
 define COLORIZE
 sed -u -e "s/\\\\\"/'/g; \
@@ -90,7 +88,7 @@ build.vendor.full:
 	go mod tidy
 	go mod vendor
 
-build.local:
+build.local: build.prepare
 	go build -o $(BUILD_DIR)/$(NAME) main.go
 
 run:

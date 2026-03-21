@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"sync"
 
 	"go.uber.org/zap"
@@ -40,14 +41,14 @@ func (q *queryInterceptor) QueryContext(ctx context.Context, query string, args 
 }
 
 func (q *queryInterceptor) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-
 	q.logger.Debugw("exec", "query", query, "args", args)
 
 	if tx, ok := q.txFromContext(ctx); ok {
 		return tx.ExecContext(ctx, query, args...)
 	}
+
+	q.mu.Lock()
+	defer q.mu.Unlock()
 
 	result, err := q.db.ExecContext(ctx, query, args...)
 	if err != nil {
@@ -56,6 +57,7 @@ func (q *queryInterceptor) ExecContext(ctx context.Context, query string, args .
 
 	if _, cpErr := q.db.ExecContext(ctx, "FORCE CHECKPOINT"); cpErr != nil {
 		q.logger.Warnw("checkpoint failed", "error", cpErr)
+		return result, fmt.Errorf("write succeeded but checkpoint failed: %w", cpErr)
 	}
 	return result, nil
 }

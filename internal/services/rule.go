@@ -6,6 +6,7 @@ import (
 
 	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/store"
+	srvErrors "git.tls.tupangiu.ro/cosmin/finante/pkg/errors"
 )
 
 type RuleService struct {
@@ -26,7 +27,7 @@ func (r *RuleService) Get(ctx context.Context, id int) (*entity.Rule, error) {
 
 func (r *RuleService) Create(ctx context.Context, rule entity.Rule) (entity.Rule, error) {
 	if _, err := store.ParseTransactionFilter(rule.Filter); err != nil {
-		return rule, fmt.Errorf("invalid filter: %w", err)
+		return rule, srvErrors.NewValidationError(fmt.Sprintf("invalid filter: %s", err))
 	}
 
 	var id int
@@ -43,16 +44,8 @@ func (r *RuleService) Create(ctx context.Context, rule entity.Rule) (entity.Rule
 }
 
 func (r *RuleService) Update(ctx context.Context, rule entity.Rule) error {
-	existing, err := r.st.GetRule(ctx, rule.ID)
-	if err != nil {
-		return err
-	}
-	if existing == nil {
-		return NewErrRuleNotFound(rule.ID)
-	}
-
 	if _, err := store.ParseTransactionFilter(rule.Filter); err != nil {
-		return fmt.Errorf("invalid filter: %w", err)
+		return srvErrors.NewValidationError(fmt.Sprintf("invalid filter: %s", err))
 	}
 
 	return r.st.WithTx(ctx, func(ctx context.Context) error {
