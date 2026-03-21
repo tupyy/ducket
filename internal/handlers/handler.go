@@ -14,12 +14,13 @@ import (
 )
 
 type Handler struct {
-	txnSvc  *services.TransactionService
-	ruleSvc *services.RuleService
+	txnSvc     *services.TransactionService
+	ruleSvc    *services.RuleService
+	summarySvc *services.SummaryService
 }
 
-func NewHandler(txnSvc *services.TransactionService, ruleSvc *services.RuleService) *Handler {
-	return &Handler{txnSvc: txnSvc, ruleSvc: ruleSvc}
+func NewHandler(txnSvc *services.TransactionService, ruleSvc *services.RuleService, summarySvc *services.SummaryService) *Handler {
+	return &Handler{txnSvc: txnSvc, ruleSvc: ruleSvc, summarySvc: summarySvc}
 }
 
 // -- Transactions --

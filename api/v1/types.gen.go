@@ -15,6 +15,14 @@ const (
 	Debit  TransactionKind = "debit"
 )
 
+// BalanceTrendPoint defines model for BalanceTrendPoint.
+type BalanceTrendPoint struct {
+	Balance float64 `json:"balance"`
+	Credit  float64 `json:"credit"`
+	Debit   float64 `json:"debit"`
+	Month   string  `json:"month"`
+}
+
 // CreateRuleRequest defines model for CreateRuleRequest.
 type CreateRuleRequest struct {
 	Filter string   `json:"filter"`
@@ -54,6 +62,24 @@ type Rule struct {
 	Id        int        `json:"id"`
 	Name      string     `json:"name"`
 	Tags      []string   `json:"tags"`
+}
+
+// SummaryOverview defines model for SummaryOverview.
+type SummaryOverview struct {
+	Balance           float64 `json:"balance"`
+	TotalCredit       float64 `json:"total_credit"`
+	TotalDebit        float64 `json:"total_debit"`
+	TotalTransactions int     `json:"total_transactions"`
+	UniqueAccounts    int     `json:"unique_accounts"`
+	UniqueTags        int     `json:"unique_tags"`
+}
+
+// TagSummary defines model for TagSummary.
+type TagSummary struct {
+	Count       int     `json:"count"`
+	Tag         string  `json:"tag"`
+	TotalCredit float64 `json:"total_credit"`
+	TotalDebit  float64 `json:"total_debit"`
 }
 
 // Transaction defines model for Transaction.
@@ -105,6 +131,24 @@ type ListRulesParams struct {
 	Filter *string `form:"filter,omitempty" json:"filter,omitempty"`
 	Limit  *int    `form:"limit,omitempty" json:"limit,omitempty"`
 	Offset *int    `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// GetSummaryBalanceTrendParams defines parameters for GetSummaryBalanceTrend.
+type GetSummaryBalanceTrendParams struct {
+	// Filter Filter DSL expression
+	Filter *string `form:"filter,omitempty" json:"filter,omitempty"`
+}
+
+// GetSummaryByTagParams defines parameters for GetSummaryByTag.
+type GetSummaryByTagParams struct {
+	// Filter Filter DSL expression
+	Filter *string `form:"filter,omitempty" json:"filter,omitempty"`
+}
+
+// GetSummaryOverviewParams defines parameters for GetSummaryOverview.
+type GetSummaryOverviewParams struct {
+	// Filter Filter DSL expression
+	Filter *string `form:"filter,omitempty" json:"filter,omitempty"`
 }
 
 // ListTransactionsParams defines parameters for ListTransactions.

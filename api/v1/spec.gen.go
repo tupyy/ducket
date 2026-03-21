@@ -28,6 +28,15 @@ type ServerInterface interface {
 	// Update a rule
 	// (PUT /rules/{id})
 	UpdateRule(c *gin.Context, id int)
+	// Get monthly balance trend
+	// (GET /summary/balance-trend)
+	GetSummaryBalanceTrend(c *gin.Context, params GetSummaryBalanceTrendParams)
+	// Get spending breakdown by tag
+	// (GET /summary/by-tag)
+	GetSummaryByTag(c *gin.Context, params GetSummaryByTagParams)
+	// Get aggregate transaction totals
+	// (GET /summary/overview)
+	GetSummaryOverview(c *gin.Context, params GetSummaryOverviewParams)
 	// List transactions
 	// (GET /transactions)
 	ListTransactions(c *gin.Context, params ListTransactionsParams)
@@ -182,6 +191,84 @@ func (siw *ServerInterfaceWrapper) UpdateRule(c *gin.Context) {
 	}
 
 	siw.Handler.UpdateRule(c, id)
+}
+
+// GetSummaryBalanceTrend operation middleware
+func (siw *ServerInterfaceWrapper) GetSummaryBalanceTrend(c *gin.Context) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetSummaryBalanceTrendParams
+
+	// ------------- Optional query parameter "filter" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "filter", c.Request.URL.Query(), &params.Filter)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter filter: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetSummaryBalanceTrend(c, params)
+}
+
+// GetSummaryByTag operation middleware
+func (siw *ServerInterfaceWrapper) GetSummaryByTag(c *gin.Context) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetSummaryByTagParams
+
+	// ------------- Optional query parameter "filter" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "filter", c.Request.URL.Query(), &params.Filter)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter filter: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetSummaryByTag(c, params)
+}
+
+// GetSummaryOverview operation middleware
+func (siw *ServerInterfaceWrapper) GetSummaryOverview(c *gin.Context) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetSummaryOverviewParams
+
+	// ------------- Optional query parameter "filter" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "filter", c.Request.URL.Query(), &params.Filter)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter filter: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetSummaryOverview(c, params)
 }
 
 // ListTransactions operation middleware
@@ -364,6 +451,9 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.DELETE(options.BaseURL+"/rules/:id", wrapper.DeleteRule)
 	router.GET(options.BaseURL+"/rules/:id", wrapper.GetRule)
 	router.PUT(options.BaseURL+"/rules/:id", wrapper.UpdateRule)
+	router.GET(options.BaseURL+"/summary/balance-trend", wrapper.GetSummaryBalanceTrend)
+	router.GET(options.BaseURL+"/summary/by-tag", wrapper.GetSummaryByTag)
+	router.GET(options.BaseURL+"/summary/overview", wrapper.GetSummaryOverview)
 	router.GET(options.BaseURL+"/transactions", wrapper.ListTransactions)
 	router.POST(options.BaseURL+"/transactions", wrapper.CreateTransaction)
 	router.POST(options.BaseURL+"/transactions/import", wrapper.ImportTransactions)

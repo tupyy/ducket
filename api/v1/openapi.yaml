@@ -123,6 +123,61 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ImportResponse'
+  /summary/overview:
+    get:
+      operationId: GetSummaryOverview
+      summary: Get aggregate transaction totals
+      parameters:
+        - name: filter
+          in: query
+          schema:
+            type: string
+          description: Filter DSL expression
+      responses:
+        '200':
+          description: Summary overview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SummaryOverview'
+  /summary/by-tag:
+    get:
+      operationId: GetSummaryByTag
+      summary: Get spending breakdown by tag
+      parameters:
+        - name: filter
+          in: query
+          schema:
+            type: string
+          description: Filter DSL expression
+      responses:
+        '200':
+          description: Tag breakdown
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TagSummary'
+  /summary/balance-trend:
+    get:
+      operationId: GetSummaryBalanceTrend
+      summary: Get monthly balance trend
+      parameters:
+        - name: filter
+          in: query
+          schema:
+            type: string
+          description: Filter DSL expression
+      responses:
+        '200':
+          description: Monthly balance trend
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BalanceTrendPoint'
   /rules:
     get:
       operationId: ListRules
@@ -372,6 +427,71 @@ components:
           type: array
           items:
             type: string
+
+    SummaryOverview:
+      type: object
+      required:
+        - total_transactions
+        - total_debit
+        - total_credit
+        - balance
+        - unique_accounts
+        - unique_tags
+      properties:
+        total_transactions:
+          type: integer
+        total_debit:
+          type: number
+          format: double
+        total_credit:
+          type: number
+          format: double
+        balance:
+          type: number
+          format: double
+        unique_accounts:
+          type: integer
+        unique_tags:
+          type: integer
+
+    TagSummary:
+      type: object
+      required:
+        - tag
+        - total_debit
+        - total_credit
+        - count
+      properties:
+        tag:
+          type: string
+        total_debit:
+          type: number
+          format: double
+        total_credit:
+          type: number
+          format: double
+        count:
+          type: integer
+
+    BalanceTrendPoint:
+      type: object
+      required:
+        - month
+        - debit
+        - credit
+        - balance
+      properties:
+        month:
+          type: string
+        debit:
+          type: number
+          format: double
+        credit:
+          type: number
+          format: double
+        balance:
+          type: number
+          format: double
 
     ImportFileResult:
       type: object

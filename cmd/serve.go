@@ -64,9 +64,10 @@ func NewServeCommand(config *config.Config) *cobra.Command {
 			// Services
 			txnSvc := services.NewTransactionService(st)
 			ruleSvc := services.NewRuleService(st)
+			summarySvc := services.NewSummaryService(st)
 
 			// Handler
-			h := handlers.NewHandler(txnSvc, ruleSvc)
+			h := handlers.NewHandler(txnSvc, ruleSvc, summarySvc)
 
 			// HTTP server
 			srv := server.New(config.ServerPort, config.GinMode, h)
