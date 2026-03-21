@@ -4,173 +4,64 @@ import (
 	"context"
 	"fmt"
 
-	"git.tls.tupangiu.ro/cosmin/finante/internal/datastore/pg"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/store"
 )
 
-//go:generate go run github.com/ecordell/optgen -output zz_generated.rule_filter.go . RuleFilter
-type RuleFilter struct {
-	Id string `debugmap:"visible"`
-}
-
-// QueriesFn returns a slice of query filters based on the rule filter criteria.
-func (rf *RuleFilter) QueriesFn() []pg.QueryFilter {
-	qf := []pg.QueryFilter{}
-
-	qf = append(qf,
-		pg.RuleIDQueryFilter(rf.Id),
-	)
-
-	return qf
-}
-
 type RuleService struct {
-	dt *pg.Datastore
+	st *store.Store
 }
 
-// NewRuleService creates a new instance of RuleService with the provided datastore.
-func NewRuleService(dt *pg.Datastore) *RuleService {
-	return &RuleService{dt: dt}
+func NewRuleService(st *store.Store) *RuleService {
+	return &RuleService{st: st}
 }
 
-// GetRules retrieves all rules from the database.
-func (r *RuleService) GetRules(ctx context.Context) ([]entity.Rule, error) {
-	return r.dt.QueryRules(ctx)
+func (r *RuleService) List(ctx context.Context, filter string, limit, offset int) ([]entity.Rule, error) {
+	return r.st.ListRules(ctx, filter, limit, offset)
 }
 
-// GetRule retrieves a single rule by its name.
-// Returns nil if no rule is found with the given name.
-func (r *RuleService) GetRule(ctx context.Context, name string) (*entity.Rule, error) {
-	rules, err := r.dt.QueryRules(ctx, NewRuleFilterWithOptions(WithId(name)).QueriesFn()...)
-	if err != nil {
-		return nil, err
+func (r *RuleService) Get(ctx context.Context, id int) (*entity.Rule, error) {
+	return r.st.GetRule(ctx, id)
+}
+
+func (r *RuleService) Create(ctx context.Context, rule entity.Rule) (entity.Rule, error) {
+	if _, err := store.ParseTransactionFilter(rule.Filter); err != nil {
+		return rule, fmt.Errorf("invalid filter: %w", err)
 	}
 
-	if len(rules) == 0 {
-		return nil, nil
-	}
-
-	return &rules[0], nil
-}
-
-// Create creates a new rule in the database.
-// Returns an error if a rule with the same name already exists.
-// Also ensures that all tags referenced by the rule exist in the database.
-func (r *RuleService) Create(ctx context.Context, rule entity.Rule) error {
-	existingRule, err := r.GetRule(ctx, rule.Name)
-	if err != nil {
+	var id int
+	if err := r.st.WithTx(ctx, func(ctx context.Context) error {
+		var err error
+		id, err = r.st.CreateRule(ctx, rule)
 		return err
+	}); err != nil {
+		return rule, err
 	}
 
-	if existingRule != nil {
-		return fmt.Errorf("rule %s already exists", rule.Name)
-	}
-
-	labelSrv := NewLabelService(r.dt)
-	existingLabels, err := labelSrv.GetLabels(ctx)
-	if err != nil {
-		return err
-	}
-
-	return r.dt.WriteTx(ctx, func(ctx context.Context, w *pg.Writer) error {
-		// write rule
-		if err := w.WriteRule(ctx, rule, false); err != nil {
-			return err
-		}
-
-		relationships := []entity.Relationship{}
-		for _, label := range rule.Labels {
-			found := false
-			labelID := 0
-			for _, existingLabel := range existingLabels {
-				if label.Equal(existingLabel) {
-					found = true
-					labelID = existingLabel.ID
-					break
-				}
-			}
-			if !found {
-				id, err := w.WriteLabel(ctx, label)
-				if err != nil {
-					return err
-				}
-				labelID = id
-			}
-
-			relationships = append(relationships, entity.NewLabeRuleRelationship(labelID, rule.Name))
-		}
-
-		return w.WriteRelationships(ctx, relationships)
-	})
+	rule.ID = id
+	return rule, nil
 }
 
-// UpdateOrCreate creates a new rule or updates an existing one based on the name.
-// Returns true if an existing rule was updated, false if a new rule was created.
-// Also ensures that all tags referenced by the rule exist in the database.
 func (r *RuleService) Update(ctx context.Context, rule entity.Rule) error {
-	existingRule, err := r.GetRule(ctx, rule.Name)
+	existing, err := r.st.GetRule(ctx, rule.ID)
 	if err != nil {
 		return err
 	}
-
-	labelSrv := NewLabelService(r.dt)
-	existingLabels, err := labelSrv.GetLabels(ctx)
-	if err != nil {
-		return err
+	if existing == nil {
+		return NewErrRuleNotFound(rule.ID)
 	}
 
-	if existingRule == nil {
-		return NewErrRuleNotFound(rule.Name)
+	if _, err := store.ParseTransactionFilter(rule.Filter); err != nil {
+		return fmt.Errorf("invalid filter: %w", err)
 	}
 
-	err = r.dt.WriteTx(ctx, func(ctx context.Context, w *pg.Writer) error {
-		existingRelationships := []entity.Relationship{}
-		// remove old relationships
-		for _, label := range existingRule.Labels {
-			existingRelationships = append(existingRelationships, entity.NewLabeRuleRelationship(label.ID, rule.Name))
-		}
-
-		if err := w.DeleteRelationships(ctx, existingRelationships); err != nil {
-			return err
-		}
-
-		// update the rule
-		if err := w.WriteRule(ctx, rule, true); err != nil {
-			return err
-		}
-
-		// add new relationships
-		relationships := []entity.Relationship{}
-		for _, label := range rule.Labels {
-			found := false
-			labelID := 0
-			for _, existingLabel := range existingLabels {
-				if label.Equal(existingLabel) {
-					found = true
-					labelID = existingLabel.ID
-					break
-				}
-			}
-			if !found {
-				id, err := w.WriteLabel(ctx, label)
-				if err != nil {
-					return err
-				}
-				labelID = id
-			}
-
-			relationships = append(relationships, entity.NewLabeRuleRelationship(labelID, rule.Name))
-		}
-
-		return w.WriteRelationships(ctx, relationships)
+	return r.st.WithTx(ctx, func(ctx context.Context) error {
+		return r.st.UpdateRule(ctx, rule)
 	})
-
-	return err
 }
 
-// DeleteRule removes a rule from the database by its name.
-func (r *RuleService) DeleteRule(ctx context.Context, name string) error {
-	return r.dt.WriteTx(ctx, func(ctx context.Context, w *pg.Writer) error {
-		return w.DeleteRule(ctx, name)
+func (r *RuleService) Delete(ctx context.Context, id int) error {
+	return r.st.WithTx(ctx, func(ctx context.Context) error {
+		return r.st.DeleteRule(ctx, id)
 	})
 }

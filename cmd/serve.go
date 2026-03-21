@@ -3,31 +3,19 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"time"
 
-	v1 "git.tls.tupangiu.ro/cosmin/finante/api/v1"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/config"
-	"git.tls.tupangiu.ro/cosmin/finante/internal/datastore/pg"
-	implV1 "git.tls.tupangiu.ro/cosmin/finante/internal/handlers/v1"
-	"git.tls.tupangiu.ro/cosmin/finante/internal/server"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/store"
 	"git.tls.tupangiu.ro/cosmin/finante/pkg/logger"
 	"github.com/ecordell/optgen/helpers"
 	"github.com/fatih/color"
-	"github.com/gin-gonic/gin"
 	"github.com/jzelinskie/cobrautil/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"go.uber.org/zap"
 )
 
-type ApiVersion string
-
-const (
-	ApiV1 ApiVersion = "/api/v1"
-)
-
 // NewServeCommand creates a new cobra command for starting the server.
-// It sets up the database connection, configures the HTTP server, and handles graceful shutdown.
 func NewServeCommand(config *config.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "serve",
@@ -46,33 +34,20 @@ func NewServeCommand(config *config.Config) *cobra.Command {
 				return fmt.Errorf("statics folder should be provided in prod mod")
 			}
 
-			// init datastore
-			dt, err := pg.NewPostgresDatastore(context.Background(), config.Database.URI)
+			db, err := store.NewDB(config.Database.URI)
 			if err != nil {
 				return err
 			}
 
-			server := server.NewRunnableServer(
-				server.NewRunnableServerConfigWithOptionsAndDefaults(
-					server.WithDatastore(dt),
-					server.WithGraceTimeout(1*time.Second),
-					server.WithPort(config.ServerPort),
-					server.WithRegisterHandlers(string(ApiV1), func(r *gin.RouterGroup) {
-						v1.RegisterHandlers(r, implV1.NewServer())
-					}),
-					server.WithGinMode(config.GinMode),
-					server.WithCloseCallback(func() error {
-						zap.S().Info("close datastore")
-						dt.Close()
-						return nil
-					}),
-					server.WithMode(config.Mode),
-					server.WithStaticsFolder(config.StaticsFolder),
-				),
-			)
+			st := store.NewStore(db)
+			defer st.Close()
 
-			server.Run(context.Background())
+			if err := st.Migrate(context.Background()); err != nil {
+				return fmt.Errorf("running migrations: %w", err)
+			}
 
+			// TODO: wire up HTTP server and handlers
+			zap.S().Info("store ready, server not yet implemented")
 			return nil
 		},
 	}
@@ -95,8 +70,7 @@ func registerFlags(cmd *cobra.Command, config *config.Config) {
 }
 
 func registerDatabaseFlags(flagSet *pflag.FlagSet, config *config.Database) {
-	flagSet.StringVar(&config.URI, "db-conn-uri", config.URI, `connection string used by remote databases (e.g. "postgres://postgres:password@localhost:5432/photos")`)
-	flagSet.BoolVar(&config.SSL, "db-ssl-mode", config.SSL, "ssl mode")
+	flagSet.StringVar(&config.URI, "db-uri", config.URI, `path to DuckDB database file (e.g. "./finante.db" or ":memory:")`)
 }
 
 func registerServerFlags(flagSet *pflag.FlagSet, config *config.Config) {

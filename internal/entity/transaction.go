@@ -13,38 +13,30 @@ const (
 	CreditTransaction TransactionKind = "credit"
 )
 
-// LabelAssociation keeps association between a label applied on a transaction and the ruleID which matched the transaction.
-// If RuleID is nil, it means the label has been manually applied.
-type LabelAssociation struct {
-	Label  Label
-	RuleID *string
-}
-
 type Transaction struct {
-	ID         int64
-	Kind       TransactionKind
-	Date       time.Time
-	Account    int64
-	RawContent string
-	Hash       string
-	Amount     float32
-	Info       *string
-	Labels     []LabelAssociation
+	ID        int64
+	Hash      string
+	Date      time.Time
+	Account   int64
+	Kind      TransactionKind
+	Amount    float64
+	Content   string
+	Info      *string
+	Recipient *string
+	Tags      []string
 }
 
-// NewTransaction creates a new Transaction entity with the specified kind, date, amount, and raw content.
-func NewTransaction(kind TransactionKind, account int64, date time.Time, sum float32, rawContent string) *Transaction {
-	hash := fmt.Sprintf("%s%s%f%s", kind, date, sum, rawContent)
+func NewTransaction(kind TransactionKind, account int64, date time.Time, amount float64, content string) *Transaction {
+	hash := fmt.Sprintf("%s%s%f%s", kind, date, amount, content)
 	h := sha256.New()
 	h.Write([]byte(hash))
 
 	return &Transaction{
-		RawContent: rawContent,
-		Date:       date,
-		Account:    account,
-		Hash:       fmt.Sprintf("%x", h.Sum(nil)),
-		Kind:       kind,
-		Amount:     sum,
-		Labels:     []LabelAssociation{},
+		Kind:    kind,
+		Date:    date,
+		Account: account,
+		Hash:    fmt.Sprintf("%x", h.Sum(nil)),
+		Amount:  amount,
+		Content: content,
 	}
 }
