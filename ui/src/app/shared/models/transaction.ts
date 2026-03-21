@@ -1,39 +1,12 @@
-export interface ILabelTransaction {
-  href: string;
-  key: string;
-  value: string;
-  ruleHref: string;
-}
-
 export interface ITransaction {
-  href: string;
-  kind: string;
+  id: number;
+  hash: string;
   date: string;
-  amount: number;
   account: number;
-  description: string;
+  kind: 'debit' | 'credit';
+  amount: number;
+  content: string;
   info?: string;
-  labels: ILabelTransaction[];
-}
-
-export interface ITransactions {
-  total: number;
-  items: ITransaction[];
-}
-
-export interface ITransactionForm {
-  kind: string;
-  date: string;
-  content: string;
-  amount: number;
-  labels: Record<string, string>;
-}
-
-export interface ITransactionUpdateForm {
-  name: string;
-  kind: string;
-  date: string;
-  content: string;
-  amount: number;
-  labels: Record<string, string>;
+  recipient?: string;
+  tags: string[];
 }

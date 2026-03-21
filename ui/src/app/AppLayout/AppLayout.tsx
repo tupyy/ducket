@@ -1,87 +1,97 @@
 import * as React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
-  EuiPage,
-  EuiPageBody,
-  EuiHeader,
-  EuiHeaderSection,
-  EuiHeaderSectionItem,
-  EuiHeaderLinks,
-  EuiHeaderLink,
-  EuiFlexGroup,
-  EuiFlexItem,
-  EuiButtonIcon,
-} from '@elastic/eui';
-import { ThemeToggle } from '@app/shared/components/ThemeToggle';
-import { BuildInfo } from '@app/shared/components/BuildInfo';
-import { useTheme } from '@app/shared/contexts/ThemeContext';
+  Brand,
+  Masthead,
+  MastheadBrand,
+  MastheadContent,
+  MastheadMain,
+  MastheadToggle,
+  Nav,
+  NavItem,
+  NavList,
+  Page,
+  PageSidebar,
+  PageSidebarBody,
+  PageToggleButton,
+  ToolbarContent,
+  ToolbarGroup,
+  ToolbarItem,
+  Toolbar,
+  Label,
+} from '@patternfly/react-core';
+import BarsIcon from '@patternfly/react-icons/dist/esm/icons/bars-icon';
 
-interface IAppLayout {
+interface AppLayoutProps {
   children: React.ReactNode;
 }
 
-const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
-  const { theme } = useTheme();
+const AppLayout: React.FunctionComponent<AppLayoutProps> = ({ children }) => {
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
   const location = useLocation();
 
-  const navigation = [
+  const gitCommit = (typeof process !== 'undefined' && process.env?.GIT_COMMIT) || 'dev';
+
+  const routes = [
+    { path: '/', label: 'Dashboard' },
     { path: '/transactions', label: 'Transactions' },
-    { path: '/transactions/upload', label: 'Upload' },
     { path: '/rules', label: 'Rules' },
-    { path: '/labels', label: 'Labels' },
+    { path: '/import', label: 'Import' },
   ];
 
-  const header = (
-    <EuiHeader position="fixed">
-      <EuiHeaderSection grow={false}>
-        <EuiHeaderSectionItem>
-          <EuiHeaderLinks>
-            {navigation.map((item) => (
-              <EuiHeaderLink
-                key={item.path}
-                href={item.path}
-                isActive={location.pathname.startsWith(item.path)}
-              >
-                <NavLink 
-                  to={item.path} 
-                  style={{ textDecoration: 'none', color: 'inherit' }}
-                >
-                  {item.label}
-                </NavLink>
-              </EuiHeaderLink>
-            ))}
-          </EuiHeaderLinks>
-        </EuiHeaderSectionItem>
-      </EuiHeaderSection>
+  const headerToolbar = (
+    <Toolbar id="header-toolbar" isFullHeight isStatic>
+      <ToolbarContent>
+        <ToolbarGroup align={{ default: 'alignEnd' }}>
+          <ToolbarItem>
+            <Label isCompact>{gitCommit}</Label>
+          </ToolbarItem>
+        </ToolbarGroup>
+      </ToolbarContent>
+    </Toolbar>
+  );
 
-      <EuiHeaderSection side="right">
-        <EuiHeaderSectionItem>
-          <EuiFlexGroup gutterSize="s" alignItems="center">
-            <EuiFlexItem grow={false}>
-              <BuildInfo />
-            </EuiFlexItem>
-            <EuiFlexItem grow={false}>
-              <ThemeToggle iconOnly={true} />
-            </EuiFlexItem>
-          </EuiFlexGroup>
-        </EuiHeaderSectionItem>
-      </EuiHeaderSection>
-    </EuiHeader>
+  const masthead = (
+    <Masthead>
+      <MastheadToggle>
+        <PageToggleButton
+          variant="plain"
+          aria-label="Global navigation"
+          isSidebarOpen={isSidebarOpen}
+          onSidebarToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+        >
+          <BarsIcon />
+        </PageToggleButton>
+      </MastheadToggle>
+      <MastheadMain>
+        <MastheadBrand data-codemods>Finante</MastheadBrand>
+      </MastheadMain>
+      <MastheadContent>{headerToolbar}</MastheadContent>
+    </Masthead>
+  );
+
+  const navigation = (
+    <Nav aria-label="Global">
+      <NavList>
+        {routes.map((route) => (
+          <NavItem key={route.path} isActive={location.pathname === route.path}>
+            <NavLink to={route.path}>{route.label}</NavLink>
+          </NavItem>
+        ))}
+      </NavList>
+    </Nav>
+  );
+
+  const sidebar = (
+    <PageSidebar isSidebarOpen={isSidebarOpen}>
+      <PageSidebarBody>{navigation}</PageSidebarBody>
+    </PageSidebar>
   );
 
   return (
-    <EuiPage paddingSize="none">
-      {header}
-      <EuiPageBody 
-        panelled={false} 
-        paddingSize="none" 
-        style={{ paddingTop: '48px' }} // Add space for fixed header
-      >
-        <main>
-          {children}
-        </main>
-      </EuiPageBody>
-    </EuiPage>
+    <Page masthead={masthead} sidebar={sidebar}>
+      {children}
+    </Page>
   );
 };
 

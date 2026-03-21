@@ -1,255 +1,104 @@
 import * as React from 'react';
 import {
-  EuiInMemoryTable,
-  EuiBasicTableColumn,
-  EuiTableActionsColumnType,
-  EuiFlexGroup,
-  EuiFlexItem,
-  EuiBadge,
-  EuiText,
-  EuiEmptyPrompt,
-  EuiFieldText,
-  EuiSpacer,
-  EuiPanel,
-  EuiFormRow,
-  EuiButton,
-  EuiButtonIcon,
-  EuiLoadingSpinner,
-  EuiToolTip,
-} from '@elastic/eui';
+  Title,
+  Toolbar,
+  ToolbarContent,
+  ToolbarItem,
+  Button,
+  Label,
+  EmptyState,
+  EmptyStateBody,
+  EmptyStateActions,
+  EmptyStateFooter,
+  Content,
+} from '@patternfly/react-core';
+import { PencilAltIcon, TrashIcon } from '@patternfly/react-icons';
+import { Table, Thead, Tr, Th, Tbody, Td } from '@patternfly/react-table';
 import { IRule } from '@app/shared/models/rule';
-import { ILabel } from '@app/shared/models/label';
-import { useTheme } from '@app/shared/contexts/ThemeContext';
 
-export interface IRuleListProps {
-  rules: Array<IRule> | [];
-  showCreateRuleFormCB: () => void;
-  showEditRuleFormCB: (rule: IRule) => void;
-  onSyncRule: (ruleName: string) => void;
-  onSyncAllRules: () => void;
-  onDeleteRule: (ruleName: string) => void;
-  syncing?: boolean;
-  syncingAll?: boolean;
+interface RulesListProps {
+  rules: IRule[];
+  loading: boolean;
+  onCreateRule: () => void;
+  onEditRule: (rule: IRule) => void;
+  onDeleteRule: (id: number) => void;
 }
 
-interface RuleFilters {
-  name: string;
-  pattern: string;
-}
-
-const RulesList: React.FunctionComponent<IRuleListProps> = ({
+const RulesList: React.FunctionComponent<RulesListProps> = ({
   rules,
-  showCreateRuleFormCB,
-  showEditRuleFormCB,
-  onSyncRule,
-  onSyncAllRules,
+  loading,
+  onCreateRule,
+  onEditRule,
   onDeleteRule,
-  syncing = false,
-  syncingAll = false,
 }) => {
-  const { theme } = useTheme();
-  const [filters, setFilters] = React.useState<RuleFilters>({ name: '', pattern: '' });
-
-  const filteredRules = React.useMemo(() => {
-    return rules.filter((rule) => {
-      const nameMatch = !filters.name || rule.name.toLowerCase().includes(filters.name.toLowerCase());
-      const patternMatch = !filters.pattern || rule.pattern.toLowerCase().includes(filters.pattern.toLowerCase());
-      return nameMatch && patternMatch;
-    });
-  }, [rules, filters]);
-
-  const renderLabelsCell = (labels: ILabel[] | undefined) => {
-    if (!labels || labels.length === 0) {
-      return <EuiText size="s" color="subdued">No labels</EuiText>;
-    }
-
+  if (rules.length === 0 && !loading) {
     return (
-      <EuiFlexGroup gutterSize="xs" wrap>
-        {labels.map((label: ILabel, idx: number) => (
-          <EuiFlexItem grow={false} key={`label-${idx}`}>
-            <EuiBadge color="hollow">
-              {label.key}={label.value}
-            </EuiBadge>
-          </EuiFlexItem>
-        ))}
-      </EuiFlexGroup>
-    );
-  };
-
-  const actions: EuiTableActionsColumnType<IRule>['actions'] = [
-    {
-      name: 'Edit',
-      description: 'Edit this rule',
-      icon: 'pencil',
-      type: 'icon',
-      onClick: (rule) => showEditRuleFormCB(rule),
-    },
-    {
-      name: 'Sync',
-      description: 'Sync this rule',
-      icon: 'refresh',
-      type: 'icon',
-      onClick: (rule) => onSyncRule(rule.name),
-      enabled: () => !syncing,
-    },
-    {
-      name: 'Delete',
-      description: 'Delete this rule',
-      icon: 'trash',
-      type: 'icon',
-      color: 'danger',
-      onClick: (rule) => onDeleteRule(rule.name),
-      enabled: () => !syncing,
-    },
-  ];
-
-  const columns: Array<EuiBasicTableColumn<IRule>> = [
-    {
-      field: 'name',
-      name: 'Name',
-      sortable: true,
-      render: (name: string) => (
-        <EuiText size="s" style={{ fontWeight: 'bold' }}>
-          {name}
-        </EuiText>
-      ),
-      width: '200px',
-    },
-    {
-      field: 'pattern',
-      name: 'Pattern',
-      sortable: true,
-      render: (pattern: string) => (
-        <EuiText size="s" style={{ fontFamily: 'monospace', maxWidth: '300px' }}>
-          {pattern}
-        </EuiText>
-      ),
-    },
-    {
-      field: 'labels',
-      name: 'Labels',
-      render: (labels: ILabel[] | undefined) => renderLabelsCell(labels),
-    },
-    {
-      field: 'transactionCount',
-      name: 'Transactions',
-      sortable: true,
-      render: (count: number) => (
-        <EuiBadge color={count > 0 ? 'success' : 'default'}>
-          {count || 0}
-        </EuiBadge>
-      ),
-      width: '120px',
-    },
-  ];
-
-  const actionsColumn: EuiTableActionsColumnType<IRule> = {
-    actions,
-    width: '120px',
-  };
-
-  const allColumns = [...columns, actionsColumn];
-
-  const renderToolbar = () => (
-    <EuiPanel paddingSize="s">
-      <EuiFlexGroup gutterSize="s" alignItems="flexEnd">
-        <EuiFlexItem style={{ minWidth: '200px' }}>
-          <EuiFormRow label="Filter by Name">
-            <EuiFieldText
-              placeholder="Enter rule name to filter..."
-              value={filters.name}
-              onChange={(e) => setFilters(prev => ({ ...prev, name: e.target.value }))}
-              compressed
-            />
-          </EuiFormRow>
-        </EuiFlexItem>
-
-        <EuiFlexItem style={{ minWidth: '200px' }}>
-          <EuiFormRow label="Filter by Pattern">
-            <EuiFieldText
-              placeholder="Enter pattern to filter..."
-              value={filters.pattern}
-              onChange={(e) => setFilters(prev => ({ ...prev, pattern: e.target.value }))}
-              compressed
-            />
-          </EuiFormRow>
-        </EuiFlexItem>
-
-        <EuiFlexItem grow={false}>
-          <EuiFormRow hasEmptyLabelSpace>
-            <EuiButton size="s" onClick={() => setFilters({ name: '', pattern: '' })}>
-              Clear Filters
-            </EuiButton>
-          </EuiFormRow>
-        </EuiFlexItem>
-
-        <EuiFlexItem grow={false}>
-          <EuiFormRow hasEmptyLabelSpace>
-            <EuiButton size="s" fill onClick={showCreateRuleFormCB}>
+      <EmptyState titleText="No rules" headingLevel="h2">
+        <EmptyStateBody>Create your first rule to automatically tag transactions.</EmptyStateBody>
+        <EmptyStateFooter>
+          <EmptyStateActions>
+            <Button variant="primary" onClick={onCreateRule}>
               Create Rule
-            </EuiButton>
-          </EuiFormRow>
-        </EuiFlexItem>
-
-        <EuiFlexItem grow={false}>
-          <EuiFormRow hasEmptyLabelSpace>
-            <EuiButton 
-              size="s" 
-              onClick={onSyncAllRules}
-              isLoading={syncingAll}
-              isDisabled={syncingAll || syncing}
-            >
-              Sync All Rules
-            </EuiButton>
-          </EuiFormRow>
-        </EuiFlexItem>
-      </EuiFlexGroup>
-    </EuiPanel>
-  );
-
-  const pagination = {
-    pageIndex: 0,
-    pageSize: 10,
-    totalItemCount: filteredRules.length,
-    showPerPageOptions: true,
-    pageSizeOptions: [10, 20, 50],
-  };
-
-  const sorting = {
-    sort: {
-      field: 'name' as keyof IRule,
-      direction: 'asc' as const,
-    },
-  };
-
-  if (rules.length === 0) {
-    return (
-      <EuiEmptyPrompt
-        icon="gear"
-        title={<h2>No rules</h2>}
-        body={<p>Create your first rule to automatically label transactions</p>}
-        actions={
-          <EuiButton fill onClick={showCreateRuleFormCB}>
-            Create Rule
-          </EuiButton>
-        }
-      />
+            </Button>
+          </EmptyStateActions>
+        </EmptyStateFooter>
+      </EmptyState>
     );
   }
 
   return (
     <>
-      {renderToolbar()}
-      <EuiSpacer size="m" />
-      
-      <EuiInMemoryTable
-        items={filteredRules}
-        columns={allColumns}
-        pagination={pagination}
-        sorting={sorting}
-        loading={syncing}
-        message={filteredRules.length === 0 ? "No rules match your filters" : undefined}
-      />
+      <Title headingLevel="h1" size="lg" style={{ marginBottom: '1rem' }}>
+        Rules
+      </Title>
+
+      <Toolbar>
+        <ToolbarContent>
+          <ToolbarItem>
+            <Button variant="primary" onClick={onCreateRule}>
+              Create Rule
+            </Button>
+          </ToolbarItem>
+        </ToolbarContent>
+      </Toolbar>
+
+      <Table aria-label="Rules table" variant="compact">
+        <Thead>
+          <Tr>
+            <Th width={20}>Name</Th>
+            <Th width={30}>Filter</Th>
+            <Th>Tags</Th>
+            <Th width={15}>Actions</Th>
+          </Tr>
+        </Thead>
+        <Tbody>
+          {rules.map((rule) => (
+            <Tr key={rule.id}>
+              <Td dataLabel="Name">
+                <Content component="p" style={{ fontWeight: 'bold' }}>{rule.name}</Content>
+              </Td>
+              <Td dataLabel="Filter">
+                <code>{rule.filter}</code>
+              </Td>
+              <Td dataLabel="Tags">
+                {rule.tags.map((tag, i) => (
+                  <Label key={i} color="teal" isCompact style={{ marginRight: 4, marginBottom: 2 }}>
+                    {tag}
+                  </Label>
+                ))}
+              </Td>
+              <Td dataLabel="Actions">
+                <Button variant="plain" aria-label="Edit" onClick={() => onEditRule(rule)}>
+                  <PencilAltIcon />
+                </Button>
+                <Button variant="plain" aria-label="Delete" onClick={() => onDeleteRule(rule.id)}>
+                  <TrashIcon />
+                </Button>
+              </Td>
+            </Tr>
+          ))}
+        </Tbody>
+      </Table>
     </>
   );
 };

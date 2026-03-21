@@ -34,6 +34,9 @@ type ServerInterface interface {
 	// Create a new transaction
 	// (POST /transactions)
 	CreateTransaction(c *gin.Context)
+	// Import transactions from CSV or Excel files
+	// (POST /transactions/import)
+	ImportTransactions(c *gin.Context)
 	// Delete a transaction
 	// (DELETE /transactions/{id})
 	DeleteTransaction(c *gin.Context, id int64)
@@ -213,6 +216,14 @@ func (siw *ServerInterfaceWrapper) ListTransactions(c *gin.Context) {
 		return
 	}
 
+	// ------------- Optional query parameter "sort" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "sort", c.Request.URL.Query(), &params.Sort)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter sort: %w", err), http.StatusBadRequest)
+		return
+	}
+
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
 		if c.IsAborted() {
@@ -234,6 +245,19 @@ func (siw *ServerInterfaceWrapper) CreateTransaction(c *gin.Context) {
 	}
 
 	siw.Handler.CreateTransaction(c)
+}
+
+// ImportTransactions operation middleware
+func (siw *ServerInterfaceWrapper) ImportTransactions(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ImportTransactions(c)
 }
 
 // DeleteTransaction operation middleware
@@ -342,6 +366,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.PUT(options.BaseURL+"/rules/:id", wrapper.UpdateRule)
 	router.GET(options.BaseURL+"/transactions", wrapper.ListTransactions)
 	router.POST(options.BaseURL+"/transactions", wrapper.CreateTransaction)
+	router.POST(options.BaseURL+"/transactions/import", wrapper.ImportTransactions)
 	router.DELETE(options.BaseURL+"/transactions/:id", wrapper.DeleteTransaction)
 	router.GET(options.BaseURL+"/transactions/:id", wrapper.GetTransaction)
 	router.PUT(options.BaseURL+"/transactions/:id", wrapper.UpdateTransaction)

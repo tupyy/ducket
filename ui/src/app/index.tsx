@@ -1,19 +1,19 @@
 import * as React from 'react';
-// EUI themes are handled by EuiProvider in ThemeContext
+import '@patternfly/patternfly/patternfly.css';
 import { BrowserRouter as Router } from 'react-router-dom';
+import { Provider } from 'react-redux';
+import store from '@app/shared/store';
 import { AppLayout } from '@app/AppLayout/AppLayout';
 import { AppRoutes } from '@app/routes';
-import { ThemeProvider } from '@app/shared/contexts/ThemeContext';
-import '@app/app.css';
 
 const App: React.FunctionComponent = () => (
-  <ThemeProvider defaultTheme="light">
+  <Provider store={store}>
     <Router>
       <AppLayout>
         <AppRoutes />
       </AppLayout>
     </Router>
-  </ThemeProvider>
+  </Provider>
 );
 
 export default App;

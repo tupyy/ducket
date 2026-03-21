@@ -1,55 +1,55 @@
 import axios from 'axios';
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { serializeAxiosError } from '@app/shared/reducers/reducer.utils';
-import { IImportResponse, IImportResult, IImportSummary } from '@app/shared/models/import';
 
-const importApiUrl = 'api/v1/transactions/import';
+const apiUrl = 'api/v1/transactions/import';
 
-const initialState = {
+interface FileResult {
+  filename: string;
+  created: number;
+  skipped: number;
+  errors: number;
+}
+
+interface ImportResponse {
+  files: FileResult[];
+  message: string;
+}
+
+interface ImportState {
+  loading: boolean;
+  errorMessage: string;
+  results: FileResult[];
+  message: string;
+}
+
+const initialState: ImportState = {
   loading: false,
   errorMessage: '',
-  importSuccess: false,
-  results: [] as IImportResult[],
-  summary: null as IImportSummary | null,
-  lastImportMessage: '',
+  results: [],
+  message: '',
 };
 
 export const importFiles = createAsyncThunk(
   'import/files',
-  async (files: File[]) => {
+  async (params: { files: File[]; account: number }) => {
     const formData = new FormData();
+    params.files.forEach((file) => formData.append('files', file));
+    formData.append('account', params.account.toString());
 
-    // Append all files to the form data
-    files.forEach((file) => {
-      formData.append('files', file);
+    return axios.post<ImportResponse>(apiUrl, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
-
-    const response = await axios.post<IImportResponse>(importApiUrl, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-
-    return response.data;
   },
   { serializeError: serializeAxiosError },
 );
 
-export type ImportState = Readonly<typeof initialState>;
-
 export const ImportSlice = createSlice({
   name: 'import',
-  initialState: initialState as ImportState,
+  initialState,
   reducers: {
-    reset() {
+    resetImport() {
       return initialState;
-    },
-    clearResults(state) {
-      state.results = [];
-      state.summary = null;
-      state.lastImportMessage = '';
-      state.importSuccess = false;
-      state.errorMessage = '';
     },
   },
   extraReducers(builder) {
@@ -57,23 +57,21 @@ export const ImportSlice = createSlice({
       .addCase(importFiles.pending, (state) => {
         state.loading = true;
         state.errorMessage = '';
-        state.importSuccess = false;
+        state.results = [];
+        state.message = '';
       })
       .addCase(importFiles.rejected, (state, action) => {
         state.loading = false;
         state.errorMessage = action.error.message || 'Failed to import files';
-        state.importSuccess = false;
       })
       .addCase(importFiles.fulfilled, (state, action) => {
         state.loading = false;
         state.errorMessage = '';
-        state.importSuccess = action.payload.success;
-        state.results = action.payload.results;
-        state.summary = action.payload.summary;
-        state.lastImportMessage = action.payload.message;
+        state.results = action.payload.data.files;
+        state.message = action.payload.data.message;
       });
   },
 });
 
-export const { reset, clearResults } = ImportSlice.actions;
+export const { resetImport } = ImportSlice.actions;
 export default ImportSlice.reducer;

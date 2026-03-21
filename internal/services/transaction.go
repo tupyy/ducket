@@ -17,8 +17,8 @@ func NewTransactionService(st *store.Store) *TransactionService {
 	return &TransactionService{st: st}
 }
 
-func (t *TransactionService) List(ctx context.Context, filter string, limit, offset int) ([]entity.Transaction, error) {
-	return t.st.ListTransactions(ctx, filter, limit, offset)
+func (t *TransactionService) List(ctx context.Context, filter string, tags []string, sort []store.SortParam, limit, offset int) ([]entity.Transaction, int, error) {
+	return t.st.ListTransactions(ctx, filter, tags, sort, limit, offset)
 }
 
 func (t *TransactionService) Get(ctx context.Context, id int64) (*entity.Transaction, error) {

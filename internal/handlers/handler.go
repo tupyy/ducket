@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 
 	v1 "git.tls.tupangiu.ro/cosmin/finante/api/v1"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
 	"git.tls.tupangiu.ro/cosmin/finante/internal/services"
+	"git.tls.tupangiu.ro/cosmin/finante/internal/store"
 	srvErrors "git.tls.tupangiu.ro/cosmin/finante/pkg/errors"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -22,20 +24,50 @@ func NewHandler(txnSvc *services.TransactionService, ruleSvc *services.RuleServi
 
 // -- Transactions --
 
+var validTransactionSortFields = map[string]bool{
+	"date":    true,
+	"amount":  true,
+	"kind":    true,
+	"account": true,
+}
+
 func (h *Handler) ListTransactions(c *gin.Context, params v1.ListTransactionsParams) {
 	filter, limit, offset := extractListParams(params.Filter, params.Limit, params.Offset)
 
-	txns, err := h.txnSvc.List(c.Request.Context(), filter, limit, offset)
+	var sortParams []store.SortParam
+	if params.Sort != nil {
+		for _, s := range *params.Sort {
+			parts := strings.SplitN(s, ":", 2)
+			if len(parts) != 2 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid sort format, expected 'field:direction' (e.g., 'date:desc')"})
+				return
+			}
+			field, direction := parts[0], parts[1]
+			if !validTransactionSortFields[field] {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid sort field: " + field})
+				return
+			}
+			if direction != "asc" && direction != "desc" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid sort direction: " + direction + ", must be 'asc' or 'desc'"})
+				return
+			}
+			sortParams = append(sortParams, store.SortParam{Field: field, Desc: direction == "desc"})
+		}
+	}
+
+	tags := c.QueryArray("tags")
+
+	txns, total, err := h.txnSvc.List(c.Request.Context(), filter, tags, sortParams, limit, offset)
 	if err != nil {
 		handleError(c, err)
 		return
 	}
 
-	result := make([]v1.Transaction, 0, len(txns))
+	items := make([]v1.Transaction, 0, len(txns))
 	for _, t := range txns {
-		result = append(result, v1.NewTransactionFromEntity(t))
+		items = append(items, v1.NewTransactionFromEntity(t))
 	}
-	c.JSON(http.StatusOK, result)
+	c.JSON(http.StatusOK, v1.TransactionList{Items: items, Total: total})
 }
 
 func (h *Handler) GetTransaction(c *gin.Context, id int64) {

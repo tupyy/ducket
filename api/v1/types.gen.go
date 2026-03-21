@@ -5,6 +5,8 @@ package v1
 
 import (
 	"time"
+
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 // Defines values for TransactionKind.
@@ -29,6 +31,20 @@ type CreateTransactionRequest struct {
 	Info      *string         `json:"info,omitempty"`
 	Kind      TransactionKind `json:"kind"`
 	Recipient *string         `json:"recipient,omitempty"`
+}
+
+// ImportFileResult defines model for ImportFileResult.
+type ImportFileResult struct {
+	Created  int    `json:"created"`
+	Errors   int    `json:"errors"`
+	Filename string `json:"filename"`
+	Skipped  int    `json:"skipped"`
+}
+
+// ImportResponse defines model for ImportResponse.
+type ImportResponse struct {
+	Files   []ImportFileResult `json:"files"`
+	Message string             `json:"message"`
 }
 
 // Rule defines model for Rule.
@@ -56,6 +72,14 @@ type Transaction struct {
 
 // TransactionKind defines model for TransactionKind.
 type TransactionKind string
+
+// TransactionList defines model for TransactionList.
+type TransactionList struct {
+	Items []Transaction `json:"items"`
+
+	// Total Total number of matching transactions (before pagination)
+	Total int `json:"total"`
+}
 
 // UpdateRuleRequest defines model for UpdateRuleRequest.
 type UpdateRuleRequest struct {
@@ -89,6 +113,16 @@ type ListTransactionsParams struct {
 	Filter *string `form:"filter,omitempty" json:"filter,omitempty"`
 	Limit  *int    `form:"limit,omitempty" json:"limit,omitempty"`
 	Offset *int    `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// Sort Sort fields with direction (e.g., "date:desc" or "amount:asc"). Valid fields: date, amount, kind, account.
+	Sort *[]string `form:"sort,omitempty" json:"sort,omitempty"`
+}
+
+// ImportTransactionsMultipartBody defines parameters for ImportTransactions.
+type ImportTransactionsMultipartBody struct {
+	// Account Account number to assign to CSV imports
+	Account *int64               `json:"account,omitempty"`
+	Files   []openapi_types.File `json:"files"`
 }
 
 // CreateRuleJSONRequestBody defines body for CreateRule for application/json ContentType.
@@ -99,6 +133,9 @@ type UpdateRuleJSONRequestBody = UpdateRuleRequest
 
 // CreateTransactionJSONRequestBody defines body for CreateTransaction for application/json ContentType.
 type CreateTransactionJSONRequestBody = CreateTransactionRequest
+
+// ImportTransactionsMultipartRequestBody defines body for ImportTransactions for multipart/form-data ContentType.
+type ImportTransactionsMultipartRequestBody ImportTransactionsMultipartBody
 
 // UpdateTransactionJSONRequestBody defines body for UpdateTransaction for application/json ContentType.
 type UpdateTransactionJSONRequestBody = UpdateTransactionRequest

@@ -13,26 +13,76 @@ import (
 
 const NoFilter = ""
 
+type SortParam struct {
+	Field string
+	Desc  bool
+}
+
+var txnSortColumns = map[string]string{
+	"date":    "t.date",
+	"amount":  "t.amount",
+	"kind":    "t.kind",
+	"account": "t.account",
+}
+
 var txnBaseColumns = []string{
 	"t.id", "t.hash", "t.date", "t.account", "t.kind",
 	"t.amount", "t.content", "t.info", "t.recipient",
 }
 
-func (s *Store) ListTransactions(ctx context.Context, filter string, limit, offset int) ([]entity.Transaction, error) {
-	q, tagCTE, tagArgs, err := s.taggedQuery(ctx)
+func (s *Store) ListTransactions(ctx context.Context, filter string, tags []string, sort []SortParam, limit, offset int) ([]entity.Transaction, int, error) {
+	q, tagCTE, tagArgs, err := s.taggedQuery(ctx, tags)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	q = q.OrderBy("t.date DESC", "t.id DESC")
-
+	// Apply filter DSL
 	if filter != "" {
 		sqlizer, err := ParseTransactionFilter(filter)
 		if err != nil {
-			return nil, fmt.Errorf("invalid filter: %w", err)
+			return nil, 0, fmt.Errorf("invalid filter: %w", err)
 		}
 		q = q.Where(sqlizer)
 	}
+
+	// Build the count query from the same base (before sort/pagination)
+	countSQL, countSelectArgs, err := q.RemoveColumns().Columns("COUNT(*)").RemoveLimit().RemoveOffset().ToSql()
+	if err != nil {
+		return nil, 0, err
+	}
+	if tagCTE != "" {
+		countSQL = "WITH " + tagCTE + " " + countSQL
+	}
+	countAllArgs := make([]any, 0, len(tagArgs)+len(countSelectArgs))
+	countAllArgs = append(countAllArgs, tagArgs...)
+	countAllArgs = append(countAllArgs, countSelectArgs...)
+
+	var total int
+	if err := s.qi.QueryRowContext(ctx, countSQL, countAllArgs...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	// Apply sort
+	if len(sort) > 0 {
+		var orderClauses []string
+		for _, s := range sort {
+			col, ok := txnSortColumns[s.Field]
+			if !ok {
+				continue
+			}
+			if s.Desc {
+				orderClauses = append(orderClauses, col+" DESC")
+			} else {
+				orderClauses = append(orderClauses, col+" ASC")
+			}
+		}
+		orderClauses = append(orderClauses, "t.id DESC")
+		q = q.OrderBy(orderClauses...)
+	} else {
+		q = q.OrderBy("t.date DESC", "t.id DESC")
+	}
+
+	// Apply pagination
 	if limit > 0 {
 		q = q.Limit(uint64(limit))
 	}
@@ -42,15 +92,16 @@ func (s *Store) ListTransactions(ctx context.Context, filter string, limit, offs
 
 	rows, err := s.execTaggedQuery(ctx, q, tagCTE, tagArgs)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
-	return scanTransactions(rows)
+	txns, err := scanTransactions(rows)
+	return txns, total, err
 }
 
 func (s *Store) GetTransaction(ctx context.Context, id int64) (*entity.Transaction, error) {
-	q, tagCTE, tagArgs, err := s.taggedQuery(ctx)
+	q, tagCTE, tagArgs, err := s.taggedQuery(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +125,7 @@ func (s *Store) GetTransaction(ctx context.Context, id int64) (*entity.Transacti
 }
 
 func (s *Store) GetTransactionByHash(ctx context.Context, hash string) (*entity.Transaction, error) {
-	q, tagCTE, tagArgs, err := s.taggedQuery(ctx)
+	q, tagCTE, tagArgs, err := s.taggedQuery(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -206,13 +257,23 @@ func buildTagCTE(rules []entity.Rule) (string, []any) {
 	return cte, allArgs
 }
 
-// taggedQuery builds a SELECT with optional tag CTE. When rules exist, it joins
-// the dynamically-built rule_tags CTE. When no rules exist, it selects an empty
-// array literal for tags and skips the CTE entirely.
-func (s *Store) taggedQuery(ctx context.Context) (sq.SelectBuilder, string, []any, error) {
+// taggedQuery builds a SELECT with optional tag CTE. When filterTags is non-empty,
+// only rules producing those tags are included and an INNER JOIN is used so only
+// matching transactions are returned. Otherwise all rules are used with a LEFT JOIN.
+func (s *Store) taggedQuery(ctx context.Context, filterTags []string) (sq.SelectBuilder, string, []any, error) {
 	rules, err := s.ListRules(ctx, NoFilter, 0, 0)
 	if err != nil {
 		return sq.SelectBuilder{}, "", nil, err
+	}
+
+	if len(filterTags) > 0 {
+		var filtered []entity.Rule
+		for _, r := range rules {
+			if ruleHasAllTags(r, filterTags) {
+				filtered = append(filtered, r)
+			}
+		}
+		rules = filtered
 	}
 
 	tagCTE, tagArgs := buildTagCTE(rules)
@@ -224,13 +285,30 @@ func (s *Store) taggedQuery(ctx context.Context) (sq.SelectBuilder, string, []an
 
 	if tagCTE != "" {
 		cols = append(cols, "COALESCE(rt.tags, []::VARCHAR[]) AS tags")
-		q = q.Columns(cols...).LeftJoin("rule_tags rt ON rt.transaction_id = t.id")
+		if len(filterTags) > 0 {
+			q = q.Columns(cols...).Join("rule_tags rt ON rt.transaction_id = t.id")
+		} else {
+			q = q.Columns(cols...).LeftJoin("rule_tags rt ON rt.transaction_id = t.id")
+		}
 	} else {
 		cols = append(cols, "[]::VARCHAR[] AS tags")
 		q = q.Columns(cols...)
 	}
 
 	return q, tagCTE, tagArgs, nil
+}
+
+func ruleHasAllTags(r entity.Rule, required []string) bool {
+	tagSet := make(map[string]bool, len(r.Tags))
+	for _, t := range r.Tags {
+		tagSet[t] = true
+	}
+	for _, req := range required {
+		if !tagSet[req] {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *Store) execTaggedQuery(ctx context.Context, q sq.SelectBuilder, tagCTE string, tagArgs []any) (*sql.Rows, error) {
