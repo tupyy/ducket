@@ -52,8 +52,8 @@ type ServerInterface interface {
 	// Get a transaction by ID
 	// (GET /transactions/{id})
 	GetTransaction(c *gin.Context, id int64)
-	// Update a transaction
-	// (PUT /transactions/{id})
+	// Update a transaction's info field
+	// (PATCH /transactions/{id})
 	UpdateTransaction(c *gin.Context, id int64)
 }
 
@@ -459,5 +459,5 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.POST(options.BaseURL+"/transactions/import", wrapper.ImportTransactions)
 	router.DELETE(options.BaseURL+"/transactions/:id", wrapper.DeleteTransaction)
 	router.GET(options.BaseURL+"/transactions/:id", wrapper.GetTransaction)
-	router.PUT(options.BaseURL+"/transactions/:id", wrapper.UpdateTransaction)
+	router.PATCH(options.BaseURL+"/transactions/:id", wrapper.UpdateTransaction)
 }

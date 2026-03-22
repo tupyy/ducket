@@ -62,6 +62,12 @@ func (t *TransactionService) Update(ctx context.Context, txn entity.Transaction)
 	})
 }
 
+func (t *TransactionService) UpdateInfo(ctx context.Context, id int64, info *string) error {
+	return t.st.WithTx(ctx, func(ctx context.Context) error {
+		return t.st.UpdateTransactionInfo(ctx, id, info)
+	})
+}
+
 func (t *TransactionService) Delete(ctx context.Context, id int64) error {
 	return t.st.WithTx(ctx, func(ctx context.Context) error {
 		return t.st.DeleteTransaction(ctx, id)

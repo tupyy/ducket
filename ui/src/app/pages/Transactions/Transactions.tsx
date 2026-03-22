@@ -12,20 +12,39 @@ import {
   Bullseye,
   Label,
   LabelGroup,
-  Content
+  Content,
+  Dropdown,
+  DropdownItem,
+  DropdownList,
+  MenuToggle,
+  type MenuToggleElement,
+  Modal,
+  ModalVariant,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+  Form,
+  FormGroup,
+  TextArea,
 } from '@patternfly/react-core';
+import { EllipsisVIcon } from '@patternfly/react-icons';
 import { Table, Thead, Tr, Th, Tbody, Td, ThProps } from '@patternfly/react-table';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
 import {
   getTransactions, setPage, setPerPage, setFilter, setSort,
   addTag, removeTag,
   addAccount, removeAccount, toggleKind,
-  buildCompositeFilter,
+  buildCompositeFilter, updateTransactionInfo,
 } from '@app/shared/reducers/transaction.reducer';
+import { ITransaction } from '@app/shared/models/transaction';
 import { TransactionFilter } from './TransactionFilter';
 
 const Transactions: React.FunctionComponent = () => {
   const dispatch = useAppDispatch();
+  const [openMenuId, setOpenMenuId] = React.useState<number | null>(null);
+  const [editTransaction, setEditTransaction] = React.useState<ITransaction | null>(null);
+  const [editInfo, setEditInfo] = React.useState('');
   const { transactions, loading, total, page, perPage, filter, selectedTags, selectedAccounts, selectedKind, sort, errorMessage } = useAppSelector(
     (state) => state.transactions,
   );
@@ -171,8 +190,10 @@ const Transactions: React.FunctionComponent = () => {
                 <Th width={10} sort={getSortParams('account')}>Account</Th>
                 <Th width={10} sort={getSortParams('kind')}>Type</Th>
                 <Th>Content</Th>
+                <Th>Info</Th>
                 <Th width={15}>Tags</Th>
                 <Th width={10} sort={getSortParams('amount')}>Amount</Th>
+                <Th width={10}></Th>
               </Tr>
             </Thead>
             <Tbody>
@@ -203,6 +224,16 @@ const Transactions: React.FunctionComponent = () => {
                       {txn.content}
                     </Content>
                   </Td>
+                  <Td dataLabel="Info">
+                    {txn.info && (
+                      <Content
+                        component="p"
+                        style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      >
+                        {txn.info}
+                      </Content>
+                    )}
+                  </Td>
                   <Td dataLabel="Tags">
                     {txn.tags.map((tag, i) => (
                       <Label
@@ -217,6 +248,36 @@ const Transactions: React.FunctionComponent = () => {
                   </Td>
                   <Td dataLabel="Amount" style={{ fontFamily: 'monospace' }}>
                     €{txn.amount.toFixed(2)}
+                  </Td>
+                  <Td isActionCell>
+                    <Dropdown
+                      isOpen={openMenuId === txn.id}
+                      onOpenChange={(isOpen) => setOpenMenuId(isOpen ? txn.id : null)}
+                      toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+                        <MenuToggle
+                          ref={toggleRef}
+                          variant="plain"
+                          onClick={() => setOpenMenuId(openMenuId === txn.id ? null : txn.id)}
+                          isExpanded={openMenuId === txn.id}
+                        >
+                          <EllipsisVIcon />
+                        </MenuToggle>
+                      )}
+                      popperProps={{ position: 'right' }}
+                    >
+                      <DropdownList>
+                        <DropdownItem
+                          key="edit-info"
+                          onClick={() => {
+                            setEditTransaction(txn);
+                            setEditInfo(txn.info || '');
+                            setOpenMenuId(null);
+                          }}
+                        >
+                          Edit info
+                        </DropdownItem>
+                      </DropdownList>
+                    </Dropdown>
                   </Td>
                 </Tr>
               ))}
@@ -239,6 +300,42 @@ const Transactions: React.FunctionComponent = () => {
           </Toolbar>
         </>
       )}
+
+      <Modal
+        variant={ModalVariant.small}
+        isOpen={editTransaction !== null}
+        onClose={() => setEditTransaction(null)}
+      >
+        <ModalHeader title="Edit info" />
+        <ModalBody>
+          <Form>
+            <FormGroup label="Info" fieldId="edit-info">
+              <TextArea
+                id="edit-info"
+                value={editInfo}
+                onChange={(_event, value) => setEditInfo(value)}
+                rows={4}
+              />
+            </FormGroup>
+          </Form>
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            variant="primary"
+            onClick={() => {
+              if (editTransaction) {
+                dispatch(updateTransactionInfo({ id: editTransaction.id, info: editInfo }));
+                setEditTransaction(null);
+              }
+            }}
+          >
+            Save
+          </Button>
+          <Button variant="link" onClick={() => setEditTransaction(null)}>
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Modal>
     </PageSection>
   );
 };
