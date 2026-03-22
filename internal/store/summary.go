@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	sq "github.com/Masterminds/squirrel"
@@ -18,10 +17,10 @@ type SummaryOverview struct {
 }
 
 type TagSummary struct {
-	Tag        string
-	TotalDebit float64
+	Tag         string
+	TotalDebit  float64
 	TotalCredit float64
-	Count      int
+	Count       int
 }
 
 type BalanceTrendPoint struct {
@@ -72,41 +71,6 @@ func (s *Store) GetSummaryOverview(ctx context.Context, filter string) (*Summary
 	return &overview, nil
 }
 
-func (s *Store) countUniqueTags(ctx context.Context, filter string) (int, error) {
-	rules, err := s.ListRules(ctx, NoFilter, 0, 0)
-	if err != nil {
-		return 0, err
-	}
-	tagCTE, tagArgs := buildTagCTE(rules)
-	if tagCTE == "" {
-		return 0, nil
-	}
-
-	countQ := sq.Select("COUNT(DISTINCT tag)").
-		From("rule_tags, UNNEST(tags) AS t(tag)").
-		PlaceholderFormat(sq.Question)
-
-	if filter != "" {
-		countQ = countQ.Where("transaction_id IN (SELECT t.id FROM transactions t WHERE " + filter + ")")
-	}
-
-	countSQL, countSelectArgs, err := countQ.ToSql()
-	if err != nil {
-		return 0, err
-	}
-
-	fullSQL := "WITH " + tagCTE + " " + countSQL
-	allArgs := make([]any, 0, len(tagArgs)+len(countSelectArgs))
-	allArgs = append(allArgs, tagArgs...)
-	allArgs = append(allArgs, countSelectArgs...)
-
-	var count int
-	if err := s.qi.QueryRowContext(ctx, fullSQL, allArgs...).Scan(&count); err != nil {
-		return 0, err
-	}
-	return count, nil
-}
-
 func (s *Store) GetTagSummary(ctx context.Context, filter string) ([]TagSummary, error) {
 	rules, err := s.ListRules(ctx, NoFilter, 0, 0)
 	if err != nil {
@@ -117,41 +81,44 @@ func (s *Store) GetTagSummary(ctx context.Context, filter string) ([]TagSummary,
 		return []TagSummary{}, nil
 	}
 
-	var filterClause string
+	q := sq.Select(
+		"u.tag",
+		"COALESCE(SUM(CASE WHEN t.kind='debit' THEN t.amount ELSE 0 END), 0) AS total_debit",
+		"COALESCE(SUM(CASE WHEN t.kind='credit' THEN t.amount ELSE 0 END), 0) AS total_credit",
+		"COUNT(*) AS count",
+	).
+		From("unnested u").
+		Join("transactions t ON t.id = u.transaction_id").
+		GroupBy("u.tag").
+		OrderBy("total_debit DESC").
+		PlaceholderFormat(sq.Question)
+
 	if filter != "" {
 		sqlizer, err := ParseTransactionFilter(filter)
 		if err != nil {
 			return nil, fmt.Errorf("invalid filter: %w", err)
 		}
-		filterSQL, filterArgs, err := sqlizer.ToSql()
-		if err != nil {
-			return nil, err
-		}
-		filterClause = " AND " + filterSQL
-		tagArgs = append(tagArgs, filterArgs...)
+		q = q.Where(sqlizer)
 	}
 
-	query := "WITH " + tagCTE + `, unnested AS (SELECT transaction_id, UNNEST(tags) AS tag FROM rule_tags)
-SELECT u.tag,
-       COALESCE(SUM(CASE WHEN t.kind='debit' THEN t.amount ELSE 0 END), 0) AS total_debit,
-       COALESCE(SUM(CASE WHEN t.kind='credit' THEN t.amount ELSE 0 END), 0) AS total_credit,
-       COUNT(*) AS count
-FROM unnested u
-JOIN transactions t ON t.id = u.transaction_id
-WHERE 1=1` + filterClause + `
-GROUP BY u.tag
-ORDER BY total_debit DESC`
+	query, selectArgs, err := q.ToSql()
+	if err != nil {
+		return nil, err
+	}
 
-	rows, err := s.qi.QueryContext(ctx, query, tagArgs...)
+	fullCTE := tagCTE + ", unnested AS (SELECT transaction_id, UNNEST(tags) AS tag FROM rule_tags)"
+	query = "WITH " + fullCTE + " " + query
+
+	allArgs := make([]any, 0, len(tagArgs)+len(selectArgs))
+	allArgs = append(allArgs, tagArgs...)
+	allArgs = append(allArgs, selectArgs...)
+
+	rows, err := s.qi.QueryContext(ctx, query, allArgs...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	return scanTagSummaries(rows)
-}
-
-func scanTagSummaries(rows *sql.Rows) ([]TagSummary, error) {
 	var results []TagSummary
 	for rows.Next() {
 		var ts TagSummary
@@ -212,3 +179,45 @@ func (s *Store) GetBalanceTrend(ctx context.Context, filter string) ([]BalanceTr
 	return points, rows.Err()
 }
 
+func (s *Store) countUniqueTags(ctx context.Context, filter string) (int, error) {
+	rules, err := s.ListRules(ctx, NoFilter, 0, 0)
+	if err != nil {
+		return 0, err
+	}
+	tagCTE, tagArgs := buildTagCTE(rules)
+	if tagCTE == "" {
+		return 0, nil
+	}
+
+	countQ := sq.Select("COUNT(DISTINCT tag)").
+		From("rule_tags, UNNEST(tags) AS t(tag)").
+		PlaceholderFormat(sq.Question)
+
+	if filter != "" {
+		sqlizer, err := ParseTransactionFilter(filter)
+		if err != nil {
+			return 0, fmt.Errorf("invalid filter: %w", err)
+		}
+		filterSQL, filterArgs, err := sqlizer.ToSql()
+		if err != nil {
+			return 0, err
+		}
+		countQ = countQ.Where("transaction_id IN (SELECT t.id FROM transactions t WHERE "+filterSQL+")", filterArgs...)
+	}
+
+	countSQL, countSelectArgs, err := countQ.ToSql()
+	if err != nil {
+		return 0, err
+	}
+
+	fullSQL := "WITH " + tagCTE + " " + countSQL
+	allArgs := make([]any, 0, len(tagArgs)+len(countSelectArgs))
+	allArgs = append(allArgs, tagArgs...)
+	allArgs = append(allArgs, countSelectArgs...)
+
+	var count int
+	if err := s.qi.QueryRowContext(ctx, fullSQL, allArgs...).Scan(&count); err != nil {
+		return 0, err
+	}
+	return count, nil
+}

@@ -42,94 +42,6 @@
 // Transaction filter fields: id, hash, date, account, kind, amount, content, info, recipient
 // Rule filter fields: id, name, filter
 //
-// Examples:
-//
-//	// All debit transactions in January 2025
-//	store.ListTransactions(ctx, "date >= '2025-01-01' and date < '2025-02-01' and kind = 'debit'", 50, 0)
-//
-//	// Transactions matching a regex on content
-//	store.ListTransactions(ctx, "content ~ /KAUFLAND|LIDL/", 0, 0)
-//
-//	// High-value transactions
-//	store.ListTransactions(ctx, "amount > 1000 and kind = 'debit'", 20, 0)
-//
-//	// Rules by name pattern
-//	store.ListRules(ctx, "name ~ /grocery/", 0, 0)
-//
-// # Dynamic Tag CTE
-//
-// When querying transactions, the store loads all rules and builds a CTE that
-// evaluates each rule's filter against the transactions table. Each rule's filter
-// is parsed into a parameterized WHERE clause via the filter DSL. The results are
-// aggregated so each transaction gets a merged, deduplicated tag array.
-//
-// Given two rules:
-//
-//	Rule 1: filter="content ~ /KAUFLAND|LIDL/"  tags=['food', 'groceries']
-//	Rule 2: filter="content ~ /SHELL|OMV/"      tags=['transport', 'fuel']
-//
-// The generated SQL for ListTransactions(ctx, "kind = 'debit'", 20, 0) is:
-//
-//	WITH rule_matches AS (
-//	    SELECT t.id AS transaction_id, ['food', 'groceries'] AS tags
-//	    FROM transactions t
-//	    WHERE regexp_matches(t.content, ?)
-//	    UNION ALL
-//	    SELECT t.id AS transaction_id, ['transport', 'fuel'] AS tags
-//	    FROM transactions t
-//	    WHERE regexp_matches(t.content, ?)
-//	),
-//	rule_tags AS (
-//	    SELECT transaction_id,
-//	           list_distinct(flatten(list(tags))) AS tags
-//	    FROM rule_matches
-//	    GROUP BY transaction_id
-//	)
-//	SELECT t.id, t.hash, t.date, t.account, t.kind,
-//	       t.amount, t.content, t.info, t.recipient,
-//	       COALESCE(rt.tags, []::VARCHAR[]) AS tags
-//	FROM transactions t
-//	LEFT JOIN rule_tags rt ON rt.transaction_id = t.id
-//	WHERE t.kind = ?
-//	ORDER BY t.date DESC, t.id DESC
-//	LIMIT 20
-//	-- args: ['KAUFLAND|LIDL', 'SHELL|OMV', 'debit']
-//
-// When there are no rules, the CTE is omitted and tags default to an empty array.
-//
-// # CRUD Queries
-//
-// Rule insert:
-//
-//	INSERT INTO rules (name, filter, tags)
-//	VALUES (?, ?, ['food', 'groceries'])
-//	RETURNING id
-//
-// Rule update:
-//
-//	UPDATE rules SET name = ?, filter = ?, tags = ['food', 'groceries']
-//	WHERE id = ?
-//
-// Rule delete:
-//
-//	DELETE FROM rules WHERE id = ?
-//
-// Transaction insert:
-//
-//	INSERT INTO transactions (hash, date, account, kind, amount, content, info, recipient)
-//	VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-//	RETURNING id
-//
-// Transaction update:
-//
-//	UPDATE transactions
-//	SET date = ?, account = ?, kind = ?, amount = ?, content = ?, info = ?, recipient = ?
-//	WHERE id = ?
-//
-// Transaction delete:
-//
-//	DELETE FROM transactions WHERE id = ?
-//
 // # DuckDB Array Handling
 //
 // Tags are stored as VARCHAR[] in DuckDB. The duckdb-go driver returns these as
@@ -150,4 +62,183 @@
 //	    }
 //	    return nil // triggers commit
 //	})
+//
+// # Dynamic Tag CTE
+//
+// When querying transactions, the store loads all rules and builds a CTE that
+// evaluates each rule's filter against the transactions table. Each rule's filter
+// is parsed into a parameterized WHERE clause via the filter DSL. The results are
+// aggregated so each transaction gets a merged, deduplicated tag array.
+//
+// Given two rules:
+//
+//	Rule 1: filter="content ~ /KAUFLAND|LIDL/"  tags=['food', 'groceries']
+//	Rule 2: filter="content ~ /SHELL|OMV/"      tags=['transport', 'fuel']
+//
+// The generated CTE is:
+//
+//	WITH rule_matches AS (
+//	    SELECT t.id AS transaction_id, ['food', 'groceries'] AS tags
+//	    FROM transactions t
+//	    WHERE regexp_matches(t.content, ?)
+//	    UNION ALL
+//	    SELECT t.id AS transaction_id, ['transport', 'fuel'] AS tags
+//	    FROM transactions t
+//	    WHERE regexp_matches(t.content, ?)
+//	),
+//	rule_tags AS (
+//	    SELECT transaction_id,
+//	           list_distinct(flatten(list(tags))) AS tags
+//	    FROM rule_matches
+//	    GROUP BY transaction_id
+//	)
+//
+// When there are no rules, the CTE is omitted and tags default to an empty array.
+// When filterTags is provided, only rules whose tags contain all requested tags
+// are included and an INNER JOIN replaces the LEFT JOIN, so only matching
+// transactions are returned.
+//
+// # Rule Queries
+//
+// ListRules returns all rules matching an optional filter, with pagination:
+//
+//	SELECT id, name, filter, tags, created_at
+//	FROM rules
+//	WHERE <filter>
+//	ORDER BY id ASC
+//	LIMIT ? OFFSET ?
+//
+// GetRule returns a single rule by ID:
+//
+//	SELECT id, name, filter, tags, created_at
+//	FROM rules
+//	WHERE id = ?
+//
+// CreateRule inserts a rule and returns its ID:
+//
+//	INSERT INTO rules (name, filter, tags)
+//	VALUES (?, ?, ['food', 'groceries'])
+//	RETURNING id
+//
+// UpdateRule modifies a rule by ID:
+//
+//	UPDATE rules SET name = ?, filter = ?, tags = ['food', 'groceries']
+//	WHERE id = ?
+//
+// DeleteRule removes a rule by ID:
+//
+//	DELETE FROM rules WHERE id = ?
+//
+// # Transaction Queries
+//
+// ListTransactions returns transactions with dynamically computed tags,
+// server-side pagination, sorting, and a total count. The tag CTE is prepended
+// when rules exist:
+//
+//	WITH <tag CTE>
+//	SELECT t.id, t.hash, t.date, t.account, t.kind,
+//	       t.amount, t.content, t.info, t.recipient,
+//	       COALESCE(rt.tags, []::VARCHAR[]) AS tags
+//	FROM transactions t
+//	LEFT JOIN rule_tags rt ON rt.transaction_id = t.id
+//	WHERE <filter>
+//	ORDER BY t.date DESC, t.id DESC
+//	LIMIT ? OFFSET ?
+//
+// The total count is computed from the same base query before pagination:
+//
+//	WITH <tag CTE>
+//	SELECT COUNT(*)
+//	FROM transactions t
+//	LEFT JOIN rule_tags rt ON rt.transaction_id = t.id
+//	WHERE <filter>
+//
+// GetTransaction returns a single transaction by ID with tags:
+//
+//	WITH <tag CTE>
+//	SELECT t.id, t.hash, t.date, t.account, t.kind,
+//	       t.amount, t.content, t.info, t.recipient,
+//	       COALESCE(rt.tags, []::VARCHAR[]) AS tags
+//	FROM transactions t
+//	LEFT JOIN rule_tags rt ON rt.transaction_id = t.id
+//	WHERE t.id = ?
+//
+// GetTransactionByHash returns a single transaction by hash with tags:
+//
+//	WITH <tag CTE>
+//	SELECT t.id, t.hash, t.date, t.account, t.kind,
+//	       t.amount, t.content, t.info, t.recipient,
+//	       COALESCE(rt.tags, []::VARCHAR[]) AS tags
+//	FROM transactions t
+//	LEFT JOIN rule_tags rt ON rt.transaction_id = t.id
+//	WHERE t.hash = ?
+//
+// CreateTransaction inserts a transaction and returns its ID:
+//
+//	INSERT INTO transactions (hash, date, account, kind, amount, content, info, recipient)
+//	VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+//	RETURNING id
+//
+// UpdateTransaction modifies a transaction by ID:
+//
+//	UPDATE transactions
+//	SET hash = ?, date = ?, account = ?, kind = ?, amount = ?,
+//	    content = ?, info = ?, recipient = ?
+//	WHERE id = ?
+//
+// DeleteTransaction removes a transaction by ID:
+//
+//	DELETE FROM transactions WHERE id = ?
+//
+// # Summary Queries
+//
+// GetSummaryOverview returns aggregate stats for all transactions matching a filter:
+//
+//	SELECT COUNT(*),
+//	       COALESCE(SUM(CASE WHEN kind='debit' THEN amount ELSE 0 END), 0),
+//	       COALESCE(SUM(CASE WHEN kind='credit' THEN amount ELSE 0 END), 0),
+//	       COUNT(DISTINCT account)
+//	FROM transactions t
+//	WHERE <filter>
+//
+// It also calls countUniqueTags to compute the number of distinct tags across
+// all matching transactions.
+//
+// countUniqueTags counts distinct tags for transactions matching a filter:
+//
+//	WITH <tag CTE>
+//	SELECT COUNT(DISTINCT tag)
+//	FROM rule_tags, UNNEST(tags) AS t(tag)
+//	WHERE transaction_id IN (SELECT t.id FROM transactions t WHERE <filter>)
+//
+// GetTagSummary returns per-tag debit/credit totals and transaction counts.
+// It extends the tag CTE with an unnested layer and joins back to transactions:
+//
+//	WITH <tag CTE>,
+//	unnested AS (
+//	    SELECT transaction_id, UNNEST(tags) AS tag
+//	    FROM rule_tags
+//	)
+//	SELECT u.tag,
+//	       COALESCE(SUM(CASE WHEN t.kind='debit' THEN t.amount ELSE 0 END), 0) AS total_debit,
+//	       COALESCE(SUM(CASE WHEN t.kind='credit' THEN t.amount ELSE 0 END), 0) AS total_credit,
+//	       COUNT(*) AS count
+//	FROM unnested u
+//	JOIN transactions t ON t.id = u.transaction_id
+//	WHERE <filter>
+//	GROUP BY u.tag
+//	ORDER BY total_debit DESC
+//
+// GetBalanceTrend returns monthly debit/credit totals with a cumulative balance:
+//
+//	SELECT strftime(date, '%Y-%m') AS month,
+//	       COALESCE(SUM(CASE WHEN kind='debit' THEN amount ELSE 0 END), 0) AS debit,
+//	       COALESCE(SUM(CASE WHEN kind='credit' THEN amount ELSE 0 END), 0) AS credit
+//	FROM transactions t
+//	WHERE <filter>
+//	GROUP BY strftime(date, '%Y-%m')
+//	ORDER BY month ASC
+//
+// The cumulative balance is computed in Go by summing (credit - debit) across
+// rows in month order.
 package store
