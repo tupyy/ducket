@@ -13,7 +13,7 @@ module.exports = merge(common('production'), {
   output: {
     filename: 'static/[name].bundle.js',
     chunkFilename: 'static/[name].chunk.js',
-    publicPath: '/static/',
+    publicPath: '/',
   },
   optimization: {
     minimizer: [

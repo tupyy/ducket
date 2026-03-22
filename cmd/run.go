@@ -70,7 +70,7 @@ func NewRunCommand(config *config.Config) *cobra.Command {
 			h := handlers.NewHandler(txnSvc, ruleSvc, summarySvc)
 
 			// HTTP server
-			srv := server.New(config.ServerPort, config.GinMode, h)
+			srv := server.New(config, h)
 
 			var wg sync.WaitGroup
 			wg.Add(1)

@@ -1,5 +1,5 @@
 # Stage 1: Build React frontend
-FROM docker.io/node:22-alpine AS frontend-builder
+FROM docker.io/node:22 AS frontend-builder
 
 ARG GIT_SHA
 ENV GIT_SHA=${GIT_SHA}
@@ -15,55 +15,44 @@ COPY ui/ ./
 RUN npm run build
 
 # Stage 2: Build Go backend
-FROM docker.io/golang:1.25-alpine AS backend-builder
+FROM registry.access.redhat.com/ubi9/go-toolset AS backend-builder
 
 ARG GIT_SHA
-
-RUN apk add --no-cache build-base
-
-WORKDIR /app
 
 # Copy go mod files for better caching
 COPY go.mod go.sum ./
 RUN go mod download
 
+USER 0
+
 # Copy source code
 COPY . .
 
 # Build the application
-RUN GOOS=linux go build -ldflags="-X main.sha=${GIT_SHA}" -o ducket .
+RUN GOOS=linux go build -ldflags="-X main.sha=${GIT_SHA}" -o /tmp/ducket .
 
 # Stage 3: Final runtime image
-FROM alpine:3.21
+FROM registry.access.redhat.com/ubi9/ubi-minimal
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S ducket && \
-    adduser -S ducket -u 1001 -G ducket
+RUN microdnf install -y ca-certificates tzdata && \
+    microdnf clean all
 
 WORKDIR /app
 
 # Copy built application from backend builder
-COPY --from=backend-builder /app/ducket .
-
-# Copy database migrations
-COPY --from=backend-builder /app/internal/store/migrations/sql ./migrations/
+COPY --from=backend-builder /tmp/ducket .
 
 # Copy built frontend from frontend builder
 COPY --from=frontend-builder /app/ui/dist ./ui/dist
 
-# Create directory for uploads and logs
-RUN mkdir -p /app/uploads /app/logs && \
-    chown -R ducket:ducket /app
+# Create data directory
+RUN mkdir -p /app/data && \
+    chown -R 1001:0 /app
 
-# Switch to non-root user
-USER ducket
+USER 1001
 
 # Expose port
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
-  CMD wget -qO- http://localhost:8080/healthz || exit 1
-
 # Default command
-CMD ["./ducket", "run", "--server-port=8080", "--server-gin-mode=release", "--server-mode=prod", "--statics-folder=./ui/dist"]
+CMD ["./ducket", "run", "--db-uri=/app/data/ducket.db", "--server-port=8080", "--server-gin-mode=release", "--server-mode=prod", "--statics-folder=./ui/dist"]

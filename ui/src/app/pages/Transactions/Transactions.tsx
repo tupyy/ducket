@@ -5,7 +5,6 @@ import {
   Toolbar,
   ToolbarContent,
   ToolbarItem,
-  ToolbarGroup,
   Pagination,
   EmptyState,
   EmptyStateBody,
@@ -13,23 +12,17 @@ import {
   Bullseye,
   Label,
   LabelGroup,
-  Content,
+  Content
 } from '@patternfly/react-core';
 import { Table, Thead, Tr, Th, Tbody, Td, ThProps } from '@patternfly/react-table';
 import { useAppDispatch, useAppSelector } from '@app/shared/store';
 import {
   getTransactions, setPage, setPerPage, setFilter, setSort,
-  addTag, removeTag, clearTags,
+  addTag, removeTag,
   addAccount, removeAccount, toggleKind,
-  buildCompositeFilter, SortField,
+  buildCompositeFilter,
 } from '@app/shared/reducers/transaction.reducer';
 import { TransactionFilter } from './TransactionFilter';
-
-const sortableColumns: { field: string; label: string; width?: number }[] = [
-  { field: 'date', label: 'Date', width: 10 },
-  { field: 'account', label: 'Account', width: 10 },
-  { field: 'kind', label: 'Type', width: 10 },
-];
 
 const Transactions: React.FunctionComponent = () => {
   const dispatch = useAppDispatch();
@@ -116,29 +109,15 @@ const Transactions: React.FunctionComponent = () => {
         Transactions
       </Title>
 
-      <Toolbar>
-        <ToolbarContent>
-          <ToolbarGroup>
-            <ToolbarItem>
-              <TransactionFilter filter={filter} onFilterChange={handleFilterChange} />
-            </ToolbarItem>
-          </ToolbarGroup>
-          <ToolbarItem variant="pagination" align={{ default: 'alignEnd' }}>
-            <Pagination
-              itemCount={total}
-              perPage={perPage}
-              page={page}
-              onSetPage={onSetPage}
-              onPerPageSelect={onPerPageSelect}
-              perPageOptions={[
-                { title: '25', value: 25 },
-                { title: '50', value: 50 },
-                { title: '100', value: 100 },
-              ]}
-            />
-          </ToolbarItem>
-        </ToolbarContent>
-      </Toolbar>
+      <TransactionFilter
+        filter={filter}
+        onFilterChange={handleFilterChange}
+        total={total}
+        page={page}
+        perPage={perPage}
+        onSetPage={onSetPage}
+        onPerPageSelect={onPerPageSelect}
+      />
 
       {(selectedTags.length > 0 || selectedAccounts.length > 0 || selectedKind) && (
         <div style={{ marginBottom: '0.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
