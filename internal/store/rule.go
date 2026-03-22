@@ -40,7 +40,7 @@ func (s *Store) ListRules(ctx context.Context, filter string, limit, offset int)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	return scanRules(rows)
 }
@@ -59,7 +59,7 @@ func (s *Store) GetRule(ctx context.Context, id int) (*entity.Rule, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	rules, err := scanRules(rows)
 	if err != nil {

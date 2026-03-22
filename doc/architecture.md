@@ -140,11 +140,11 @@ Three typed errors in `pkg/errors`:
 
 ## Configuration
 
-Environment variables prefixed with `FINANTE_` or CLI flags:
+Environment variables prefixed with `DUCKET_` or CLI flags:
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--db-uri` | | Path to DuckDB file (e.g. `./finante.db` or `:memory:`) |
+| `--db-uri` | | Path to DuckDB file (e.g. `./ducket.db` or `:memory:`) |
 | `--server-port` | `8080` | HTTP listen port |
 | `--server-gin-mode` | | `release` or `debug` |
 | `--server-mode` | `dev` | `dev` or `prod` (prod requires `--statics-folder`) |
@@ -158,8 +158,7 @@ Transactions can be bulk-imported from CSV or Excel files via `POST /api/v1/tran
 
 ```
 cmd/
-  serve.go              -- cobra command: wire DB, services, handlers, HTTP server
-  migrate.go            -- cobra command: run migrations
+  run.go                -- cobra command: wire DB, services, handlers, HTTP server
 
 api/v1/
   openapi.yaml          -- OpenAPI 3.0 spec

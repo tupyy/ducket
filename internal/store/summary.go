@@ -117,7 +117,7 @@ func (s *Store) GetTagSummary(ctx context.Context, filter string) ([]TagSummary,
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var results []TagSummary
 	for rows.Next() {
@@ -160,7 +160,7 @@ func (s *Store) GetBalanceTrend(ctx context.Context, filter string) ([]BalanceTr
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var points []BalanceTrendPoint
 	var cumulative float64

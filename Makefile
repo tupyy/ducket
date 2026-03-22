@@ -1,4 +1,4 @@
-.PHONY: build vendor test run image container-run container-stop
+.PHONY: build vendor test lint run image container-run container-stop
 
 NAME = ducket
 BUILD_DIR = target
@@ -19,8 +19,30 @@ vendor:
 test:
 	go test ./...
 
+GOBIN ?= $(shell go env GOPATH)/bin
+GOLANGCI_LINT_VERSION := v2.10.1
+GOLANGCI_LINT := $(GOBIN)/golangci-lint
+
+.PHONY: check-golangci-lint-version
+check-golangci-lint-version:
+	@if [ -f '$(GOLANGCI_LINT)' ]; then \
+		installed=$$('$(GOLANGCI_LINT)' version 2>/dev/null | sed -n 's/.*version \([0-9.]*\).*/\1/p' | head -1); \
+		required=$$(echo '$(GOLANGCI_LINT_VERSION)' | sed 's/^v//'); \
+		if [ -n "$$installed" ] && [ "$$installed" != "$$required" ]; then \
+			rm -f '$(GOLANGCI_LINT)'; \
+		fi; \
+	fi
+
+$(GOLANGCI_LINT):
+	@mkdir -p $(GOBIN)
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | \
+		sh -s -- -b $(GOBIN) $(GOLANGCI_LINT_VERSION)
+
+lint: check-golangci-lint-version $(GOLANGCI_LINT)
+	@$(GOLANGCI_LINT) run
+
 run: build
-	$(BUILD_DIR)/$(NAME) serve
+	$(BUILD_DIR)/$(NAME) run
 
 image:
 	podman build -f Containerfile --build-arg GIT_SHA=$(GIT_COMMIT) -t $(IMAGE_NAME) .

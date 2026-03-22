@@ -94,7 +94,7 @@ func (s *Store) ListTransactions(ctx context.Context, filter string, tags []stri
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	txns, err := scanTransactions(rows)
 	return txns, total, err
@@ -112,7 +112,7 @@ func (s *Store) GetTransaction(ctx context.Context, id int64) (*entity.Transacti
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	txns, err := scanTransactions(rows)
 	if err != nil {
@@ -136,7 +136,7 @@ func (s *Store) GetTransactionByHash(ctx context.Context, hash string) (*entity.
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	txns, err := scanTransactions(rows)
 	if err != nil {

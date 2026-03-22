@@ -26,15 +26,15 @@ import (
 	"go.uber.org/zap"
 )
 
-// NewServeCommand creates a new cobra command for starting the server.
-func NewServeCommand(config *config.Config) *cobra.Command {
+// NewRunCommand creates a new cobra command for starting the server.
+func NewRunCommand(config *config.Config) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:          "serve",
-		Short:        "Serve the server",
+		Use:          "run",
+		Short:        "Run the server",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logger := logger.SetupLogger(config)
-			defer logger.Sync()
+			defer func() { _ = logger.Sync() }()
 
 			undo := zap.ReplaceGlobals(logger)
 			defer undo()
@@ -55,7 +55,7 @@ func NewServeCommand(config *config.Config) *cobra.Command {
 			}
 
 			st := store.NewStore(db)
-			defer st.Close()
+			defer func() { _ = st.Close() }()
 
 			if err := st.Migrate(ctx); err != nil {
 				return fmt.Errorf("running migrations: %w", err)
@@ -103,7 +103,7 @@ func NewServeCommand(config *config.Config) *cobra.Command {
 	}
 
 	registerFlags(cmd, config)
-	cobraflags.CobraOnInitialize("FINANTE", cmd)
+	cobraflags.CobraOnInitialize("DUCKET", cmd)
 
 	return cmd
 }
@@ -121,7 +121,7 @@ func registerFlags(cmd *cobra.Command, config *config.Config) {
 }
 
 func registerDatabaseFlags(flagSet *pflag.FlagSet, config *config.Database) {
-	flagSet.StringVar(&config.URI, "db-uri", config.URI, `path to DuckDB database file (e.g. "./finante.db" or ":memory:")`)
+	flagSet.StringVar(&config.URI, "db-uri", config.URI, `path to DuckDB database file (e.g. "./ducket.db" or ":memory:")`)
 }
 
 func registerServerFlags(flagSet *pflag.FlagSet, config *config.Config) {

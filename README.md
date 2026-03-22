@@ -16,7 +16,7 @@ DuckDB was chosen because it's an embedded columnar database — no server, no n
 go build -o ducket .
 
 # Run migrations and start the server
-./ducket serve --db-uri ./ducket.db --server-port 8080
+./ducket run --db-uri ./ducket.db --server-port 8080
 
 # Import transactions
 curl -F 'files=@january.xlsx' localhost:8080/api/v1/transactions/import
