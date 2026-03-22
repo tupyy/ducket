@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
+	"github.com/tupyy/ducket/internal/entity"
 	"go.uber.org/zap"
 )
 

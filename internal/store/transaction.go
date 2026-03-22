@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
-	pkgErrors "git.tls.tupangiu.ro/cosmin/finante/pkg/errors"
+	"github.com/tupyy/ducket/internal/entity"
+	pkgErrors "github.com/tupyy/ducket/pkg/errors"
 	sq "github.com/Masterminds/squirrel"
 )
 

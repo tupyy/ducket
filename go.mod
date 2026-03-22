@@ -1,4 +1,4 @@
-module git.tls.tupangiu.ro/cosmin/finante
+module github.com/tupyy/ducket
 
 go 1.25.0
 

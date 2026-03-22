@@ -8,10 +8,10 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
-	"git.tls.tupangiu.ro/cosmin/finante/internal/services"
-	"git.tls.tupangiu.ro/cosmin/finante/internal/store"
-	srvErrors "git.tls.tupangiu.ro/cosmin/finante/pkg/errors"
+	"github.com/tupyy/ducket/internal/entity"
+	"github.com/tupyy/ducket/internal/services"
+	"github.com/tupyy/ducket/internal/store"
+	srvErrors "github.com/tupyy/ducket/pkg/errors"
 )
 
 var _ = Describe("TransactionService", func() {

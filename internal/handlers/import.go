@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net/http"
 
-	v1 "git.tls.tupangiu.ro/cosmin/finante/api/v1"
-	pkgErrors "git.tls.tupangiu.ro/cosmin/finante/pkg/errors"
-	"git.tls.tupangiu.ro/cosmin/finante/pkg/reader"
+	v1 "github.com/tupyy/ducket/api/v1"
+	pkgErrors "github.com/tupyy/ducket/pkg/errors"
+	"github.com/tupyy/ducket/pkg/reader"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )

@@ -1,7 +1,7 @@
 package logger
 
 import (
-	"git.tls.tupangiu.ro/cosmin/finante/internal/config"
+	"github.com/tupyy/ducket/internal/config"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )

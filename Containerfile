@@ -1,4 +1,3 @@
-# Multi-stage build for Finante application
 # Stage 1: Build React frontend
 FROM docker.io/node:22-alpine AS frontend-builder
 
@@ -32,19 +31,19 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN GOOS=linux go build -ldflags="-X main.sha=${GIT_SHA}" -o finante .
+RUN GOOS=linux go build -ldflags="-X main.sha=${GIT_SHA}" -o ducket .
 
 # Stage 3: Final runtime image
 FROM alpine:3.21
 
 # Create non-root user for security
-RUN addgroup -g 1001 -S finante && \
-    adduser -S finante -u 1001 -G finante
+RUN addgroup -g 1001 -S ducket && \
+    adduser -S ducket -u 1001 -G ducket
 
 WORKDIR /app
 
 # Copy built application from backend builder
-COPY --from=backend-builder /app/finante .
+COPY --from=backend-builder /app/ducket .
 
 # Copy database migrations
 COPY --from=backend-builder /app/internal/store/migrations/sql ./migrations/
@@ -54,10 +53,10 @@ COPY --from=frontend-builder /app/ui/dist ./ui/dist
 
 # Create directory for uploads and logs
 RUN mkdir -p /app/uploads /app/logs && \
-    chown -R finante:finante /app
+    chown -R ducket:ducket /app
 
 # Switch to non-root user
-USER finante
+USER ducket
 
 # Expose port
 EXPOSE 8080
@@ -67,4 +66,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
   CMD wget -qO- http://localhost:8080/healthz || exit 1
 
 # Default command
-CMD ["./finante", "serve", "--server-port=8080", "--server-gin-mode=release", "--server-mode=prod", "--statics-folder=./ui/dist"]
+CMD ["./ducket", "serve", "--server-port=8080", "--server-gin-mode=release", "--server-mode=prod", "--statics-folder=./ui/dist"]

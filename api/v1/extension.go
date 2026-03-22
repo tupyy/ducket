@@ -1,6 +1,6 @@
 package v1
 
-import "git.tls.tupangiu.ro/cosmin/finante/internal/entity"
+import "github.com/tupyy/ducket/internal/entity"
 
 func NewTransactionFromEntity(t entity.Transaction) Transaction {
 	txn := Transaction{

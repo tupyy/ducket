@@ -3,7 +3,7 @@ package services
 import (
 	"context"
 
-	"git.tls.tupangiu.ro/cosmin/finante/internal/store"
+	"github.com/tupyy/ducket/internal/store"
 )
 
 type SummaryService struct {

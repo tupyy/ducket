@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"git.tls.tupangiu.ro/cosmin/finante/cmd"
-	"git.tls.tupangiu.ro/cosmin/finante/internal/config"
+	"github.com/tupyy/ducket/cmd"
+	"github.com/tupyy/ducket/internal/config"
 	"github.com/spf13/cobra"
 )
 

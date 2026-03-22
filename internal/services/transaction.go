@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
-	"git.tls.tupangiu.ro/cosmin/finante/internal/store"
-	srvErrors "git.tls.tupangiu.ro/cosmin/finante/pkg/errors"
+	"github.com/tupyy/ducket/internal/entity"
+	"github.com/tupyy/ducket/internal/store"
+	srvErrors "github.com/tupyy/ducket/pkg/errors"
 )
 
 type TransactionService struct {

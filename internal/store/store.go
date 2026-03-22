@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	"git.tls.tupangiu.ro/cosmin/finante/internal/store/migrations"
+	"github.com/tupyy/ducket/internal/store/migrations"
 )
 
 type Store struct {

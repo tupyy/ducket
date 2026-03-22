@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"git.tls.tupangiu.ro/cosmin/finante/internal/entity"
+	"github.com/tupyy/ducket/internal/entity"
 )
 
 // FileReader defines the interface for reading transaction data from different file formats

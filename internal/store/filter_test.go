@@ -4,7 +4,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"git.tls.tupangiu.ro/cosmin/finante/internal/store"
+	"github.com/tupyy/ducket/internal/store"
 )
 
 var _ = Describe("Filter", func() {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	v1 "git.tls.tupangiu.ro/cosmin/finante/api/v1"
+	v1 "github.com/tupyy/ducket/api/v1"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )

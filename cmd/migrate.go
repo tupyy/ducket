@@ -3,9 +3,9 @@ package cmd
 import (
 	"context"
 
-	"git.tls.tupangiu.ro/cosmin/finante/internal/config"
-	"git.tls.tupangiu.ro/cosmin/finante/internal/store"
-	"git.tls.tupangiu.ro/cosmin/finante/pkg/logger"
+	"github.com/tupyy/ducket/internal/config"
+	"github.com/tupyy/ducket/internal/store"
+	"github.com/tupyy/ducket/pkg/logger"
 	"github.com/fatih/color"
 	"github.com/go-extras/cobraflags"
 	"github.com/jzelinskie/cobrautil/v2"
