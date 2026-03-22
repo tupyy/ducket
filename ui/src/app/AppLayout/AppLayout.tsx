@@ -30,7 +30,7 @@ const AppLayout: React.FunctionComponent<AppLayoutProps> = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
   const location = useLocation();
 
-  const gitCommit = (typeof process !== 'undefined' && process.env?.GIT_COMMIT) || 'dev';
+  const gitCommit = process.env.GIT_COMMIT || 'dev';
 
   const routes = [
     { path: '/', label: 'Dashboard' },

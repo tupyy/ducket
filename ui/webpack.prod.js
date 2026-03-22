@@ -13,6 +13,7 @@ module.exports = merge(common('production'), {
   output: {
     filename: 'static/[name].bundle.js',
     chunkFilename: 'static/[name].chunk.js',
+    assetModuleFilename: 'static/[hash][ext][query]',
     publicPath: '/',
   },
   optimization: {

@@ -46,10 +46,7 @@ COPY --from=backend-builder /tmp/ducket .
 COPY --from=frontend-builder /app/ui/dist ./ui/dist
 
 # Create data directory
-RUN mkdir -p /app/data && \
-    chown -R 1001:0 /app
-
-USER 1001
+RUN mkdir -p /app/data
 
 # Expose port
 EXPOSE 8080
