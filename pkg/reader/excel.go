@@ -31,7 +31,7 @@ func (e *ExcelReader) Read(r io.Reader) ([]entity.Transaction, error) {
 	if err != nil {
 		return []entity.Transaction{}, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	accountNumber := int64(0)
 	rows, err := f.GetRows("Sheet0")

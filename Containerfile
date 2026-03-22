@@ -66,4 +66,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
   CMD wget -qO- http://localhost:8080/healthz || exit 1
 
 # Default command
-CMD ["./ducket", "serve", "--server-port=8080", "--server-gin-mode=release", "--server-mode=prod", "--statics-folder=./ui/dist"]
+CMD ["./ducket", "run", "--server-port=8080", "--server-gin-mode=release", "--server-mode=prod", "--statics-folder=./ui/dist"]

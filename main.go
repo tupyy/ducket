@@ -14,7 +14,7 @@ var sha string
 func main() {
 	cfg := config.NewConfigWithOptionsAndDefaults(
 		config.WithDatabase(config.NewDatabaseWithOptions(
-			config.WithURI("finante.db"),
+			config.WithURI("ducket.db"),
 		)),
 		config.WithServerPort(8080),
 		config.WithLogFormat("console"),
@@ -25,15 +25,14 @@ func main() {
 	fmt.Printf("Build from commit: %s\n", sha)
 
 	var rootCmd = &cobra.Command{
-		Use:   "finance",
-		Short: "Manage my finances",
+		Use:   "ducket",
+		Short: "Personal finance tracker",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		},
 	}
 	registerLoggingFlags(rootCmd, cfg)
 
-	rootCmd.AddCommand(cmd.NewServeCommand(cfg))
-	rootCmd.AddCommand(cmd.NewMigrateCommand(cfg))
+	rootCmd.AddCommand(cmd.NewRunCommand(cfg))
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)

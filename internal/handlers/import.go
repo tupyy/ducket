@@ -26,7 +26,7 @@ func (h *Handler) ImportTransactions(c *gin.Context) {
 
 	var account int64
 	if vals, ok := form.Value["account"]; ok && len(vals) > 0 {
-		fmt.Sscanf(vals[0], "%d", &account)
+		_, _ = fmt.Sscanf(vals[0], "%d", &account)
 	}
 
 	var results []v1.ImportFileResult
@@ -39,7 +39,7 @@ func (h *Handler) ImportTransactions(c *gin.Context) {
 		}
 
 		transactions, err := reader.ReadTransactionsFromFile(fh.Filename, account, f)
-		f.Close()
+		_ = f.Close()
 		if err != nil {
 			zap.S().Errorw("failed to parse file", "filename", fh.Filename, "error", err)
 			results = append(results, v1.ImportFileResult{Filename: fh.Filename, Errors: 1})
