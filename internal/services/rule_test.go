@@ -78,10 +78,10 @@ var _ = Describe("RuleService", func() {
 			Expect(rule.Name).To(Equal("fuel"))
 		})
 
-		It("should return nil for non-existent ID", func() {
-			rule, err := svc.Get(ctx, 999)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(rule).To(BeNil())
+		It("should return not found for non-existent ID", func() {
+			_, err := svc.Get(ctx, 999)
+			Expect(err).To(HaveOccurred())
+			Expect(srvErrors.IsResourceNotFoundError(err)).To(BeTrue())
 		})
 	})
 
@@ -173,9 +173,9 @@ var _ = Describe("RuleService", func() {
 			err = svc.Delete(ctx, created.ID)
 			Expect(err).NotTo(HaveOccurred())
 
-			rule, err := svc.Get(ctx, created.ID)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(rule).To(BeNil())
+			_, err = svc.Get(ctx, created.ID)
+			Expect(err).To(HaveOccurred())
+			Expect(srvErrors.IsResourceNotFoundError(err)).To(BeTrue())
 		})
 	})
 })

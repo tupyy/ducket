@@ -10,6 +10,7 @@ import (
 
 	"github.com/tupyy/ducket/internal/entity"
 	"github.com/tupyy/ducket/internal/store"
+	pkgErrors "github.com/tupyy/ducket/pkg/errors"
 )
 
 var _ = Describe("TransactionStore", func() {
@@ -101,10 +102,10 @@ var _ = Describe("TransactionStore", func() {
 			Expect(*txn.Info).To(Equal("some info"))
 		})
 
-		It("should return nil for non-existent ID", func() {
-			txn, err := s.GetTransaction(ctx, 999)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(txn).To(BeNil())
+		It("should return not found for non-existent ID", func() {
+			_, err := s.GetTransaction(ctx, 999)
+			Expect(err).To(HaveOccurred())
+			Expect(pkgErrors.IsResourceNotFoundError(err)).To(BeTrue())
 		})
 	})
 
@@ -135,55 +136,55 @@ var _ = Describe("TransactionStore", func() {
 		})
 
 		It("should list all without filter", func() {
-			txns, err := s.ListTransactions(ctx, store.NoFilter, 0, 0)
+			txns, _, err := s.ListTransactions(ctx, store.NoFilter, nil, nil, 0, 0)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(txns).To(HaveLen(5))
 		})
 
 		It("should filter by kind", func() {
-			txns, err := s.ListTransactions(ctx, "kind = 'debit'", 0, 0)
+			txns, _, err := s.ListTransactions(ctx, "kind = 'debit'", nil, nil, 0, 0)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(txns).To(HaveLen(4))
 		})
 
 		It("should filter by content regex", func() {
-			txns, err := s.ListTransactions(ctx, "content ~ /KAUFLAND|LIDL/", 0, 0)
+			txns, _, err := s.ListTransactions(ctx, "content ~ /KAUFLAND|LIDL/", nil, nil, 0, 0)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(txns).To(HaveLen(2))
 		})
 
 		It("should filter by amount", func() {
-			txns, err := s.ListTransactions(ctx, "amount > 1000", 0, 0)
+			txns, _, err := s.ListTransactions(ctx, "amount > 1000", nil, nil, 0, 0)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(txns).To(HaveLen(2))
 		})
 
 		It("should filter by date range", func() {
-			txns, err := s.ListTransactions(ctx, "date >= '2025-01-01' and date < '2025-02-01'", 0, 0)
+			txns, _, err := s.ListTransactions(ctx, "date >= '2025-01-01' and date < '2025-02-01'", nil, nil, 0, 0)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(txns).To(HaveLen(3))
 		})
 
 		It("should combine filters", func() {
-			txns, err := s.ListTransactions(ctx, "kind = 'debit' and amount > 100", 0, 0)
+			txns, _, err := s.ListTransactions(ctx, "kind = 'debit' and amount > 100", nil, nil, 0, 0)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(txns).To(HaveLen(3))
 		})
 
 		It("should paginate with limit", func() {
-			txns, err := s.ListTransactions(ctx, store.NoFilter, 2, 0)
+			txns, _, err := s.ListTransactions(ctx, store.NoFilter, nil, nil, 2, 0)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(txns).To(HaveLen(2))
 		})
 
 		It("should paginate with offset", func() {
-			txns, err := s.ListTransactions(ctx, store.NoFilter, 2, 3)
+			txns, _, err := s.ListTransactions(ctx, store.NoFilter, nil, nil, 2, 3)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(txns).To(HaveLen(2))
 		})
 
 		It("should order by date descending", func() {
-			txns, err := s.ListTransactions(ctx, store.NoFilter, 0, 0)
+			txns, _, err := s.ListTransactions(ctx, store.NoFilter, nil, nil, 0, 0)
 			Expect(err).NotTo(HaveOccurred())
 			for i := 1; i < len(txns); i++ {
 				Expect(txns[i-1].Date).To(BeTemporally(">=", txns[i].Date))
@@ -191,7 +192,7 @@ var _ = Describe("TransactionStore", func() {
 		})
 
 		It("should reject invalid filter", func() {
-			_, err := s.ListTransactions(ctx, "bogus %%% field", 0, 0)
+			_, _, err := s.ListTransactions(ctx, "bogus %%% field", nil, nil, 0, 0)
 			Expect(err).To(HaveOccurred())
 		})
 	})
@@ -229,9 +230,9 @@ var _ = Describe("TransactionStore", func() {
 			err := s.DeleteTransaction(ctx, created.ID)
 			Expect(err).NotTo(HaveOccurred())
 
-			txn, err := s.GetTransaction(ctx, created.ID)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(txn).To(BeNil())
+			_, err = s.GetTransaction(ctx, created.ID)
+			Expect(err).To(HaveOccurred())
+			Expect(pkgErrors.IsResourceNotFoundError(err)).To(BeTrue())
 		})
 	})
 })

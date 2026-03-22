@@ -9,6 +9,7 @@ import (
 
 	"github.com/tupyy/ducket/internal/entity"
 	"github.com/tupyy/ducket/internal/store"
+	pkgErrors "github.com/tupyy/ducket/pkg/errors"
 )
 
 var _ = Describe("RuleStore", func() {
@@ -79,10 +80,10 @@ var _ = Describe("RuleStore", func() {
 			Expect(rule.Tags).To(ConsistOf("transport", "fuel"))
 		})
 
-		It("should return nil for non-existent ID", func() {
-			rule, err := s.GetRule(ctx, 999)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(rule).To(BeNil())
+		It("should return not found for non-existent ID", func() {
+			_, err := s.GetRule(ctx, 999)
+			Expect(err).To(HaveOccurred())
+			Expect(pkgErrors.IsResourceNotFoundError(err)).To(BeTrue())
 		})
 	})
 
@@ -158,9 +159,9 @@ var _ = Describe("RuleStore", func() {
 			err := s.DeleteRule(ctx, created.ID)
 			Expect(err).NotTo(HaveOccurred())
 
-			rule, err := s.GetRule(ctx, created.ID)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(rule).To(BeNil())
+			_, err = s.GetRule(ctx, created.ID)
+			Expect(err).To(HaveOccurred())
+			Expect(pkgErrors.IsResourceNotFoundError(err)).To(BeTrue())
 		})
 	})
 

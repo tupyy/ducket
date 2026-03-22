@@ -95,19 +95,19 @@ var _ = Describe("TransactionService", func() {
 		})
 
 		It("should list all transactions", func() {
-			txns, err := svc.List(ctx, store.NoFilter, 0, 0)
+			txns, _, err := svc.List(ctx, store.NoFilter, nil, nil, 0, 0)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(txns).To(HaveLen(3))
 		})
 
 		It("should filter transactions", func() {
-			txns, err := svc.List(ctx, "amount > 100", 0, 0)
+			txns, _, err := svc.List(ctx, "amount > 100", nil, nil, 0, 0)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(txns).To(HaveLen(2))
 		})
 
 		It("should paginate", func() {
-			txns, err := svc.List(ctx, store.NoFilter, 2, 0)
+			txns, _, err := svc.List(ctx, store.NoFilter, nil, nil, 2, 0)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(txns).To(HaveLen(2))
 		})

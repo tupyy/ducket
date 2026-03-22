@@ -100,7 +100,7 @@ var _ = Describe("WithTx", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(rules).To(HaveLen(1))
 
-		txns, err := s.ListTransactions(ctx, store.NoFilter, 0, 0)
+		txns, _, err := s.ListTransactions(ctx, store.NoFilter, nil, nil, 0, 0)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(txns).To(HaveLen(1))
 	})

@@ -135,7 +135,7 @@ var _ = Describe("Dynamic Tag CTE", func() {
 			insertRule("grocery", "content ~ /KAUFLAND/", []string{"food"})
 			insertRule("fuel", "content ~ /SHELL/", []string{"transport"})
 
-			txns, err := s.ListTransactions(ctx, "kind = 'debit'", 0, 0)
+			txns, _, err := s.ListTransactions(ctx, "kind = 'debit'", nil, nil, 0, 0)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(txns).To(HaveLen(2))
 
@@ -160,7 +160,7 @@ var _ = Describe("Dynamic Tag CTE", func() {
 			Expect(txn.Tags).To(ConsistOf("big-grocery"))
 
 			// The small one should not match
-			txns, err := s.ListTransactions(ctx, "content ~ /KAUFLAND SMALL/", 0, 0)
+			txns, _, err := s.ListTransactions(ctx, "content ~ /KAUFLAND SMALL/", nil, nil, 0, 0)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(txns).To(HaveLen(1))
 			Expect(txns[0].Tags).To(BeEmpty())
