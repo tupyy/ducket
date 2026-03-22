@@ -107,18 +107,7 @@ func (h *Handler) UpdateTransaction(c *gin.Context, id int64) {
 		return
 	}
 
-	txn := entity.Transaction{
-		ID:        id,
-		Kind:      entity.TransactionKind(req.Kind),
-		Account:   req.Account,
-		Date:      req.Date,
-		Amount:    req.Amount,
-		Content:   req.Content,
-		Info:      req.Info,
-		Recipient: req.Recipient,
-	}
-
-	if err := h.txnSvc.Update(c.Request.Context(), txn); err != nil {
+	if err := h.txnSvc.UpdateInfo(c.Request.Context(), id, req.Info); err != nil {
 		handleError(c, err)
 		return
 	}

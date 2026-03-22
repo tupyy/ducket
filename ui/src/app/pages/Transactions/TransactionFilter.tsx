@@ -269,6 +269,7 @@ const TransactionFilter: React.FunctionComponent<TransactionFilterProps> = ({
                           onChange={(_evt, value) => setTempFilters((prev) => ({ ...prev, dateFrom: value }))}
                           placeholder="YYYY-MM-DD"
                           aria-label="Start date"
+                          appendTo={() => document.body}
                         />
                       </div>
                       <div>
@@ -279,6 +280,7 @@ const TransactionFilter: React.FunctionComponent<TransactionFilterProps> = ({
                           placeholder="YYYY-MM-DD"
                           aria-label="End date"
                           rangeStart={tempFilters.dateFrom ? new Date(`${tempFilters.dateFrom}T00:00:00`) : undefined}
+                          appendTo={() => document.body}
                         />
                       </div>
                     </div>

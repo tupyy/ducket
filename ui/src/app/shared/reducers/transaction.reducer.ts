@@ -75,6 +75,15 @@ export const getTransactions = createAsyncThunk(
   { serializeError: serializeAxiosError },
 );
 
+export const updateTransactionInfo = createAsyncThunk(
+  'transactions/updateInfo',
+  async ({ id, info }: { id: number; info: string }, thunkAPI) => {
+    await axios.patch(`${apiUrl}/${id}`, { info: info || null });
+    thunkAPI.dispatch(getTransactions(undefined));
+  },
+  { serializeError: serializeAxiosError },
+);
+
 export const deleteTransaction = createAsyncThunk(
   'transactions/delete',
   async (id: number, thunkAPI) => {

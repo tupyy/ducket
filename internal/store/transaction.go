@@ -195,6 +195,30 @@ func (s *Store) UpdateTransaction(ctx context.Context, t entity.Transaction) err
 	return nil
 }
 
+func (s *Store) UpdateTransactionInfo(ctx context.Context, id int64, info *string) error {
+	query, args, err := sq.Update("transactions").
+		Set("info", info).
+		Where(sq.Eq{"id": id}).
+		PlaceholderFormat(sq.Question).
+		ToSql()
+	if err != nil {
+		return err
+	}
+
+	result, err := s.qi.ExecContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return pkgErrors.NewResourceNotFoundError("transaction", fmt.Sprintf("%d", id))
+	}
+	return nil
+}
+
 func (s *Store) DeleteTransaction(ctx context.Context, id int64) error {
 	query, args, err := sq.Delete("transactions").
 		Where(sq.Eq{"id": id}).

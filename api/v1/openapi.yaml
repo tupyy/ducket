@@ -74,9 +74,9 @@ paths:
                 $ref: '#/components/schemas/Transaction'
         '404':
           description: Transaction not found
-    put:
+    patch:
       operationId: UpdateTransaction
-      summary: Update a transaction
+      summary: Update a transaction's info field
       requestBody:
         required: true
         content:
@@ -349,29 +349,8 @@ components:
 
     UpdateTransactionRequest:
       type: object
-      required:
-        - kind
-        - account
-        - date
-        - amount
-        - content
       properties:
-        kind:
-          $ref: '#/components/schemas/TransactionKind'
-        account:
-          type: integer
-          format: int64
-        date:
-          type: string
-          format: date-time
-        amount:
-          type: number
-          format: double
-        content:
-          type: string
         info:
-          type: string
-        recipient:
           type: string
 
     Rule:

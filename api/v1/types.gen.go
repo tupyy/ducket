@@ -116,13 +116,7 @@ type UpdateRuleRequest struct {
 
 // UpdateTransactionRequest defines model for UpdateTransactionRequest.
 type UpdateTransactionRequest struct {
-	Account   int64           `json:"account"`
-	Amount    float64         `json:"amount"`
-	Content   string          `json:"content"`
-	Date      time.Time       `json:"date"`
-	Info      *string         `json:"info,omitempty"`
-	Kind      TransactionKind `json:"kind"`
-	Recipient *string         `json:"recipient,omitempty"`
+	Info *string `json:"info,omitempty"`
 }
 
 // ListRulesParams defines parameters for ListRules.
