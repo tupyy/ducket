@@ -1,30 +1,30 @@
 import * as React from 'react';
 import {
   Button,
-  TextInputGroup,
-  TextInputGroupMain,
-  TextInputGroupUtilities,
-  Popper,
-  Panel,
-  PanelMain,
-  PanelMainBody,
-  PanelHeader,
-  PanelFooter,
   Checkbox,
-  Title,
-  Divider,
-  Flex,
-  FlexItem,
   DatePicker,
-  LabelGroup,
+  Dropdown,
   Label,
+  LabelGroup,
+  MenuToggle,
+  type MenuToggleElement,
+  Pagination,
+  SearchInput,
+  Toolbar,
+  ToolbarContent,
+  ToolbarGroup,
+  ToolbarItem,
 } from '@patternfly/react-core';
-import FilterIcon from '@patternfly/react-icons/dist/esm/icons/filter-icon';
-import TimesIcon from '@patternfly/react-icons/dist/esm/icons/times-icon';
+import { FilterIcon } from '@patternfly/react-icons';
 
 interface TransactionFilterProps {
   filter: string;
   onFilterChange: (filter: string) => void;
+  total: number;
+  page: number;
+  perPage: number;
+  onSetPage: (event: React.MouseEvent | React.KeyboardEvent | MouseEvent, page: number) => void;
+  onPerPageSelect: (event: React.MouseEvent | React.KeyboardEvent | MouseEvent, perPage: number) => void;
 }
 
 interface FilterState {
@@ -32,6 +32,12 @@ interface FilterState {
   amountTier: string[];
   dateFrom: string;
   dateTo: string;
+}
+
+interface AppliedFilter {
+  category: string;
+  label: string;
+  key: string;
 }
 
 const amountTiers = [
@@ -73,82 +79,86 @@ function buildFilterExpr(state: FilterState): string {
   return parts.join(' and ');
 }
 
-function describeFilter(state: FilterState): string[] {
-  const chips: string[] = [];
-  state.kind.forEach((k) => chips.push(`Type: ${k}`));
-  state.amountTier.forEach((t) => chips.push(`Amount: ${t}`));
+function getAppliedFilters(state: FilterState): AppliedFilter[] {
+  const filters: AppliedFilter[] = [];
+  state.kind.forEach((k) => filters.push({ category: 'Type', label: k, key: `kind-${k}` }));
+  state.amountTier.forEach((t) => filters.push({ category: 'Amount', label: t, key: `tier-${t}` }));
   if (state.dateFrom && state.dateTo) {
-    chips.push(`Date: ${state.dateFrom} to ${state.dateTo}`);
+    filters.push({ category: 'Date', label: `${state.dateFrom} to ${state.dateTo}`, key: 'date' });
   } else if (state.dateFrom) {
-    chips.push(`Date: from ${state.dateFrom}`);
+    filters.push({ category: 'Date', label: `from ${state.dateFrom}`, key: 'date' });
   } else if (state.dateTo) {
-    chips.push(`Date: to ${state.dateTo}`);
+    filters.push({ category: 'Date', label: `to ${state.dateTo}`, key: 'date' });
   }
-  return chips;
+  return filters;
 }
 
-const TransactionFilter: React.FunctionComponent<TransactionFilterProps> = ({ filter, onFilterChange }) => {
+const columnTitleStyle: React.CSSProperties = {
+  fontSize: '13px',
+  fontWeight: 700,
+  marginBottom: '16px',
+  color: 'var(--pf-t--global--text--color--regular)',
+};
+
+const checkboxListStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '12px',
+};
+
+const TransactionFilter: React.FunctionComponent<TransactionFilterProps> = ({
+  filter, onFilterChange, total, page, perPage, onSetPage, onPerPageSelect,
+}) => {
   const [isOpen, setIsOpen] = React.useState(false);
   const [expression, setExpression] = React.useState(filter);
   const [namedFilters, setNamedFilters] = React.useState<FilterState>(emptyFilters);
 
-  const toggleRef = React.useRef<HTMLDivElement>(null);
-  const menuRef = React.useRef<HTMLDivElement>(null);
+  // Temp state for modal
+  const [tempFilters, setTempFilters] = React.useState<FilterState>(emptyFilters);
 
-  const activeChips = describeFilter(namedFilters);
+  const appliedFilters = getAppliedFilters(namedFilters);
 
   React.useEffect(() => {
-    if (!isOpen) return;
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (
-        toggleRef.current && !toggleRef.current.contains(target) &&
-        menuRef.current && !menuRef.current.contains(target)
-      ) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    if (isOpen) {
+      setTempFilters({ ...namedFilters });
+    }
   }, [isOpen]);
 
-  const handleToggleKind = (kind: string, checked: boolean) => {
-    setNamedFilters((prev) => ({
+  const toggleTempKind = (kind: string) => {
+    setTempFilters((prev) => ({
       ...prev,
-      kind: checked ? [...prev.kind, kind] : prev.kind.filter((k) => k !== kind),
+      kind: prev.kind.includes(kind) ? prev.kind.filter((k) => k !== kind) : [...prev.kind, kind],
     }));
   };
 
-  const handleToggleTier = (tier: string, checked: boolean) => {
-    setNamedFilters((prev) => ({
+  const toggleTempTier = (tier: string) => {
+    setTempFilters((prev) => ({
       ...prev,
-      amountTier: checked ? [...prev.amountTier, tier] : prev.amountTier.filter((t) => t !== tier),
+      amountTier: prev.amountTier.includes(tier) ? prev.amountTier.filter((t) => t !== tier) : [...prev.amountTier, tier],
     }));
   };
 
-  const handleApply = () => {
-    const namedExpr = buildFilterExpr(namedFilters);
+  const applyFilters = () => {
+    setNamedFilters(tempFilters);
+    const namedExpr = buildFilterExpr(tempFilters);
     const combined = [expression.trim(), namedExpr].filter(Boolean).join(' and ');
     onFilterChange(combined);
     setIsOpen(false);
   };
 
-  const handleClear = () => {
-    setExpression('');
-    setNamedFilters(emptyFilters);
-    onFilterChange('');
+  const cancelFilters = () => {
     setIsOpen(false);
   };
 
-  const handleRemoveChip = (chip: string) => {
+  const removeFilter = (filterKey: string) => {
     let updated: FilterState;
-    if (chip.startsWith('Type: ')) {
-      const value = chip.replace('Type: ', '');
+    if (filterKey.startsWith('kind-')) {
+      const value = filterKey.replace('kind-', '');
       updated = { ...namedFilters, kind: namedFilters.kind.filter((k) => k !== value) };
-    } else if (chip.startsWith('Amount: ')) {
-      const value = chip.replace('Amount: ', '');
+    } else if (filterKey.startsWith('tier-')) {
+      const value = filterKey.replace('tier-', '');
       updated = { ...namedFilters, amountTier: namedFilters.amountTier.filter((t) => t !== value) };
-    } else if (chip.startsWith('Date:')) {
+    } else if (filterKey === 'date') {
       updated = { ...namedFilters, dateFrom: '', dateTo: '' };
     } else {
       return;
@@ -159,156 +169,176 @@ const TransactionFilter: React.FunctionComponent<TransactionFilterProps> = ({ fi
     onFilterChange(combined);
   };
 
-  const handleExpressionKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === 'Enter') {
-      handleApply();
-    }
+  const clearAllFilters = () => {
+    setExpression('');
+    setNamedFilters(emptyFilters);
+    onFilterChange('');
   };
 
-  const filterPanel = (
-    <Panel ref={menuRef} variant="raised" style={{ minWidth: '500px' }}>
-      <PanelHeader>
-        <Title headingLevel="h4" size="md">Filters</Title>
-      </PanelHeader>
-      <Divider />
-      <PanelMain>
-        <PanelMainBody>
-          <Flex direction={{ default: 'row' }} gap={{ default: 'gap2xl' }}>
-            <FlexItem>
-              <Title headingLevel="h5" size="sm" style={{ marginBottom: '0.5rem' }}>
-                Transaction type
-              </Title>
-              <Checkbox
-                id="filter-kind-debit"
-                label="Debit"
-                isChecked={namedFilters.kind.includes('debit')}
-                onChange={(_evt, checked) => handleToggleKind('debit', checked)}
-              />
-              <Checkbox
-                id="filter-kind-credit"
-                label="Credit"
-                isChecked={namedFilters.kind.includes('credit')}
-                onChange={(_evt, checked) => handleToggleKind('credit', checked)}
-              />
-            </FlexItem>
-            <FlexItem>
-              <Title headingLevel="h5" size="sm" style={{ marginBottom: '0.5rem' }}>
-                Amount tier
-              </Title>
-              {amountTiers.map((tier) => (
-                <Checkbox
-                  key={tier.label}
-                  id={`filter-tier-${tier.label}`}
-                  label={tier.label}
-                  isChecked={namedFilters.amountTier.includes(tier.label)}
-                  onChange={(_evt, checked) => handleToggleTier(tier.label, checked)}
-                />
-              ))}
-            </FlexItem>
-            <FlexItem>
-              <Title headingLevel="h5" size="sm" style={{ marginBottom: '0.5rem' }}>
-                Date range
-              </Title>
-              <div style={{ marginBottom: '0.5rem' }}>
-                <label htmlFor="filter-date-from" style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>From</label>
-                <DatePicker
-                  value={namedFilters.dateFrom}
-                  onChange={(_evt, value) => setNamedFilters((prev) => ({ ...prev, dateFrom: value }))}
-                  placeholder="YYYY-MM-DD"
-                  aria-label="Start date"
-                />
-              </div>
-              <div>
-                <label htmlFor="filter-date-to" style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>To</label>
-                <DatePicker
-                  value={namedFilters.dateTo}
-                  onChange={(_evt, value) => setNamedFilters((prev) => ({ ...prev, dateTo: value }))}
-                  placeholder="YYYY-MM-DD"
-                  aria-label="End date"
-                  rangeStart={namedFilters.dateFrom ? new Date(`${namedFilters.dateFrom}T00:00:00`) : undefined}
-                />
-              </div>
-            </FlexItem>
-          </Flex>
-        </PanelMainBody>
-      </PanelMain>
-      <Divider />
-      <PanelFooter>
-        <Flex>
-          <FlexItem>
-            <Button variant="primary" size="sm" onClick={handleApply}>
-              Apply filters
-            </Button>
-          </FlexItem>
-          <FlexItem>
-            <Button variant="link" size="sm" onClick={handleClear}>
-              Clear
-            </Button>
-          </FlexItem>
-        </Flex>
-      </PanelFooter>
-    </Panel>
-  );
+  const handleSearchChange = (_event: React.FormEvent, value: string) => {
+    setExpression(value);
+  };
+
+  const handleSearchClear = () => {
+    setExpression('');
+    const namedExpr = buildFilterExpr(namedFilters);
+    if (!namedExpr) onFilterChange('');
+  };
+
+  const handleSearchSubmit = () => {
+    const namedExpr = buildFilterExpr(namedFilters);
+    const combined = [expression.trim(), namedExpr].filter(Boolean).join(' and ');
+    onFilterChange(combined);
+  };
 
   return (
-    <Flex direction={{ default: 'column' }} gap={{ default: 'gapSm' }}>
-      <Flex gap={{ default: 'gapSm' }} alignItems={{ default: 'alignItemsCenter' }}>
-        <FlexItem grow={{ default: 'grow' }} style={{ maxWidth: '400px' }}>
-          <TextInputGroup>
-            <TextInputGroupMain
+    <Toolbar>
+      <ToolbarContent>
+        <ToolbarGroup variant="filter-group">
+          <ToolbarItem>
+            <SearchInput
               placeholder="Filter expression..."
               value={expression}
-              onChange={(_evt, val) => setExpression(val)}
-              onKeyDown={handleExpressionKeyDown}
+              onChange={handleSearchChange}
+              onClear={handleSearchClear}
+              onSearch={handleSearchSubmit}
             />
-            {expression && (
-              <TextInputGroupUtilities>
-                <Button
-                  variant="plain"
-                  aria-label="Clear expression"
-                  onClick={() => {
-                    setExpression('');
-                    if (!activeChips.length) onFilterChange('');
-                  }}
-                >
-                  <TimesIcon />
-                </Button>
-              </TextInputGroupUtilities>
-            )}
-          </TextInputGroup>
-        </FlexItem>
-        <FlexItem>
-          <div ref={toggleRef}>
-            <Button
-              variant="secondary"
-              icon={<FilterIcon />}
-              onClick={() => setIsOpen(!isOpen)}
-            >
-              Filters
-            </Button>
-          </div>
-          <Popper
-            triggerRef={toggleRef}
-            popper={filterPanel}
-            popperRef={menuRef}
-            isVisible={isOpen}
-            appendTo={() => document.body}
-          />
-        </FlexItem>
-      </Flex>
+          </ToolbarItem>
 
-      {activeChips.length > 0 && (
-        <FlexItem>
-          <LabelGroup>
-            {activeChips.map((chip) => (
-              <Label key={chip} variant="outline" onClose={() => handleRemoveChip(chip)}>
-                {chip}
-              </Label>
-            ))}
-          </LabelGroup>
-        </FlexItem>
+          <ToolbarItem>
+            <Dropdown
+              isOpen={isOpen}
+              onOpenChange={setIsOpen}
+              toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+                <MenuToggle
+                  ref={toggleRef}
+                  onClick={() => setIsOpen(!isOpen)}
+                  isExpanded={isOpen}
+                  variant="default"
+                >
+                  <FilterIcon /> Filters
+                </MenuToggle>
+              )}
+              popperProps={{ maxWidth: '95vw' }}
+            >
+              <div style={{ padding: '24px', width: '600px', maxWidth: '95vw', overflow: 'visible' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+                  {/* Transaction type column */}
+                  <div>
+                    <h3 style={columnTitleStyle}>Transaction type</h3>
+                    <div style={checkboxListStyle}>
+                      <Checkbox
+                        id="filter-kind-debit"
+                        label="Debit"
+                        isChecked={tempFilters.kind.includes('debit')}
+                        onChange={() => toggleTempKind('debit')}
+                      />
+                      <Checkbox
+                        id="filter-kind-credit"
+                        label="Credit"
+                        isChecked={tempFilters.kind.includes('credit')}
+                        onChange={() => toggleTempKind('credit')}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Amount tier column */}
+                  <div>
+                    <h3 style={columnTitleStyle}>Amount</h3>
+                    <div style={checkboxListStyle}>
+                      {amountTiers.map((tier) => (
+                        <Checkbox
+                          key={tier.label}
+                          id={`filter-tier-${tier.label}`}
+                          label={tier.label}
+                          isChecked={tempFilters.amountTier.includes(tier.label)}
+                          onChange={() => toggleTempTier(tier.label)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Date range column */}
+                  <div>
+                    <h3 style={columnTitleStyle}>Date range</h3>
+                    <div style={checkboxListStyle}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', marginBottom: '4px', color: 'var(--pf-t--global--text--color--regular)' }}>From</label>
+                        <DatePicker
+                          value={tempFilters.dateFrom}
+                          onChange={(_evt, value) => setTempFilters((prev) => ({ ...prev, dateFrom: value }))}
+                          placeholder="YYYY-MM-DD"
+                          aria-label="Start date"
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', marginBottom: '4px', color: 'var(--pf-t--global--text--color--regular)' }}>To</label>
+                        <DatePicker
+                          value={tempFilters.dateTo}
+                          onChange={(_evt, value) => setTempFilters((prev) => ({ ...prev, dateTo: value }))}
+                          placeholder="YYYY-MM-DD"
+                          aria-label="End date"
+                          rangeStart={tempFilters.dateFrom ? new Date(`${tempFilters.dateFrom}T00:00:00`) : undefined}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div style={{ display: 'flex', justifyContent: 'flex-start', gap: '16px', marginTop: '32px', paddingTop: '20px' }}>
+                  <Button variant="primary" onClick={applyFilters}>
+                    Apply filters
+                  </Button>
+                  <Button variant="link" onClick={cancelFilters}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </Dropdown>
+          </ToolbarItem>
+        </ToolbarGroup>
+
+        <ToolbarItem variant="pagination" align={{ default: 'alignEnd' }}>
+          <Pagination
+            itemCount={total}
+            perPage={perPage}
+            page={page}
+            onSetPage={onSetPage}
+            onPerPageSelect={onPerPageSelect}
+            perPageOptions={[
+              { title: '25', value: 25 },
+              { title: '50', value: 50 },
+              { title: '100', value: 100 },
+            ]}
+            isCompact
+          />
+        </ToolbarItem>
+      </ToolbarContent>
+
+      {/* Applied filters chips */}
+      {appliedFilters.length > 0 && (
+        <ToolbarContent alignItems="center">
+          <ToolbarItem>
+            <LabelGroup categoryName="Filters">
+              {appliedFilters.map((f) => (
+                <Label key={f.key} onClose={() => removeFilter(f.key)}>
+                  {f.label}
+                </Label>
+              ))}
+            </LabelGroup>
+          </ToolbarItem>
+          <ToolbarItem>
+            <span>{appliedFilters.length} filter{appliedFilters.length !== 1 ? 's' : ''} applied</span>
+          </ToolbarItem>
+          <ToolbarItem>
+            <Button variant="link" onClick={clearAllFilters}>
+              Clear all filters
+            </Button>
+          </ToolbarItem>
+        </ToolbarContent>
       )}
-    </Flex>
+    </Toolbar>
   );
 };
 

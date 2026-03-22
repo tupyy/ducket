@@ -28,7 +28,7 @@ const BalanceTrendChart: React.FunctionComponent<BalanceTrendChartProps> = ({ da
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="month" />
             <YAxis />
-            <Tooltip formatter={(value: number) => `€${value.toFixed(2)}`} />
+            <Tooltip formatter={(value) => `€${Number(value).toFixed(2)}`} />
             <Legend />
             <Line type="monotone" dataKey="credit" stroke="#4cb140" name="Credits" strokeWidth={2} />
             <Line type="monotone" dataKey="debit" stroke="#c9190b" name="Debits" strokeWidth={2} />

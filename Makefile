@@ -1,4 +1,4 @@
-.PHONY: build vendor test lint run image container-run container-stop
+.PHONY: build vendor test lint run run.ui image container.run container.stop
 
 NAME = ducket
 BUILD_DIR = target
@@ -44,10 +44,13 @@ lint: check-golangci-lint-version $(GOLANGCI_LINT)
 run: build
 	$(BUILD_DIR)/$(NAME) run
 
+run.ui:
+	cd ui && npm run start:dev
+
 image:
 	podman build -f Containerfile --build-arg GIT_SHA=$(GIT_COMMIT) -t $(IMAGE_NAME) .
 
-container-run: image
+container.run:
 	@podman rm -f $(CONTAINER_NAME) 2>/dev/null || true
 	podman run -d \
 		--name $(CONTAINER_NAME) \
@@ -56,6 +59,6 @@ container-run: image
 		$(IMAGE_NAME)
 	@echo "running at http://localhost:8080"
 
-container-stop:
+container.stop:
 	podman stop $(CONTAINER_NAME) 2>/dev/null || true
 	podman rm $(CONTAINER_NAME) 2>/dev/null || true

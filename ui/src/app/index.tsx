@@ -1,5 +1,5 @@
 import * as React from 'react';
-import '@patternfly/patternfly/patternfly.css';
+import '@patternfly/react-core/dist/styles/base.css';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import store from '@app/shared/store';
